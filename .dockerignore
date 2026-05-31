@@ -1,0 +1,9 @@
+**/node_modules
+web/dist
+server/bin
+server/internal/spa/dist
+.git
+planning
+go.work
+.ai-memory.toml
+.mcp.json

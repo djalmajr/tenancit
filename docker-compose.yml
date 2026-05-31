@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: rt
+      POSTGRES_DB: resource_tenant
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RT_ADDR: ":8080"
+      RT_DATABASE_URL: "postgres://postgres:rt@postgres:5432/resource_tenant?sslmode=disable"
+      # demo key (32 bytes, base64). Replace in real deployments.
+      RT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      RT_AES_KEY_VERSION: "1"
+    ports:
+      - "8080:8080"
