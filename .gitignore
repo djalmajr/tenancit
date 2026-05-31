@@ -1,0 +1,14 @@
+# build artifacts
+/server/bin/
+/web/dist/
+/web/node_modules/
+node_modules/
+*.log
+
+# operator-local (já no gitignore global, reforçado aqui)
+.ai-memory.toml
+.mcp.json
+
+# go
+*.test
+/server/tmp/
