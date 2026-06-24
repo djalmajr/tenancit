@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/centralit/resource-tenant/server/internal/store/db"
-	"github.com/centralit/resource-tenant/server/internal/testsupport"
+	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/testsupport"
 )
 
 // Schema invariants verified against a real Postgres (testcontainers).

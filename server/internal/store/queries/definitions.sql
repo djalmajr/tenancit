@@ -11,6 +11,15 @@ SELECT * FROM resource_definitions WHERE key = $1;
 -- name: ListDefinitions :many
 SELECT * FROM resource_definitions ORDER BY name;
 
+-- name: ListDefinitionsWithCounts :many
+SELECT rd.*,
+       count(rf.id)::int AS field_count,
+       count(rf.id) FILTER (WHERE rf.is_secret)::int AS secret_count
+FROM resource_definitions rd
+LEFT JOIN resource_fields rf ON rf.resource_definition_id = rd.id
+GROUP BY rd.id
+ORDER BY rd.name;
+
 -- name: SetDefinitionStatus :one
 UPDATE resource_definitions SET status = $2, updated_at = now()
 WHERE id = $1 RETURNING *;

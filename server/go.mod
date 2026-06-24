@@ -1,4 +1,4 @@
-module github.com/centralit/resource-tenant/server
+module github.com/djalmajr/konvario/server
 
 go 1.25.7
 

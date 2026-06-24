@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "resource-tenant-web",
+      "name": "konvario-web",
       "dependencies": {
         "@base-ui-components/react": "^1.0.0-rc.0",
         "@tanstack/react-router": "^1.58.0",

@@ -2,15 +2,18 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // ResolveQuerier is the read surface needed to resolve a tenant's config.
 type ResolveQuerier interface {
+	GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg db.GetActiveResourceByTenantAndDefinitionKeyParams) (db.TenantResource, error)
 	GetTenantByHostname(ctx context.Context, hostname string) (db.Tenant, error)
 	GetDefinition(ctx context.Context, id uuid.UUID) (db.ResourceDefinition, error)
 	ListFields(ctx context.Context, resourceDefinitionID uuid.UUID) ([]db.ResourceField, error)
@@ -64,46 +67,33 @@ func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTen
 
 // ByHostnameAndDefinition returns a single resource by definition key.
 func (r *Resolver) ByHostnameAndDefinition(ctx context.Context, hostname, defKey string) (ResolvedResource, bool, error) {
-	full, err := r.ByHostname(ctx, hostname)
+	tenant, err := r.q.GetTenantByHostname(ctx, hostname)
 	if err != nil {
 		return ResolvedResource{}, false, err
 	}
-	for _, rr := range full.Resources {
-		if rr.DefinitionKey == defKey {
-			return rr, true, nil
-		}
+	res, err := r.q.GetActiveResourceByTenantAndDefinitionKey(ctx, db.GetActiveResourceByTenantAndDefinitionKeyParams{
+		Key: defKey, TenantID: tenant.ID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ResolvedResource{}, false, nil
 	}
-	return ResolvedResource{}, false, nil
+	if err != nil {
+		return ResolvedResource{}, false, err
+	}
+	rr, err := r.resolveResource(ctx, res)
+	return rr, true, err
 }
 
 func (r *Resolver) resolveResource(ctx context.Context, res db.TenantResource) (ResolvedResource, error) {
-	def, err := r.q.GetDefinition(ctx, res.ResourceDefinitionID)
+	built, err := BuildResourceFields(ctx, BuildResourceFieldsDeps{
+		Cryptor: r.c, Queries: r.q,
+	}, BuildResourceFieldsInput{Resource: res, Reveal: true})
 	if err != nil {
 		return ResolvedResource{}, err
 	}
-	fields, err := r.q.ListFields(ctx, def.ID)
-	if err != nil {
-		return ResolvedResource{}, err
-	}
-	fieldByID := make(map[uuid.UUID]db.ResourceField, len(fields))
-	for _, f := range fields {
-		fieldByID[f.ID] = f
-	}
-	values, err := r.q.ListResourceValues(ctx, res.ID)
-	if err != nil {
-		return ResolvedResource{}, err
-	}
-	rr := ResolvedResource{DefinitionKey: def.Key, Values: map[string]string{}}
-	for _, v := range values {
-		f, ok := fieldByID[v.ResourceFieldID]
-		if !ok {
-			continue
-		}
-		cleartext, err := decodeValue(r.c, v)
-		if err != nil {
-			return ResolvedResource{}, err
-		}
-		rr.Values[f.Key] = cleartext
+	rr := ResolvedResource{DefinitionKey: built.Definition.Key, Values: map[string]string{}}
+	for _, f := range built.Fields {
+		rr.Values[f.Key] = f.Value
 	}
 	return rr, nil
 }

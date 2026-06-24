@@ -3,8 +3,8 @@ package service
 import (
 	"testing"
 
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 )
 
 func newCryptor(t *testing.T) *crypto.Cryptor {

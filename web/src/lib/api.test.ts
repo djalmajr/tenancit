@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { api } from "./api";
+import { api, setAdminToken } from "./api";
 
 // Contract tests for the admin API client: correct method/path/body, and that
 // a non-ok response surfaces an error instead of silently resolving.
@@ -12,7 +12,10 @@ function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise
   return spy;
 }
 
-beforeEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -27,6 +30,14 @@ describe("api client", () => {
     expect(url).toBe("/v1/admin/tenants");
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({ slug: "acme", name: "Acme" });
+  });
+
+  it("sends the configured admin token", async () => {
+    setAdminToken("rt_admin_dev");
+    const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
+    await api.createTenant({ slug: "acme", name: "Acme" });
+    const [, init] = spy.mock.calls[0];
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer rt_admin_dev");
   });
 
   it("setResourceStatus PUTs to the status sub-resource", async () => {
@@ -49,5 +60,16 @@ describe("api client", () => {
   it("throws on a non-ok response", async () => {
     mockFetch(() => new Response("boom", { status: 500 }));
     await expect(api.listTenants()).rejects.toThrow(/500/);
+  });
+
+  it("dispatches admin auth required on 401", async () => {
+    const listener = vi.fn();
+    window.addEventListener("admin-auth-required", listener);
+    mockFetch(() => new Response("missing bearer token", { status: 401 }));
+
+    await expect(api.listTenants()).rejects.toThrow(/autenticação admin necessária/);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener("admin-auth-required", listener);
   });
 });

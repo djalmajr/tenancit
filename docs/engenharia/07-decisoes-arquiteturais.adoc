@@ -1,0 +1,27 @@
+[#eng-decisoes-arquiteturais]
+=== Decisões arquiteturais
+
+As decisões estruturais ficam em link:../adr/README.md[`docs/adr/`]. Leia os
+ADRs quando for alterar stack, modelo de dados, autenticação, criptografia ou
+fronteiras de serviço.
+
+[cols="1,2,1",options="header"]
+|===
+| # | Decisão | Status
+
+| link:../adr/0001-servico-autonomo-go-sqlc-spa-embutida.md[0001]
+| Serviço autônomo em Go, sqlc e SPA embutida
+| Aceito
+
+| link:../adr/0002-modelo-dinamico-definition-resource-values.md[0002]
+| Modelo dinâmico com definitions, resources e values
+| Aceito
+
+| link:../adr/0003-secrets-server-side-aes-gcm.md[0003]
+| Secrets cifrados com AES-GCM e decrypt server-side
+| Aceito
+
+| link:../adr/0004-admin-token-e-api-clients.md[0004]
+| Separação entre admin token e API clients de consumo
+| Aceito
+|===

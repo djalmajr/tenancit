@@ -1,0 +1,105 @@
+[#eng-contratos-http]
+=== Contratos HTTP
+
+Todas as rotas de API usam o prefixo `/v1`. O painel SPA é servido pelo mesmo
+binário e usa a API admin same-origin.
+
+==== Admin API
+
+Proteção: `Authorization: Bearer <RT_ADMIN_TOKEN>`.
+
+[cols="1,2,3",options="header"]
+|===
+| Método | Path | Uso
+
+| `GET`
+| `/v1/admin/overview`
+| Métricas e cards resumidos do painel.
+
+| `POST`, `GET`, `GET`, `PUT`
+| `/v1/admin/tenants`, `/v1/admin/tenants/{id}`
+| CRUD principal de tenants.
+
+| `POST`, `GET`, `DELETE`
+| `/v1/admin/tenants/{id}/domains`
+| Hostnames associados ao tenant.
+
+| `POST`, `GET`, `PUT`, `DELETE`
+| `/v1/admin/tenants/{id}/resources`
+| Provisionamento, listagem, status e remoção de resources.
+
+| `POST`, `GET`, `PUT`
+| `/v1/admin/resource-definitions`
+| Catálogo de definitions.
+
+| `POST`, `DELETE`
+| `/v1/admin/resource-definitions/{id}/fields`
+| Gestão de fields da definition.
+
+| `POST`, `GET`, `PUT`
+| `/v1/admin/api-clients`
+| Criação, listagem e revogação de API clients.
+|===
+
+Segredos na listagem admin são mascarados por padrão. A query
+`?reveal=true` só deve ser usada por ação explícita de operador autenticado.
+
+==== Consumer API
+
+Proteção: `Authorization: Bearer <api-client-token>`.
+
+[source,http]
+----
+GET /v1/resolve?hostname=cliente.example.com
+Authorization: Bearer rt_live_...
+----
+
+Resposta:
+
+[source,json]
+----
+{
+  "tenantSlug": "cliente",
+  "resources": [
+    {
+      "definitionKey": "postgres",
+      "values": {
+        "host": "db.internal",
+        "password": "cleartext-over-tls"
+      }
+    }
+  ]
+}
+----
+
+Atalho por tipo:
+
+[source,http]
+----
+GET /v1/resolve/{hostname}/resources/{definitionKey}
+Authorization: Bearer rt_live_...
+----
+
+==== Erros esperados
+
+[cols="1,3",options="header"]
+|===
+| Status | Situação
+
+| `400`
+| Payload inválido, id inválido, definition desconhecida/inativa ou campo
+  obrigatório ausente.
+
+| `401`
+| Token admin/API ausente, inválido ou revogado.
+
+| `404`
+| Hostname ou resource não encontrado no consumo.
+
+| `409`
+| Violação de unicidade, como hostname duplicado ou segundo resource ativo do
+  mesmo tipo para o tenant.
+
+| `500`
+| Erro inesperado de banco, cripto ou infraestrutura.
+|===

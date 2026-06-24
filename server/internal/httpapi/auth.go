@@ -2,11 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
-	"github.com/centralit/resource-tenant/server/internal/service"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/service"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 )
 
 // apiKeyLookup resolves a key hash to a client; error if absent.
@@ -27,6 +28,21 @@ func RequireAPIKey(q apiKeyLookup) func(http.Handler) http.Handler {
 			client, err := q.GetAPIClientByHash(r.Context(), service.HashAPIKey(token))
 			if err != nil || client.Status != "active" {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid api key"})
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequireAdminToken protects the human/admin API surface with RT_ADMIN_TOKEN.
+func RequireAdminToken(adminTokenHash string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := bearerToken(r)
+			hash := service.HashAPIKey(token)
+			if token == "" || subtle.ConstantTimeCompare([]byte(hash), []byte(adminTokenHash)) != 1 {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid admin token"})
 				return
 			}
 			next.ServeHTTP(w, r)

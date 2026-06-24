@@ -1,0 +1,41 @@
+---
+id: resource-definition-management
+name: Criar e manter resource definition
+reference: docs/produto/03-jornadas-operacionais.adoc#criar-um-novo-tipo-de-recurso
+persona: platform-operator
+entry: "http://localhost:5180/"
+preconditions:
+  - app no ar em modo desenvolvimento
+  - token administrativo válido disponível: `rt_admin_dev`
+  - usar uma key única por rodada, por exemplo `postgres-e2e`
+design_refs:
+  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
+  definition-detail: "planning/konvario/proto/routes/definition-detail.js"
+---
+
+## Objetivo do usuário
+
+Criar um tipo de recurso dinâmico, definir campos obrigatórios/secretos e controlar seu status.
+
+## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
+
+1. (`definitions-list`) Autenticar-se se necessário e clicar em **Resource Definitions** na sidebar → a grade de definitions aparece.
+2. (`definitions-list`) Clicar em **Nova definition** → o diálogo abre com campos Key, Nome e Descrição.
+3. (`definitions-list`) Preencher Key, Nome e Descrição e clicar em **Criar definition** → a aplicação navega para o detalhe da nova definition.
+4. (`definition-detail`) Clicar em **Novo campo** → o diálogo **"Novo campo"** abre.
+5. (`definition-detail`) Preencher Chave `host`, Label `Host`, manter tipo `string`, marcar **Obrigatório** e clicar em **Adicionar campo** → o campo aparece na tabela com check em Required.
+6. (`definition-detail`) Clicar em **Novo campo** novamente, preencher Chave `password`, Label `Password`, marcar **Obrigatório** e **Secret** e clicar em **Adicionar campo** → o campo aparece com checks em Required e Secret.
+7. (`definition-detail`) Clicar em **Desativar** → o status da definition muda para inactive e a ação muda para Ativar.
+8. (`definition-detail`) Clicar em **Ativar** → o status volta para active.
+9. (`definition-detail`) Remover um campo pelo botão de lixeira → o campo deixa de aparecer na tabela.
+10. (`definitions-list`) Voltar para **Resource Definitions** pela breadcrumb → o card da definition mostra contagem atualizada de campos e secrets.
+
+## Resultado esperado
+
+O operador consegue criar uma definition, adicionar campos dinâmicos, identificar campos obrigatórios/secretos, alternar status e remover campos pela UI.
+
+## Estado atual × design
+
+- A lista e o detalhe existem em `web/src/routes/definitions.tsx` e `web/src/routes/definition-detail.tsx`.
+- A implementação atual usa ícones inferidos pela key; o IconPicker do protótipo não está presente na SPA real.
+- Remoção de campo não tem confirmação dedicada; validar se isso é aceitável para uma definition já usada.

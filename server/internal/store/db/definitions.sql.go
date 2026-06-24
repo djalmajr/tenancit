@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -149,6 +150,60 @@ func (q *Queries) ListDefinitions(ctx context.Context) ([]ResourceDefinition, er
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDefinitionsWithCounts = `-- name: ListDefinitionsWithCounts :many
+SELECT rd.id, rd.key, rd.name, rd.description, rd.icon, rd.status, rd.created_at, rd.updated_at,
+       count(rf.id)::int AS field_count,
+       count(rf.id) FILTER (WHERE rf.is_secret)::int AS secret_count
+FROM resource_definitions rd
+LEFT JOIN resource_fields rf ON rf.resource_definition_id = rd.id
+GROUP BY rd.id
+ORDER BY rd.name
+`
+
+type ListDefinitionsWithCountsRow struct {
+	ID          uuid.UUID `json:"id"`
+	Key         string    `json:"key"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	FieldCount  int32     `json:"field_count"`
+	SecretCount int32     `json:"secret_count"`
+}
+
+func (q *Queries) ListDefinitionsWithCounts(ctx context.Context) ([]ListDefinitionsWithCountsRow, error) {
+	rows, err := q.db.Query(ctx, listDefinitionsWithCounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDefinitionsWithCountsRow
+	for rows.Next() {
+		var i ListDefinitionsWithCountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FieldCount,
+			&i.SecretCount,
 		); err != nil {
 			return nil, err
 		}

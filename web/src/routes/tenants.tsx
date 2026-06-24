@@ -10,6 +10,7 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
+import { formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Tenant } from "@/lib/api";
 
 export const Route = createRoute({
@@ -19,14 +20,19 @@ export const Route = createRoute({
 });
 
 function Tenants() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "" });
   const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
 
-  const load = () => api.listTenants().then((t) => setTenants(t ?? [])).catch(() => {});
+  const load = () => api.listTenants().then((t) => {
+    setPageError("");
+    setTenants(t ?? []);
+  }).catch((e) => setPageError(String(e)));
   useEffect(() => void load(), []);
 
   const filtered = tenants.filter(
@@ -49,37 +55,39 @@ function Tenants() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tenants</h1>
-          <p className="text-muted-foreground">Clientes e seus domínios.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("tenants.title")}</h1>
+          <p className="text-muted-foreground">{t("tenants.description")}</p>
         </div>
-        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> Novo tenant</Button>
+        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("tenants.new")}</Button>
       </div>
+
+      {pageError && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{pageError}</div>}
 
       <div className="relative max-w-sm">
         <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-        <Input className="pl-8" placeholder="Buscar por nome ou slug..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input className="pl-8" placeholder={t("tenants.search")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
       <Card>
         <Table>
           <THead>
             <TR>
-              <TH>Nome</TH>
-              <TH>Slug</TH>
-              <TH>Status</TH>
+              <TH>{t("common.name")}</TH>
+              <TH>{t("common.slug")}</TH>
+              <TH>{t("common.status")}</TH>
               <TH className="w-10"></TH>
             </TR>
           </THead>
           <TBody>
-            {filtered.map((t) => (
+            {filtered.map((tenant) => (
               <TR
-                key={t.id}
+                key={tenant.id}
                 className="cursor-pointer"
-                onClick={() => navigate({ to: "/tenants/$id", params: { id: t.id } })}
+                onClick={() => navigate({ to: "/tenants/$id", params: { id: tenant.id } })}
               >
-                <TD className="font-medium">{t.name}</TD>
-                <TD><code className="text-xs">{t.slug}</code></TD>
-                <TD><Badge variant={t.status === "active" ? "default" : "secondary"}>{t.status}</Badge></TD>
+                <TD className="font-medium">{tenant.name}</TD>
+                <TD><code className="text-xs">{tenant.slug}</code></TD>
+                <TD><Badge variant={tenant.status === "active" ? "default" : "secondary"}>{formatStatus(tenant.status, t)}</Badge></TD>
                 <TD><ChevronRight className="size-4 text-muted-foreground" /></TD>
               </TR>
             ))}
@@ -90,23 +98,23 @@ function Tenants() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo tenant</DialogTitle>
-            <DialogDescription>Cadastre um cliente. Domínios e recursos são adicionados em seguida.</DialogDescription>
+            <DialogTitle>{t("tenants.newDialog.title")}</DialogTitle>
+            <DialogDescription>{t("tenants.newDialog.description")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Nome</label>
+              <label className="text-sm font-medium">{t("common.name")}</label>
               <Input placeholder="Acme Corp" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Slug</label>
+              <label className="text-sm font-medium">{t("common.slug")}</label>
               <Input placeholder="acme" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancelar</Button>} />
-            <Button disabled={!form.slug || !form.name} onClick={create}>Criar tenant</Button>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button disabled={!form.slug || !form.name} onClick={create}>{t("tenants.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -3,9 +3,8 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/centralit/resource-tenant/server/internal/service"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
-	"github.com/google/uuid"
+	"github.com/djalmajr/konvario/server/internal/service"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 )
 
 // listTenantDomains: GET /v1/admin/tenants/{id}/domains
@@ -26,22 +25,13 @@ func (s *Server) listTenantDomains(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, domains)
 }
 
-type adminFieldValue struct {
-	Key      string `json:"key"`
-	Label    string `json:"label"`
-	DataType string `json:"dataType"`
-	Required bool   `json:"required"`
-	IsSecret bool   `json:"isSecret"`
-	Value    string `json:"value"`
-}
-
 type adminResource struct {
-	ID            string            `json:"id"`
-	DefinitionKey string            `json:"definitionKey"`
-	DefinitionID  string            `json:"definitionId"`
-	Name          string            `json:"name"`
-	Status        string            `json:"status"`
-	Fields        []adminFieldValue `json:"fields"`
+	ID            string                       `json:"id"`
+	DefinitionKey string                       `json:"definitionKey"`
+	DefinitionID  string                       `json:"definitionId"`
+	Name          string                       `json:"name"`
+	Status        string                       `json:"status"`
+	Fields        []service.ResourceFieldValue `json:"fields"`
 }
 
 // listTenantResources: GET /v1/admin/tenants/{id}/resources?reveal=true
@@ -64,50 +54,21 @@ func (s *Server) listTenantResources(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]adminResource, 0, len(resources))
 	for _, res := range resources {
-		def, err := s.Q.GetDefinition(ctx, res.ResourceDefinitionID)
+		built, err := service.BuildResourceFields(ctx, service.BuildResourceFieldsDeps{
+			Cryptor: s.Cryptor, Queries: s.Q,
+		}, service.BuildResourceFieldsInput{Resource: res, Reveal: reveal})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
-		}
-		fields, err := s.Q.ListFields(ctx, def.ID)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		values, err := s.Q.ListResourceValues(ctx, res.ID)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		valueByField := make(map[uuid.UUID]db.TenantResourceValue, len(values))
-		for _, v := range values {
-			valueByField[v.ResourceFieldID] = v
 		}
 
 		ar := adminResource{
 			ID:            res.ID.String(),
-			DefinitionKey: def.Key,
-			DefinitionID:  def.ID.String(),
-			Name:          def.Name,
+			DefinitionKey: built.Definition.Key,
+			DefinitionID:  built.Definition.ID.String(),
+			Name:          built.Definition.Name,
 			Status:        res.Status,
-		}
-		for _, f := range fields {
-			fv := adminFieldValue{
-				Key:      f.Key,
-				Label:    f.Label,
-				DataType: f.DataType,
-				Required: f.Required,
-				IsSecret: f.IsSecret,
-			}
-			if v, ok := valueByField[f.ID]; ok {
-				shown, err := service.PresentValue(s.Cryptor, f.IsSecret, v, reveal)
-				if err != nil {
-					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-					return
-				}
-				fv.Value = shown
-			}
-			ar.Fields = append(ar.Fields, fv)
+			Fields:        built.Fields,
 		}
 		out = append(out, ar)
 	}

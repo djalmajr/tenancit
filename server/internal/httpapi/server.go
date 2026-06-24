@@ -3,23 +3,33 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/service"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/service"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Server holds dependencies shared by handlers.
 type Server struct {
-	Q        *db.Queries
-	Cryptor  *crypto.Cryptor
-	Resolver *service.Resolver
+	AdminTokenHash string
+	Cryptor        *crypto.Cryptor
+	DB             *pgxpool.Pool
+	Q              *db.Queries
+	Resolver       *service.Resolver
 }
 
-// NewServer wires a Server from a queries handle and cryptor.
-func NewServer(q *db.Queries, c *crypto.Cryptor) *Server {
-	return &Server{Q: q, Cryptor: c, Resolver: service.NewResolver(q, c)}
+// NewServer wires a Server from the database pool, cryptor, and admin token.
+func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server {
+	q := db.New(pool)
+	return &Server{
+		AdminTokenHash: service.HashAPIKey(adminToken),
+		Cryptor:        c,
+		DB:             pool,
+		Q:              q,
+		Resolver:       service.NewResolver(q, c),
+	}
 }
 
 // Routes builds the full router: health, consumer API (api-key), admin API,
@@ -38,6 +48,8 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 	})
 
 	r.Route("/v1/admin", func(ar chi.Router) {
+		ar.Use(RequireAdminToken(s.AdminTokenHash))
+
 		ar.Get("/overview", s.overview)
 
 		ar.Post("/tenants", s.createTenant)

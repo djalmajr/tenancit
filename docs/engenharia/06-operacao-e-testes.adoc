@@ -1,0 +1,65 @@
+[#eng-operacao-testes]
+=== Operação e testes
+
+==== Variáveis obrigatórias
+
+[cols="1,3",options="header"]
+|===
+| Variável | Descrição
+
+| `RT_ADDR`
+| Endereço do HTTP server. Default: `:8080`.
+
+| `RT_DATABASE_URL`
+| DSN PostgreSQL. Obrigatória.
+
+| `RT_ADMIN_TOKEN`
+| Token de acesso ao painel e `/v1/admin/*`. Obrigatória.
+
+| `RT_AES_KEY`
+| Chave AES-256-GCM atual em base64. Obrigatória.
+
+| `RT_AES_KEY_VERSION`
+| Versão da chave atual. Opcional; use explicitamente em produção.
+|===
+
+==== Gates locais
+
+[source,bash]
+----
+make test-go
+make test-web
+----
+
+`make test-go` roda `go vet ./...` e `go test ./...`. Os testes HTTP/store usam
+testcontainers e pulam se Docker não estiver disponível. `make test-web` roda
+`bunx tsc --noEmit`.
+
+Para rodar a suíte web com Vitest:
+
+[source,bash]
+----
+cd web && bun run test
+----
+
+==== Healthcheck
+
+[source,http]
+----
+GET /healthz
+----
+
+Resposta esperada:
+
+[source,json]
+----
+{"status":"ok"}
+----
+
+==== Operação segura
+
+* Guarde `RT_ADMIN_TOKEN`, `RT_AES_KEY` e API client tokens em secret manager.
+* Rotacione API clients revogando o antigo e criando um novo.
+* Não reutilize a chave AES de demo do compose.
+* Exponha `/v1/resolve` apenas por TLS.
+* Trate `?reveal=true` como operação sensível.
