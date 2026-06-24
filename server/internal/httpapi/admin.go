@@ -2,10 +2,11 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
-	"github.com/centralit/resource-tenant/server/internal/service"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/service"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -98,20 +99,20 @@ type definitionListItem struct {
 
 func (s *Server) listDefinitions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ds, err := s.Q.ListDefinitions(ctx)
+	ds, err := s.Q.ListDefinitionsWithCounts(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 	out := make([]definitionListItem, 0, len(ds))
 	for _, d := range ds {
-		item := definitionListItem{ResourceDefinition: d}
-		fields, _ := s.Q.ListFields(ctx, d.ID)
-		item.FieldCount = len(fields)
-		for _, f := range fields {
-			if f.IsSecret {
-				item.SecretCount++
-			}
+		item := definitionListItem{
+			ResourceDefinition: db.ResourceDefinition{
+				ID: d.ID, Key: d.Key, Name: d.Name, Description: d.Description, Icon: d.Icon,
+				Status: d.Status, CreatedAt: d.CreatedAt, UpdatedAt: d.UpdatedAt,
+			},
+			FieldCount:  int(d.FieldCount),
+			SecretCount: int(d.SecretCount),
 		}
 		out = append(out, item)
 	}
@@ -163,57 +164,32 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "definitionKey required"})
 		return
 	}
-	ctx := r.Context()
-
-	def, err := s.Q.GetDefinitionByKey(ctx, in.DefinitionKey)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown definition"})
-		return
-	}
-	if def.Status != "active" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "definition is inactive"}) // RN-08
-		return
-	}
-	fields, err := s.Q.ListFields(ctx, def.ID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	for _, f := range fields { // RN-03
-		if f.Required {
-			if v, ok := in.Values[f.Key]; !ok || v == "" {
-				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: " + f.Key})
-				return
-			}
-		}
-	}
-
-	res, err := s.Q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
-		TenantID: tenantID, ResourceDefinitionID: def.ID,
+	res, err := service.ProvisionResource(r.Context(), service.ProvisionResourceDeps{
+		Cryptor: s.Cryptor, Queries: s.Q, TxStarter: s.DB,
+	}, service.ProvisionResourceInput{
+		DefinitionKey: in.DefinitionKey, TenantID: tenantID, Values: in.Values,
 	})
-	if err != nil { // RN-01 unique violation surfaces here
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "an active resource of this type already exists"})
+	if err != nil {
+		writeProvisionError(w, err)
 		return
-	}
-
-	for _, f := range fields {
-		raw, ok := in.Values[f.Key]
-		if !ok {
-			continue
-		}
-		p, err := service.EncodeValueFor(s.Cryptor, f.IsSecret, raw) // RN-04
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
-		p.TenantResourceID = res.ID
-		p.ResourceFieldID = f.ID
-		if _, err := s.Q.UpsertResourceValue(ctx, p); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			return
-		}
 	}
 	writeJSON(w, http.StatusCreated, res)
+}
+
+func writeProvisionError(w http.ResponseWriter, err error) {
+	var missing service.MissingRequiredFieldError
+	switch {
+	case errors.Is(err, service.ErrUnknownDefinition):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown definition"})
+	case errors.Is(err, service.ErrInactiveDefinition):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "definition is inactive"})
+	case errors.As(err, &missing):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": missing.Error()})
+	case errors.Is(err, service.ErrActiveResourceExists):
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "an active resource of this type already exists"})
+	default:
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
 }
 
 // --- api clients ---

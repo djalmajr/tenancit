@@ -1,0 +1,42 @@
+[#prod-jornadas]
+=== Jornadas operacionais
+
+==== Cadastrar um tenant
+
+. Abrir o painel admin.
+. Informar o token administrativo quando o painel solicitar autenticação.
+. Criar o tenant com `slug` e `name`.
+. Adicionar um ou mais domains exatos.
+. Provisionar recursos usando definitions ativas.
+
+Resultado esperado: chamadas de consumo para os hostnames cadastrados passam a
+resolver o tenant e seus recursos ativos.
+
+==== Criar um novo tipo de recurso
+
+. Criar uma `resource definition` com `key` estável.
+. Adicionar fields, marcando os obrigatórios e secretos.
+. Ativar a definition.
+. Provisionar o recurso nos tenants que precisam dela.
+
+Novo tipo de recurso é dado operacional, não alteração de schema. Se um contrato
+precisar mudar de forma incompatível, a prática recomendada é criar uma nova
+`key` de definition.
+
+==== Entregar credencial para consumidor
+
+. Criar um API client no painel admin.
+. Copiar o token exibido uma única vez.
+. Entregar o token ao serviço consumidor por secret manager ou variável de
+   ambiente.
+. O consumidor chama `/v1/resolve` com `Authorization: Bearer <token>`.
+
+Se o token for comprometido, o API client deve ser revogado e substituído por
+um novo.
+
+==== Revelar segredos no painel
+
+Por padrão, a listagem admin traz campos secretos mascarados. O painel só chama
+`?reveal=true` quando o operador aciona *Revelar segredos*. Essa ação faz os
+segredos trafegarem até o browser; por isso deve ficar restrita a sessões e
+ambientes confiáveis.

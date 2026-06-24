@@ -1,4 +1,5 @@
 {
+  "name": "konvario",
   "devDependencies": {
     "shadcn": "^4.8.3"
   }

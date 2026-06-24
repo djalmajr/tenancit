@@ -1,0 +1,46 @@
+services:
+  api-dev:
+    image: golang:1.25-alpine
+    working_dir: /workspace/server
+    command: >
+      sh -c "apk add --no-cache git >/dev/null &&
+             go run ./cmd/server"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RT_ADDR: ":8080"
+      RT_DATABASE_URL: "postgres://postgres:rt@postgres:5432/konvario?sslmode=disable"
+      RT_ADMIN_TOKEN: "rt_admin_dev"
+      RT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      RT_AES_KEY_VERSION: "1"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./:/workspace
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+
+  web-dev:
+    image: oven/bun:1.3-alpine
+    working_dir: /workspace/web
+    command: >
+      sh -c "bun install --frozen-lockfile &&
+             bun run dev -- --host 0.0.0.0"
+    depends_on:
+      - api-dev
+    environment:
+      VITE_API_PROXY_TARGET: "http://api-dev:8080"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5180:5180"
+    volumes:
+      - ./:/workspace
+      - web-node-modules:/workspace/web/node_modules
+      - bun-cache:/root/.bun/install/cache
+
+volumes:
+  bun-cache:
+  go-build-cache:
+  go-mod-cache:
+  web-node-modules:

@@ -1,0 +1,42 @@
+[#prod-escopo-roadmap]
+=== Escopo e roadmap
+
+==== Escopo atual
+
+* Serviço Go com API HTTP e SPA admin embutida.
+* PostgreSQL como única dependência persistente.
+* Migrations via goose e consultas type-safe via sqlc.
+* Criptografia AES-256-GCM com `key_version`.
+* Resolução por hostname exato.
+* API key server-to-server para consumo.
+* Token dedicado para admin.
+* Dockerfile e `docker-compose.yml` para execução local/containerizada.
+
+==== Fora do escopo atual
+
+* Login humano completo para o painel admin via IdP.
+* Auditoria detalhada de ações administrativas.
+* Rotação automática de chaves AES.
+* Multi-região ou cache distribuído.
+* Versionamento coexistente de definitions.
+
+==== Próximos incrementos recomendados
+
+[cols="1,3",options="header"]
+|===
+| Prioridade | Incremento
+
+| P1
+| Login humano do painel admin, mantendo `RT_ADMIN_TOKEN` como bootstrap ou
+  break-glass.
+
+| P1
+| Auditoria de ações admin: quem alterou, quando e qual recurso foi afetado.
+
+| P2
+| Query enriquecida para listar tenant resources em uma única ida ao banco,
+  mantendo a montagem canônica no pacote de serviço.
+
+| P2
+| Fluxo guiado de rotação de chave AES usando `key_version`.
+|===

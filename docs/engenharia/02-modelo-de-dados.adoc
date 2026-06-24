@@ -1,0 +1,51 @@
+[#eng-modelo-dados]
+=== Modelo de dados
+
+O schema inicial está em `server/migrations/00001_init.sql`. A modelagem é
+dinâmica: o tipo de recurso é dado (`resource_definitions` + `resource_fields`)
+e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
+
+[cols="1,3",options="header"]
+|===
+| Tabela | Papel
+
+| `tenants`
+| Cliente lógico. Possui `slug`, `name` e `status`.
+
+| `tenant_domains`
+| Hostnames exatos associados a tenants. `hostname` é único globalmente.
+
+| `resource_definitions`
+| Catálogo de tipos de recurso. `key` é única e estável.
+
+| `resource_fields`
+| Campos de cada definition, com flags `required` e `is_secret`.
+
+| `tenant_resources`
+| Instância de uma definition para um tenant. Índice parcial garante uma
+  instância ativa por `(tenant_id, resource_definition_id)`.
+
+| `tenant_resource_values`
+| Valores dos fields. Guarda `value_plain` para campos não secretos e
+  `value_cipher`, `nonce`, `key_version` para secrets.
+
+| `api_clients`
+| Tokens server-to-server. Guarda apenas hash SHA-256 do token bruto.
+|===
+
+==== Invariantes
+
+* `tenant_domains.hostname` é único.
+* `resource_definitions.key` é único.
+* `resource_fields` é único por `(resource_definition_id, key)`.
+* `tenant_resources` tem no máximo um registro ativo por `(tenant, definition)`.
+* `tenant_resource_values` é único por `(tenant_resource_id, resource_field_id)`.
+* Campos obrigatórios são validados no provisionamento.
+* Recurso só pode ser provisionado a partir de definition ativa.
+
+==== Transação de provisionamento
+
+Criar um tenant resource e seus values é uma unidade atômica. O serviço
+`ProvisionResource` abre transação, valida definition/fields, insere o resource
+e grava todos os values. Se qualquer etapa falhar, nenhuma linha parcial deve
+ficar persistida.

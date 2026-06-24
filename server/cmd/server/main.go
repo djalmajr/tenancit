@@ -10,11 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/httpapi"
-	"github.com/centralit/resource-tenant/server/internal/spa"
-	"github.com/centralit/resource-tenant/server/internal/store"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/httpapi"
+	"github.com/djalmajr/konvario/server/internal/spa"
+	"github.com/djalmajr/konvario/server/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -30,6 +29,10 @@ func run() error {
 	dsn := os.Getenv("RT_DATABASE_URL")
 	if dsn == "" {
 		return errors.New("RT_DATABASE_URL is required")
+	}
+	adminToken := os.Getenv("RT_ADMIN_TOKEN")
+	if adminToken == "" {
+		return errors.New("RT_ADMIN_TOKEN is required")
 	}
 
 	if err := store.Migrate(dsn); err != nil {
@@ -52,7 +55,7 @@ func run() error {
 		return err
 	}
 
-	srv := httpapi.NewServer(db.New(pool), cryptor)
+	srv := httpapi.NewServer(pool, cryptor, adminToken)
 	httpServer := &http.Server{
 		Addr:              addr,
 		Handler:           srv.Routes(staticHandler),

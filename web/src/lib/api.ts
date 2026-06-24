@@ -1,11 +1,39 @@
 // Thin client for the admin API. Same-origin (SPA served by the Go binary).
 const BASE = "/v1/admin";
+const ADMIN_TOKEN_KEY = "konvarioAdminToken";
+const ADMIN_AUTH_REQUIRED_EVENT = "admin-auth-required";
+
+export function clearAdminToken() {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.dispatchEvent(new Event("admin-token-change"));
+}
+
+export function getAdminToken(): string {
+  return localStorage.getItem(ADMIN_TOKEN_KEY) ?? "";
+}
+
+export function setAdminToken(token: string) {
+  localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  window.dispatchEvent(new Event("admin-token-change"));
+}
+
+function notifyAdminAuthRequired(message: string) {
+  window.dispatchEvent(new CustomEvent(ADMIN_AUTH_REQUIRED_EVENT, { detail: { message } }));
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAdminToken();
   const res = await fetch(BASE + path, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...init,
   });
+  if (res.status === 401) {
+    notifyAdminAuthRequired("Informe o token administrativo para acessar o painel.");
+    throw new Error("401: autenticação admin necessária");
+  }
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

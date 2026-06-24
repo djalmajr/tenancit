@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+// Admin routes require the dedicated RT_ADMIN_TOKEN boundary.
+// Mutation captured: removing RequireAdminToken from /v1/admin makes this 200.
+func TestAdmin_RequiresAdminToken(t *testing.T) {
+	_, h := newTestServer(t)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/v1/admin/overview", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("got %d, want 401 without admin token", rec.Code)
+	}
+}
+
 // RN-03: required field missing on resource create must be rejected (400),
 // before any row is written.
 // Mutation captured: deleting the `if f.Required { ... }` loop flips this to 201.

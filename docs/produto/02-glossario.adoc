@@ -1,0 +1,36 @@
+[#prod-glossario]
+=== Glossário
+
+[cols="1,3",options="header"]
+|===
+| Termo | Significado
+
+| Tenant
+| Cliente lógico atendido pela plataforma. Possui `slug`, `name`, `status` e
+  zero ou mais hostnames.
+
+| Tenant domain
+| Hostname exato que resolve para um tenant. O hostname é globalmente único.
+
+| Resource definition
+| Tipo de recurso configurável, como `postgres`, `storage`, `keycloak` ou
+  `smtp`. Define os campos esperados para aquele tipo.
+
+| Resource field
+| Campo de uma definition. Pode ser obrigatório e/ou secreto.
+
+| Tenant resource
+| Instância de uma definition para um tenant específico. Apenas uma instância
+  ativa por `(tenant, definition)` é permitida.
+
+| Resource value
+| Valor de um campo de recurso. Campos secretos são cifrados em repouso.
+
+| API client
+| Credencial server-to-server usada pelos consumidores da API `/v1/resolve`.
+  O token bruto é exibido apenas na criação; o banco guarda só o hash.
+
+| Admin token
+| Token operacional definido por `RT_ADMIN_TOKEN`, usado para acessar
+  `/v1/admin/*` e o painel embutido.
+|===

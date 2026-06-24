@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -165,42 +165,39 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	out := overviewResponse{TenantCards: []overviewTenant{}}
 
-	tenants, err := s.Q.ListTenants(ctx)
+	cards, err := s.Q.ListOverviewTenantCards(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	out.Tenants = len(tenants)
-	for _, t := range tenants {
-		card := overviewTenant{ID: t.ID.String(), Name: t.Name, Slug: t.Slug, Status: t.Status}
+	out.Tenants = len(cards)
+	for _, t := range cards {
+		card := overviewTenant{
+			ID: t.ID.String(), Name: t.Name, PrimaryHost: t.PrimaryHost,
+			ResourceCount: int(t.ResourceCount), Slug: t.Slug, Status: t.Status,
+		}
 		if t.Status == "active" {
 			out.ActiveTenants++
 		}
-		domains, _ := s.Q.ListTenantDomains(ctx, t.ID)
-		out.Domains += len(domains)
-		if len(domains) > 0 {
-			card.PrimaryHost = domains[0].Hostname
-		}
-		resources, _ := s.Q.ListActiveResourcesByTenant(ctx, t.ID)
-		card.ResourceCount = len(resources)
-		out.Resources += len(resources)
+		out.Domains += int(t.DomainCount)
+		out.Resources += int(t.ResourceCount)
 		out.TenantCards = append(out.TenantCards, card)
 	}
 
-	defs, err := s.Q.ListDefinitions(ctx)
-	if err == nil {
-		out.Definitions = len(defs)
-		for _, d := range defs {
-			if d.Status == "active" {
-				out.ActiveDefinitions++
-			}
-		}
+	defs, err := s.Q.CountDefinitionsSummary(ctx)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
+	out.Definitions = int(defs.Definitions)
+	out.ActiveDefinitions = int(defs.ActiveDefinitions)
 
-	clients, err := s.Q.ListAPIClients(ctx)
-	if err == nil {
-		out.APIClients = len(clients)
+	clients, err := s.Q.CountAPIClients(ctx)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
 	}
+	out.APIClients = int(clients)
 
 	writeJSON(w, http.StatusOK, out)
 }

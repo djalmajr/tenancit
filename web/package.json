@@ -1,5 +1,5 @@
 {
-  "name": "resource-tenant-web",
+  "name": "konvario-web",
   "private": true,
   "type": "module",
   "scripts": {

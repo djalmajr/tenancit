@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
+import { formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Definition } from "@/lib/api";
 
 export const Route = createRoute({
@@ -25,32 +26,43 @@ function defIcon(key: string) {
 }
 
 function Definitions() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [defs, setDefs] = useState<Definition[]>([]);
+  const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ key: "", name: "", description: "" });
 
-  const load = () => api.listDefinitions().then((d) => setDefs(d ?? [])).catch(() => {});
+  const load = () => api.listDefinitions().then((d) => {
+    setError("");
+    setDefs(d ?? []);
+  }).catch((e) => setError(String(e)));
   useEffect(() => void load(), []);
 
   async function create() {
     if (!form.key || !form.name) return;
-    const created = await api.createDefinition(form).catch(() => null);
-    setForm({ key: "", name: "", description: "" });
-    setOpen(false);
-    if (created) navigate({ to: "/resource-definitions/$id", params: { id: created.id } });
-    else load();
+    try {
+      const created = await api.createDefinition(form);
+      setError("");
+      setForm({ key: "", name: "", description: "" });
+      setOpen(false);
+      navigate({ to: "/resource-definitions/$id", params: { id: created.id } });
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Resource Definitions</h1>
-          <p className="text-muted-foreground">Catálogo de tipos de recurso e seus campos.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("definitions.title")}</h1>
+          <p className="text-muted-foreground">{t("definitions.description")}</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus className="size-4" /> Nova definition</Button>
+        <Button onClick={() => setOpen(true)}><Plus className="size-4" /> {t("definitions.new")}</Button>
       </div>
+
+      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {defs.map((d) => (
@@ -65,14 +77,14 @@ function Definitions() {
                   <div className="flex size-9 items-center justify-center rounded-md bg-muted">
                     {defIcon(d.key)}
                   </div>
-                  <Badge variant={d.status === "active" ? "default" : "secondary"}>{d.status}</Badge>
+                  <Badge variant={d.status === "active" ? "default" : "secondary"}>{formatStatus(d.status, t)}</Badge>
                 </div>
                 <CardTitle className="mt-2 text-base">{d.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{d.description || "Sem descrição."}</p>
+                <p className="text-sm text-muted-foreground">{d.description || t("definitions.emptyDescription")}</p>
                 <code className="text-xs text-muted-foreground">{d.key}</code>
               </CardHeader>
               <CardFooter className="text-xs text-muted-foreground">
-                {d.fieldCount ?? 0} campos · {d.secretCount ?? 0} secret
+                {t("definitions.footerCounts", { fieldCount: d.fieldCount ?? 0, secretCount: d.secretCount ?? 0 })}
               </CardFooter>
             </Card>
           </button>
@@ -82,26 +94,26 @@ function Definitions() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova definition</DialogTitle>
-            <DialogDescription>Defina um tipo de recurso. Os campos são adicionados em seguida.</DialogDescription>
+            <DialogTitle>{t("definitions.newDialog.title")}</DialogTitle>
+            <DialogDescription>{t("definitions.newDialog.description")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Key</label>
+              <label className="text-sm font-medium">{t("common.key")}</label>
               <Input placeholder="postgres" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Nome</label>
+              <label className="text-sm font-medium">{t("common.name")}</label>
               <Input placeholder="PostgreSQL Connection" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Descrição</label>
+              <label className="text-sm font-medium">{t("common.description")}</label>
               <Input placeholder="Conexão de banco por tenant" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancelar</Button>} />
-            <Button disabled={!form.key || !form.name} onClick={create}>Criar definition</Button>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button disabled={!form.key || !form.name} onClick={create}>{t("definitions.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

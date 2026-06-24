@@ -1,0 +1,28 @@
+[#_engenharia]
+== Engenharia
+
+A trilha de *Engenharia* descreve como o Konvario é construído e
+operado: arquitetura, modelo de dados, contratos HTTP, segurança, ambiente
+local, testes e decisões arquiteturais.
+
+[TIP]
+.Ordem de leitura sugerida
+====
+`01 Arquitetura` -> `02 Modelo de dados` -> `03 Contratos HTTP` ->
+`04 Segurança e criptografia` -> `05 Ambiente local` -> `06 Operação e testes`.
+Os ADRs registram o porquê das decisões.
+====
+
+include::01-arquitetura.adoc[]
+
+include::02-modelo-de-dados.adoc[]
+
+include::03-contratos-http.adoc[]
+
+include::04-seguranca-e-criptografia.adoc[]
+
+include::05-ambiente-local.adoc[]
+
+include::06-operacao-e-testes.adoc[]
+
+include::07-decisoes-arquiteturais.adoc[]

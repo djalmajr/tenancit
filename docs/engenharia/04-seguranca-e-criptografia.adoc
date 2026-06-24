@@ -1,0 +1,57 @@
+[#eng-seguranca-cripto]
+=== Segurança e criptografia
+
+==== Fronteiras de autenticação
+
+Há duas fronteiras independentes:
+
+[cols="1,2,2",options="header"]
+|===
+| Superfície | Credencial | Propósito
+
+| `/v1/admin/*`
+| `RT_ADMIN_TOKEN`
+| Operação humana/admin e bootstrap de API clients.
+
+| `/v1/resolve*`
+| Token de `api_clients`
+| Consumo server-to-server por aplicações.
+|===
+
+`RT_ADMIN_TOKEN` não é persistido no banco. O servidor guarda em memória apenas
+o hash SHA-256 para comparação. API clients são persistidos em `api_clients`
+com hash SHA-256; o token bruto é exibido uma única vez.
+
+==== Segredos de resources
+
+Campos marcados como `is_secret` são cifrados com AES-256-GCM. Variáveis:
+
+[cols="1,3",options="header"]
+|===
+| Variável | Uso
+
+| `RT_AES_KEY`
+| Chave atual em base64, obrigatoriamente 32 bytes.
+
+| `RT_AES_KEY_VERSION`
+| Versão atual da chave. Default lógico: `1`.
+
+| `RT_AES_KEY_V<n>`
+| Chaves antigas opcionais para decrypt durante rotação futura.
+|===
+
+O schema já guarda `key_version` em `tenant_resource_values`. A rotação
+operacional automática ainda não faz parte do escopo atual.
+
+==== Reveal no admin
+
+O admin endpoint mascara secrets por padrão. O painel só requisita
+`?reveal=true` quando o operador aciona *Revelar segredos*. Esse reveal é uma
+ação sensível: depois dele, o valor claro existe no browser enquanto a tela
+estiver em uso.
+
+==== TLS
+
+O serviço assume TLS na borda ou no caminho interno confiável. Como consumers
+recebem secrets descriptografados, deploys reais não devem expor `/v1/resolve`
+por HTTP sem TLS fora de ambientes locais controlados.

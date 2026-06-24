@@ -11,6 +11,35 @@ import (
 	"github.com/google/uuid"
 )
 
+const countAPIClients = `-- name: CountAPIClients :one
+SELECT count(*)::int AS api_clients FROM api_clients
+`
+
+func (q *Queries) CountAPIClients(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countAPIClients)
+	var api_clients int32
+	err := row.Scan(&api_clients)
+	return api_clients, err
+}
+
+const countDefinitionsSummary = `-- name: CountDefinitionsSummary :one
+SELECT count(*)::int AS definitions,
+       (count(*) FILTER (WHERE status = 'active'))::int AS active_definitions
+FROM resource_definitions
+`
+
+type CountDefinitionsSummaryRow struct {
+	Definitions       int32 `json:"definitions"`
+	ActiveDefinitions int32 `json:"active_definitions"`
+}
+
+func (q *Queries) CountDefinitionsSummary(ctx context.Context) (CountDefinitionsSummaryRow, error) {
+	row := q.db.QueryRow(ctx, countDefinitionsSummary)
+	var i CountDefinitionsSummaryRow
+	err := row.Scan(&i.Definitions, &i.ActiveDefinitions)
+	return i, err
+}
+
 const createAPIClient = `-- name: CreateAPIClient :one
 INSERT INTO api_clients (name, key_hash) VALUES ($1, $2) RETURNING id, name, key_hash, status, created_at
 `
@@ -83,6 +112,34 @@ func (q *Queries) GetAPIClientByHash(ctx context.Context, keyHash string) (ApiCl
 	return i, err
 }
 
+const getActiveResourceByTenantAndDefinitionKey = `-- name: GetActiveResourceByTenantAndDefinitionKey :one
+SELECT tr.id, tr.tenant_id, tr.resource_definition_id, tr.status, tr.created_at, tr.updated_at
+FROM tenant_resources tr
+JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+WHERE tr.tenant_id = $1
+  AND rd.key = $2
+  AND tr.status = 'active'
+`
+
+type GetActiveResourceByTenantAndDefinitionKeyParams struct {
+	TenantID uuid.UUID `json:"tenant_id"`
+	Key      string    `json:"key"`
+}
+
+func (q *Queries) GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg GetActiveResourceByTenantAndDefinitionKeyParams) (TenantResource, error) {
+	row := q.db.QueryRow(ctx, getActiveResourceByTenantAndDefinitionKey, arg.TenantID, arg.Key)
+	var i TenantResource
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ResourceDefinitionID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listAPIClients = `-- name: ListAPIClients :many
 SELECT id, name, key_hash, status, created_at FROM api_clients ORDER BY created_at DESC
 `
@@ -133,6 +190,59 @@ func (q *Queries) ListActiveResourcesByTenant(ctx context.Context, tenantID uuid
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOverviewTenantCards = `-- name: ListOverviewTenantCards :many
+SELECT t.id,
+       t.name,
+       t.slug,
+       t.status,
+       coalesce((array_agg(d.hostname ORDER BY d.created_at) FILTER (WHERE d.id IS NOT NULL))[1], '')::text AS primary_host,
+       count(DISTINCT d.id)::int AS domain_count,
+       count(DISTINCT tr.id) FILTER (WHERE tr.status = 'active')::int AS resource_count
+FROM tenants t
+LEFT JOIN tenant_domains d ON d.tenant_id = t.id
+LEFT JOIN tenant_resources tr ON tr.tenant_id = t.id
+GROUP BY t.id
+ORDER BY t.name
+`
+
+type ListOverviewTenantCardsRow struct {
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Slug          string    `json:"slug"`
+	Status        string    `json:"status"`
+	PrimaryHost   string    `json:"primary_host"`
+	DomainCount   int32     `json:"domain_count"`
+	ResourceCount int32     `json:"resource_count"`
+}
+
+func (q *Queries) ListOverviewTenantCards(ctx context.Context) ([]ListOverviewTenantCardsRow, error) {
+	rows, err := q.db.Query(ctx, listOverviewTenantCards)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOverviewTenantCardsRow
+	for rows.Next() {
+		var i ListOverviewTenantCardsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Status,
+			&i.PrimaryHost,
+			&i.DomainCount,
+			&i.ResourceCount,
 		); err != nil {
 			return nil, err
 		}

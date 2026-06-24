@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/centralit/resource-tenant/server/internal/store"
+	"github.com/djalmajr/konvario/server/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"

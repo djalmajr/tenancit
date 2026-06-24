@@ -1,0 +1,48 @@
+[#prod-visao-geral]
+=== Visão geral
+
+O Konvario resolve uma dor específica de plataformas
+multi-tenant: cada cliente pode ter recursos próprios, mas os sistemas
+consumidores precisam descobrir essa configuração de forma determinística,
+segura e simples.
+
+Em vez de cada aplicação manter sua própria tabela de conexões, buckets,
+realms e chaves de integração, o Konvario centraliza esse
+catálogo. Um consumidor informa o hostname público do tenant e recebe os
+recursos ativos daquele tenant por uma API server-to-server autenticada.
+
+==== O que o serviço entrega
+
+* Cadastro de tenants e seus hostnames exatos.
+* Catálogo dinâmico de tipos de recurso por `resource_definition`.
+* Provisionamento de recursos por tenant, validado contra a definition.
+* Criptografia de campos secretos em repouso.
+* Resolução server-to-server de `hostname -> tenant -> recursos`.
+* Painel admin embutido no binário Go.
+* API clients com token exibido uma única vez e hash persistido no banco.
+
+==== Exemplo de uso
+
+Um BFF multi-tenant recebe uma request em `cliente.example.com`. Antes de abrir
+conexões ou chamar serviços de apoio, ele consulta:
+
+[source,http]
+----
+GET /v1/resolve?hostname=cliente.example.com
+Authorization: Bearer rt_live_...
+----
+
+A resposta contém o slug do tenant e os recursos ativos configurados para ele.
+Campos secretos são descriptografados no servidor e retornados ao consumidor
+autenticado sobre TLS.
+
+==== Princípios de produto
+
+* *Configuração única e vigente.* Para cada tenant e definition, há no máximo
+  um recurso ativo.
+* *Definitions dinâmicas.* Novo tipo de recurso não exige migration, apenas uma
+  nova definition e seus fields.
+* *Admin seguro por padrão.* O painel admin exige `RT_ADMIN_TOKEN`; segredos
+  aparecem mascarados até uma ação explícita de reveal.
+* *Consumidor simples.* Serviços consumidores não conhecem criptografia nem
+  schema interno; eles recebem um contrato JSON pronto para uso.

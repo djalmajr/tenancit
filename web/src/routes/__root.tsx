@@ -1,12 +1,18 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
+import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 
 export const Route = createRootRoute({ component: RootLayout });
 
 function RootLayout() {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <I18nProvider>
+      <ThemeProvider>
+        <AppShell>
+          <Outlet />
+        </AppShell>
+      </ThemeProvider>
+    </I18nProvider>
   );
 }

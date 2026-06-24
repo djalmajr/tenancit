@@ -1,0 +1,99 @@
+[#eng-ambiente-local]
+=== Ambiente local
+
+==== Requisitos
+
+* Go 1.25.x.
+* Bun 1.3.x.
+* Docker para Postgres local e testes com testcontainers.
+* PostgreSQL 16 quando rodar fora do Docker.
+
+==== Subir a imagem final com Docker Compose
+
+[source,bash]
+----
+docker compose up --build
+----
+
+Use esse fluxo quando quiser validar a imagem final, igual ao deploy. Ele
+reconstrói a SPA e o binário Go.
+
+O compose publica:
+
+* App: `http://localhost:8080`
+* Postgres: `localhost:5432`
+* Admin token de demo: `rt_admin_dev`
+
+Quando a API admin responde 401, o painel abre um diálogo para informar o token.
+Em ambientes reais, substitua `RT_ADMIN_TOKEN` e `RT_AES_KEY`.
+
+==== Rodar com volumes para desenvolvimento
+
+[source,bash]
+----
+make dev-compose
+----
+
+Esse fluxo usa `docker-compose.dev.yml`:
+
+* `web-dev`: Vite com HMR em `http://localhost:5180`;
+* `api-dev`: Go via `go run`, publicado também em `http://localhost:8081`;
+* `postgres`: banco local compartilhado com o compose padrão;
+* volumes para código fonte, `node_modules`, cache do Bun, cache de módulos Go
+  e cache de build Go.
+
+Use `http://localhost:5180` para testar o painel. O Vite faz proxy de `/v1` e
+`/healthz` para `api-dev`, então alterações no frontend entram sem rebuild de
+imagem. Alterações no backend exigem reiniciar `api-dev`, mas não reconstruir a
+imagem final.
+
+Para subir em background:
+
+[source,bash]
+----
+make dev-compose-up
+----
+
+Para parar e remover os containers desse stack:
+
+[source,bash]
+----
+make dev-compose-down
+----
+
+==== Rodar server e web separados
+
+[source,bash]
+----
+# terminal 1
+export RT_DATABASE_URL='postgres://postgres:rt@localhost:5432/konvario?sslmode=disable'
+export RT_ADMIN_TOKEN='rt_admin_dev'
+export RT_AES_KEY='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='
+export RT_AES_KEY_VERSION='1'
+make dev-server
+
+# terminal 2
+make dev-web
+----
+
+O modo separado é útil para iterar no frontend com Vite. O build final copia
+`web/dist` para o embed do servidor.
+
+==== Build final
+
+[source,bash]
+----
+make build
+----
+
+O alvo executa: build web -> cópia para `server/internal/spa/dist` -> build Go.
+
+==== Regenerar sqlc
+
+[source,bash]
+----
+make sqlc
+----
+
+Sempre rode esse comando após alterar arquivos em
+`server/internal/store/queries/*.sql`.

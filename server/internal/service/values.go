@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/store/db"
 )
 
 // MaskedValue is the masked placeholder returned by admin endpoints (RN-06).
@@ -25,11 +25,6 @@ func encodeValue(c *crypto.Cryptor, isSecret bool, plaintext string) (db.UpsertR
 		Nonce:       enc.Nonce,
 		KeyVersion:  &kv,
 	}, nil
-}
-
-// EncodeValueFor is the exported wrapper used by handlers.
-func EncodeValueFor(c *crypto.Cryptor, isSecret bool, plaintext string) (db.UpsertResourceValueParams, error) {
-	return encodeValue(c, isSecret, plaintext)
 }
 
 // decodeValue returns the cleartext value (RN-05). For secret values it decrypts.

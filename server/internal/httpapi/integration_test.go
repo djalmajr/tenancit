@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/centralit/resource-tenant/server/internal/crypto"
-	"github.com/centralit/resource-tenant/server/internal/store/db"
-	"github.com/centralit/resource-tenant/server/internal/testsupport"
+	"github.com/djalmajr/konvario/server/internal/crypto"
+	"github.com/djalmajr/konvario/server/internal/testsupport"
 )
+
+const testAdminToken = "admin-test-token"
 
 // newTestServer builds a Server backed by a real ephemeral Postgres
 // (testcontainers) and a deterministic cryptor.
@@ -23,7 +25,7 @@ func newTestServer(t *testing.T) (*Server, http.Handler) {
 		k[i] = byte(i + 7)
 	}
 	c, _ := crypto.New(map[int][]byte{1: k}, 1)
-	srv := NewServer(db.New(pool), c)
+	srv := NewServer(pool, c, testAdminToken)
 	return srv, srv.Routes(nil)
 }
 
@@ -34,7 +36,11 @@ func do(t *testing.T, h http.Handler, method, path string, body any) *httptest.R
 		_ = json.NewEncoder(&buf).Encode(body)
 	}
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(method, path, &buf))
+	req := httptest.NewRequest(method, path, &buf)
+	if strings.HasPrefix(path, "/v1/admin") {
+		req.Header.Set("Authorization", "Bearer "+testAdminToken)
+	}
+	h.ServeHTTP(rec, req)
 	return rec
 }
 

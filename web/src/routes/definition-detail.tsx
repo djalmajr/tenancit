@@ -12,6 +12,7 @@ import { Select, SelectItem } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
+import { formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
 
 export const Route = createRoute({
@@ -23,39 +24,62 @@ export const Route = createRoute({
 const EMPTY = { key: "", label: "", dataType: "string", required: false, isSecret: false };
 
 function DefinitionDetailPage() {
+  const { t } = useI18n();
   const { id } = Route.useParams();
   const [detail, setDetail] = useState<DefinitionDetail | null>(null);
+  const [error, setError] = useState("");
+  const [fieldError, setFieldError] = useState("");
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...EMPTY });
 
   const load = useCallback(() => {
-    api.getDefinition(id).then(setDetail).catch(() => setDetail(null));
+    api.getDefinition(id).then((d) => {
+      setDetail(d);
+      setError("");
+    }).catch((e) => {
+      setDetail(null);
+      setError(String(e));
+    });
   }, [id]);
   useEffect(() => load(), [load]);
 
   async function addField() {
     if (!f.key.trim()) return;
-    await api.addField(id, f).catch(() => {});
-    setF({ ...EMPTY });
-    setOpen(false);
-    load();
+    try {
+      await api.addField(id, f);
+      setF({ ...EMPTY });
+      setFieldError("");
+      setOpen(false);
+      load();
+    } catch (e) {
+      setFieldError(String(e));
+    }
   }
   async function removeField(fieldId: string) {
-    await api.deleteField(id, fieldId).catch(() => {});
-    load();
+    try {
+      await api.deleteField(id, fieldId);
+      load();
+    } catch (e) {
+      setError(String(e));
+    }
   }
   async function toggleStatus() {
     if (!detail) return;
     const next = detail.definition.status === "active" ? "inactive" : "active";
-    await api.setDefinitionStatus(id, next).catch(() => {});
-    load();
+    try {
+      await api.setDefinitionStatus(id, next);
+      load();
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
   if (!detail) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16">
-        <p className="text-muted-foreground">Definition não encontrada.</p>
-        <Link to="/resource-definitions"><Button variant="outline">Voltar</Button></Link>
+        {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        <p className="text-muted-foreground">{error ? t("definitionDetail.loadError") : t("definitionDetail.notFound")}</p>
+        <Link to="/resource-definitions"><Button variant="outline">{t("definitionDetail.back")}</Button></Link>
       </div>
     );
   }
@@ -63,8 +87,10 @@ function DefinitionDetailPage() {
   const d = detail.definition;
   return (
     <div className="space-y-6">
+      {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/resource-definitions" className="hover:text-foreground">Resource Definitions</Link>
+        <Link to="/resource-definitions" className="hover:text-foreground">{t("definitions.title")}</Link>
         <ChevronRight className="size-3.5" />
         <span className="text-foreground">{d.name}</span>
       </div>
@@ -78,39 +104,39 @@ function DefinitionDetailPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{d.name}</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <code>{d.key}</code>
-              <Badge variant={d.status === "active" ? "default" : "secondary"}>{d.status}</Badge>
+              <Badge variant={d.status === "active" ? "default" : "secondary"}>{formatStatus(d.status, t)}</Badge>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={toggleStatus}>
             {d.status === "active" ? <PowerOff className="size-4" /> : <Power className="size-4" />}
-            {d.status === "active" ? "Desativar" : "Ativar"}
+            {d.status === "active" ? t("definitionDetail.deactivate") : t("definitionDetail.activate")}
           </Button>
-          <Button onClick={() => { setF({ ...EMPTY }); setOpen(true); }}>
-            <Plus className="size-4" /> Novo campo
+          <Button onClick={() => { setF({ ...EMPTY }); setFieldError(""); setOpen(true); }}>
+            <Plus className="size-4" /> {t("definitionDetail.newField")}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Campos</CardTitle>
-          <p className="text-sm text-muted-foreground">Definição dinâmica dos campos deste tipo de recurso.</p>
+          <CardTitle className="text-base">{t("definitionDetail.fieldsTitle")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("definitionDetail.fieldsDescription")}</p>
         </CardHeader>
         <CardContent>
           {detail.fields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum campo. Adicione os campos que compõem este recurso.</p>
+            <p className="text-sm text-muted-foreground">{t("definitionDetail.emptyDescription")}</p>
           ) : (
             <Table>
               <THead>
                 <TR>
-                  <TH>Chave</TH>
-                  <TH>Label</TH>
-                  <TH>Tipo</TH>
-                  <TH>Required</TH>
-                  <TH>Secret</TH>
-                  <TH className="w-16 text-right">Ações</TH>
+                  <TH>{t("common.key")}</TH>
+                  <TH>{t("common.label")}</TH>
+                  <TH>{t("common.type")}</TH>
+                  <TH>{t("definitionDetail.requiredTitle")}</TH>
+                  <TH>{t("common.secret")}</TH>
+                  <TH className="w-16 text-right">{t("common.actions")}</TH>
                 </TR>
               </THead>
               <TBody>
@@ -122,7 +148,7 @@ function DefinitionDetailPage() {
                     <TD>{field.required ? <Check className="size-4 text-green-600" /> : <span className="text-muted-foreground">—</span>}</TD>
                     <TD>{field.is_secret ? <Check className="size-4 text-amber-600" /> : <span className="text-muted-foreground">—</span>}</TD>
                     <TD className="text-right">
-                      <Button variant="ghost" size="icon-sm" title="Remover" onClick={() => removeField(field.id)}>
+                      <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => removeField(field.id)}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TD>
@@ -137,22 +163,22 @@ function DefinitionDetailPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo campo</DialogTitle>
-            <DialogDescription>Adicione um campo a este tipo de recurso.</DialogDescription>
+            <DialogTitle>{t("definitionDetail.newField")}</DialogTitle>
+            <DialogDescription>{t("definitionDetail.newFieldDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Chave</label>
+                <label className="text-sm font-medium">{t("common.key")}</label>
                 <Input placeholder="host" value={f.key} onChange={(e) => setF({ ...f, key: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Label</label>
+                <label className="text-sm font-medium">{t("common.label")}</label>
                 <Input placeholder="Host" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Tipo</label>
+              <label className="text-sm font-medium">{t("common.type")}</label>
               <Select value={f.dataType} onChange={(e) => setF({ ...f, dataType: e.target.value })}>
                 <SelectItem value="string">string</SelectItem>
                 <SelectItem value="int">int</SelectItem>
@@ -161,22 +187,23 @@ function DefinitionDetailPage() {
             </div>
             <label className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <div className="text-sm font-medium">Obrigatório</div>
-                <div className="text-xs text-muted-foreground">Exigido na criação do recurso.</div>
+                <div className="text-sm font-medium">{t("definitionDetail.requiredTitle")}</div>
+                <div className="text-xs text-muted-foreground">{t("definitionDetail.requiredDescription")}</div>
               </div>
               <input type="checkbox" checked={f.required} onChange={(e) => setF({ ...f, required: e.target.checked })} />
             </label>
             <label className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <div className="text-sm font-medium">Secret</div>
-                <div className="text-xs text-muted-foreground">Criptografado com AES-256-GCM.</div>
+                <div className="text-sm font-medium">{t("common.secret")}</div>
+                <div className="text-xs text-muted-foreground">{t("definitionDetail.secretDescription")}</div>
               </div>
               <input type="checkbox" checked={f.isSecret} onChange={(e) => setF({ ...f, isSecret: e.target.checked })} />
             </label>
+            {fieldError && <div className="text-sm text-destructive">{fieldError}</div>}
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancelar</Button>} />
-            <Button disabled={!f.key.trim()} onClick={addField}>Adicionar campo</Button>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button disabled={!f.key.trim()} onClick={addField}>{t("definitionDetail.addField")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
