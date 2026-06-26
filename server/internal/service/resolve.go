@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
@@ -15,6 +18,7 @@ import (
 type ResolveQuerier interface {
 	GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg db.GetActiveResourceByTenantAndDefinitionKeyParams) (db.TenantResource, error)
 	GetTenantByHostname(ctx context.Context, hostname string) (db.Tenant, error)
+	GetTenantBySlug(ctx context.Context, slug string) (db.Tenant, error)
 	GetDefinition(ctx context.Context, id uuid.UUID) (db.ResourceDefinition, error)
 	ListFields(ctx context.Context, resourceDefinitionID uuid.UUID) ([]db.ResourceField, error)
 	ListActiveResourcesByTenant(ctx context.Context, tenantID uuid.UUID) ([]db.TenantResource, error)
@@ -44,16 +48,31 @@ func NewResolver(q ResolveQuerier, c *crypto.Cryptor) *Resolver {
 	return &Resolver{q: q, c: c}
 }
 
-// ByHostname returns all active resources for the tenant owning the hostname.
-func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTenant, error) {
-	tenant, err := r.q.GetTenantByHostname(ctx, hostname)
-	if err != nil {
-		return ResolvedTenant{}, fmt.Errorf("resolve hostname %q: %w", hostname, err)
-	}
+// TenantByHostname looks up the tenant owning a hostname (RN-02 exact match).
+func (r *Resolver) TenantByHostname(ctx context.Context, hostname string) (db.Tenant, error) {
+	return r.q.GetTenantByHostname(ctx, hostname)
+}
+
+// TenantBySlug looks up a tenant by its canonical slug (the x-tenant-id identity).
+func (r *Resolver) TenantBySlug(ctx context.Context, slug string) (db.Tenant, error) {
+	return r.q.GetTenantBySlug(ctx, slug)
+}
+
+// Version returns a strong ETag for the tenant's resolved config plus the active
+// resources used to compute it. It does NOT decrypt anything, so callers can
+// answer conditional GETs (If-None-Match -> 304) cheaply, and pass the returned
+// resources to ResolveTenant to avoid a second query on a cache miss.
+func (r *Resolver) Version(ctx context.Context, tenant db.Tenant) (string, []db.TenantResource, error) {
 	resources, err := r.q.ListActiveResourcesByTenant(ctx, tenant.ID)
 	if err != nil {
-		return ResolvedTenant{}, err
+		return "", nil, err
 	}
+	return computeETag(tenant, resources), resources, nil
+}
+
+// ResolveTenant decrypts and assembles the consumer payload for already-loaded
+// active resources.
+func (r *Resolver) ResolveTenant(ctx context.Context, tenant db.Tenant, resources []db.TenantResource) (ResolvedTenant, error) {
 	out := ResolvedTenant{TenantSlug: tenant.Slug}
 	for _, res := range resources {
 		rr, err := r.resolveResource(ctx, res)
@@ -63,6 +82,35 @@ func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTen
 		out.Resources = append(out.Resources, rr)
 	}
 	return out, nil
+}
+
+// ByHostname returns all active resources for the tenant owning the hostname.
+func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTenant, error) {
+	tenant, err := r.TenantByHostname(ctx, hostname)
+	if err != nil {
+		return ResolvedTenant{}, fmt.Errorf("resolve hostname %q: %w", hostname, err)
+	}
+	resources, err := r.q.ListActiveResourcesByTenant(ctx, tenant.ID)
+	if err != nil {
+		return ResolvedTenant{}, err
+	}
+	return r.ResolveTenant(ctx, tenant, resources)
+}
+
+// computeETag derives a stable strong ETag from the tenant and its active
+// resources' identities + timestamps + statuses. Any add/remove/update/status
+// change of a resource, or a tenant update, changes the tag. Order-independent
+// (resources are sorted by id), so query ordering does not affect the result.
+func computeETag(t db.Tenant, resources []db.TenantResource) string {
+	sorted := make([]db.TenantResource, len(resources))
+	copy(sorted, resources)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID.String() < sorted[j].ID.String() })
+	h := sha256.New()
+	fmt.Fprintf(h, "t:%s:%d:%d\n", t.ID, t.UpdatedAt.UnixNano(), len(sorted))
+	for _, res := range sorted {
+		fmt.Fprintf(h, "r:%s:%s:%d\n", res.ID, res.Status, res.UpdatedAt.UnixNano())
+	}
+	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
 }
 
 // ByHostnameAndDefinition returns a single resource by definition key.

@@ -24,3 +24,6 @@ SELECT * FROM tenant_domains WHERE tenant_id = $1 ORDER BY hostname;
 SELECT t.* FROM tenants t
 JOIN tenant_domains d ON d.tenant_id = t.id
 WHERE d.hostname = $1;
+
+-- name: GetTenantBySlug :one
+SELECT * FROM tenants WHERE slug = $1;

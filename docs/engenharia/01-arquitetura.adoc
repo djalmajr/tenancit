@@ -42,7 +42,7 @@ sequenceDiagram
   participant PG as PostgreSQL
 
   C->>RTS: GET /v1/resolve?hostname=tenant.example.com
-  Note over C,RTS: Authorization: Bearer rt_live_...
+  Note over C,RTS: Authorization: Bearer tnc_...
   RTS->>PG: hostname -> tenant
   RTS->>PG: recursos ativos + fields + values
   RTS->>RTS: decrypt de secrets

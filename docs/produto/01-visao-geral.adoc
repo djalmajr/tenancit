@@ -29,7 +29,7 @@ conexões ou chamar serviços de apoio, ele consulta:
 [source,http]
 ----
 GET /v1/resolve?hostname=cliente.example.com
-Authorization: Bearer rt_live_...
+Authorization: Bearer tnc_...
 ----
 
 A resposta contém o slug do tenant e os recursos ativos configurados para ele.

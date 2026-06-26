@@ -160,4 +160,92 @@ func TestE2E_AdminCreateThenResolve(t *testing.T) {
 	}
 }
 
+// Resolve by tenantId (the x-tenant-id identity path used by apps), plus the
+// ETag / conditional-GET contract: a matching If-None-Match returns 304 without
+// a body, and any resource mutation flips the tag.
+func TestE2E_ResolveByTenantIdAndETag(t *testing.T) {
+	_, h := newTestServer(t)
+
+	seedDefinition(t, h, "pg-etag")
+	tid := seedTenant(t, h, "acme", "acme.example.com")
+	if r := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", map[string]any{
+		"definitionKey": "pg-etag",
+		"values":        map[string]string{"host": "db.acme.internal", "password": "p@ss"},
+	}); r.Code != 201 {
+		t.Fatalf("create resource: %d %s", r.Code, r.Body)
+	}
+	token := mintToken(t, h)
+
+	resolve := func(query, ifNoneMatch string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/v1/resolve?"+query, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		if ifNoneMatch != "" {
+			req.Header.Set("If-None-Match", ifNoneMatch)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// resolve by tenantId (slug) returns the tenant + a decrypted resource + ETag.
+	bySlug := resolve("tenantId=acme", "")
+	if bySlug.Code != 200 {
+		t.Fatalf("resolve by tenantId: %d %s", bySlug.Code, bySlug.Body)
+	}
+	var got struct {
+		TenantSlug string `json:"tenantSlug"`
+		Resources  []struct {
+			Values map[string]string `json:"values"`
+		} `json:"resources"`
+	}
+	mustJSON(t, bySlug, &got)
+	if got.TenantSlug != "acme" || len(got.Resources) != 1 || got.Resources[0].Values["password"] != "p@ss" {
+		t.Fatalf("bad resolve by tenantId: %+v", got)
+	}
+	etag := bySlug.Header().Get("ETag")
+	if etag == "" || bySlug.Header().Get("Cache-Control") == "" {
+		t.Fatalf("missing ETag/Cache-Control: etag=%q cc=%q", etag, bySlug.Header().Get("Cache-Control"))
+	}
+
+	// hostname and tenantId resolve the SAME tenant -> identical ETag.
+	byHost := resolve("hostname=acme.example.com", "")
+	if byHost.Code != 200 || byHost.Header().Get("ETag") != etag {
+		t.Fatalf("hostname ETag %q != tenantId ETag %q (code %d)", byHost.Header().Get("ETag"), etag, byHost.Code)
+	}
+
+	// conditional GET with the current ETag -> 304, empty body (no re-decrypt).
+	notMod := resolve("tenantId=acme", etag)
+	if notMod.Code != http.StatusNotModified {
+		t.Fatalf("expected 304 with matching If-None-Match, got %d %s", notMod.Code, notMod.Body)
+	}
+	if notMod.Body.Len() != 0 {
+		t.Fatalf("304 should have empty body, got %q", notMod.Body)
+	}
+
+	// mutating a resource flips the ETag -> stale conditional GET returns 200 fresh.
+	var resources []struct {
+		ID string `json:"id"`
+	}
+	mustJSON(t, do(t, h, "GET", "/v1/admin/tenants/"+tid+"/resources", nil), &resources)
+	if len(resources) == 0 {
+		t.Fatal("no resources to mutate")
+	}
+	if r := do(t, h, "PUT", "/v1/admin/tenants/"+tid+"/resources/"+resources[0].ID+"/status",
+		map[string]string{"status": "inactive"}); r.Code != 200 {
+		t.Fatalf("set resource status: %d %s", r.Code, r.Body)
+	}
+	stale := resolve("tenantId=acme", etag)
+	if stale.Code != 200 {
+		t.Fatalf("expected 200 after mutation (etag changed), got %d %s", stale.Code, stale.Body)
+	}
+	if stale.Header().Get("ETag") == etag {
+		t.Fatal("ETag did not change after resource mutation")
+	}
+
+	// unknown tenantId -> 404.
+	if r := resolve("tenantId=does-not-exist", ""); r.Code != 404 {
+		t.Fatalf("expected 404 for unknown tenantId, got %d", r.Code)
+	}
+}
+
 func ctxTODO() context.Context { return context.Background() }

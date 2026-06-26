@@ -51,8 +51,20 @@ Proteção: `Authorization: Bearer <api-client-token>`.
 [source,http]
 ----
 GET /v1/resolve?hostname=cliente.example.com
-Authorization: Bearer rt_live_...
+Authorization: Bearer tnc_...
 ----
+
+Identidade alternativa por slug (usada por um app que já recebeu o `x-tenant-id`
+e precisa resolver o próprio recurso, sem conhecer o hostname):
+
+[source,http]
+----
+GET /v1/resolve?tenantId=<tenant-slug>
+Authorization: Bearer tnc_...
+----
+
+Exatamente um de `hostname` ou `tenantId` é obrigatório (`400` se ambos ausentes);
+ambos resolvem o mesmo tenant e produzem o mesmo `ETag`.
 
 Resposta:
 
@@ -72,12 +84,18 @@ Resposta:
 }
 ----
 
+Cache / revalidação: a resposta carrega `ETag` (forte — derivado do tenant e dos
+resources ativos: ids, status, `updated_at`) e `Cache-Control: private, max-age=30`.
+O consumidor revalida com `If-None-Match: <etag>`; quando nada mudou o servidor
+responde `304 Not Modified` sem corpo e *sem redecifrar*. Qualquer alteração em
+tenant ou resource (add/remove/update/status) muda o `ETag`.
+
 Atalho por tipo:
 
 [source,http]
 ----
 GET /v1/resolve/{hostname}/resources/{definitionKey}
-Authorization: Bearer rt_live_...
+Authorization: Bearer tnc_...
 ----
 
 ==== Erros esperados
