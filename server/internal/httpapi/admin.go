@@ -25,7 +25,7 @@ func (s *Server) createTenant(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := s.Q.CreateTenant(r.Context(), db.CreateTenantParams{Slug: in.Slug, Name: in.Name})
 	if err != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "a tenant with this slug already exists"})
 		return
 	}
 	writeJSON(w, http.StatusCreated, t)
@@ -67,7 +67,7 @@ func (s *Server) addDomain(w http.ResponseWriter, r *http.Request) {
 	}
 	d, err := s.Q.AddTenantDomain(r.Context(), db.AddTenantDomainParams{TenantID: id, Hostname: in.Hostname})
 	if err != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "this hostname is already mapped to a tenant"})
 		return
 	}
 	writeJSON(w, http.StatusCreated, d)
@@ -85,7 +85,7 @@ func (s *Server) createDefinition(w http.ResponseWriter, r *http.Request) {
 		Key: in.Key, Name: in.Name, Description: in.Description, Icon: in.Icon,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "a definition with this key already exists"})
 		return
 	}
 	writeJSON(w, http.StatusCreated, d)

@@ -4,7 +4,7 @@ import { Building2, Globe, Database, Boxes, ChevronRight } from "lucide-react";
 import { Route as rootRoute } from "./__root";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatStatus, useI18n, type TranslationKey } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n, type TranslationKey } from "@/lib/i18n";
 import { api, type Overview } from "@/lib/api";
 
 export const Route = createRoute({
@@ -57,7 +57,7 @@ function OverviewPage() {
       .catch((err) => {
         if (!alive) return;
         setO(null);
-        setError(err instanceof Error ? err.message : String(err));
+        setError(apiErrorMessage(err, t));
       })
       .finally(() => {
         if (alive) setLoading(false);

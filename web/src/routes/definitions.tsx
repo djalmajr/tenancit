@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Definition } from "@/lib/api";
 
 export const Route = createRoute({
@@ -36,7 +36,7 @@ function Definitions() {
   const load = () => api.listDefinitions().then((d) => {
     setError("");
     setDefs(d ?? []);
-  }).catch((e) => setError(String(e)));
+  }).catch((e) => setError(apiErrorMessage(e, t)));
   useEffect(() => void load(), []);
 
   async function create() {
@@ -48,7 +48,7 @@ function Definitions() {
       setOpen(false);
       navigate({ to: "/resource-definitions/$id", params: { id: created.id } });
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 
@@ -59,7 +59,7 @@ function Definitions() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("definitions.title")}</h1>
           <p className="text-muted-foreground">{t("definitions.description")}</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus className="size-4" /> {t("definitions.new")}</Button>
+        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("definitions.new")}</Button>
       </div>
 
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -70,7 +70,7 @@ function Definitions() {
             <Box className="size-5 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">{t("definitions.empty")}</p>
-          <Button variant="outline" onClick={() => setOpen(true)}>
+          <Button variant="outline" onClick={() => { setError(""); setOpen(true); }}>
             <Plus className="size-4" /> {t("definitions.new")}
           </Button>
         </div>
@@ -103,7 +103,7 @@ function Definitions() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setError(""); setOpen(o); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("definitions.newDialog.title")}</DialogTitle>
@@ -123,6 +123,7 @@ function Definitions() {
               <Input placeholder="Conexão de banco por tenant" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
+          {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
             <Button disabled={!form.key || !form.name} onClick={create}>{t("definitions.create")}</Button>

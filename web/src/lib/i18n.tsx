@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ApiError } from "./api";
 
 export const LOCALE_STORAGE_KEY = "konvarioLocale";
 
@@ -119,6 +120,11 @@ const ptBR = {
   "definitions.newDialog.description": "Defina um tipo de recurso. Os campos são adicionados em seguida.",
   "definitions.newDialog.title": "Nova definição",
   "definitions.title": "Definições de recurso",
+  "errors.conflict": "Já existe um registro com esse valor. Verifique se não está duplicando.",
+  "errors.generic": "Algo deu errado. Tente novamente.",
+  "errors.invalidData": "Dados inválidos. Revise os campos.",
+  "errors.notFound": "Registro não encontrado.",
+  "errors.server": "Erro no servidor. Tente novamente em instantes.",
   "nav.apiClients": "Chaves de API",
   "nav.definitions": "Recursos",
   "nav.logout": "Sair",
@@ -325,6 +331,11 @@ const enUS: Record<TranslationKey, string> = {
   "definitions.newDialog.description": "Define a resource type. Fields are added next.",
   "definitions.newDialog.title": "New definition",
   "definitions.title": "Resource Definitions",
+  "errors.conflict": "A record with this value already exists. Check for duplicates.",
+  "errors.generic": "Something went wrong. Please try again.",
+  "errors.invalidData": "Invalid data. Review the fields.",
+  "errors.notFound": "Record not found.",
+  "errors.server": "Server error. Please try again shortly.",
   "nav.apiClients": "API Keys",
   "nav.definitions": "Resources",
   "nav.logout": "Log out",
@@ -526,6 +537,11 @@ const esES: Record<TranslationKey, string> = {
   "definitions.newDialog.description": "Define un tipo de recurso. Los campos se agregan después.",
   "definitions.newDialog.title": "Nueva definición",
   "definitions.title": "Definiciones de recurso",
+  "errors.conflict": "Ya existe un registro con ese valor. Verifica si no está duplicado.",
+  "errors.generic": "Algo salió mal. Inténtalo de nuevo.",
+  "errors.invalidData": "Datos inválidos. Revisa los campos.",
+  "errors.notFound": "Registro no encontrado.",
+  "errors.server": "Error del servidor. Inténtalo en unos instantes.",
   "nav.apiClients": "Claves de API",
   "nav.definitions": "Recursos",
   "nav.logout": "Salir",
@@ -657,6 +673,24 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 export function formatStatus(status: string, t: I18nContextValue["t"]): string {
   const key = `status.${status}` as TranslationKey;
   return hasTranslation(key) ? t(key) : status;
+}
+
+/** Maps an API/client error to a human, localized message — never raw backend text. */
+export function apiErrorMessage(error: unknown, t: I18nContextValue["t"]): string {
+  if (error instanceof ApiError) {
+    switch (error.status) {
+      case 400:
+        return t("errors.invalidData");
+      case 401:
+        return t("auth.invalidToken");
+      case 404:
+        return t("errors.notFound");
+      case 409:
+        return t("errors.conflict");
+    }
+    if (error.status >= 500) return t("errors.server");
+  }
+  return t("errors.generic");
 }
 
 export function hasTranslation(key: string): key is TranslationKey {
