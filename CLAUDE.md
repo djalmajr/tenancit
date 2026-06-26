@@ -1,4 +1,4 @@
-# Konvario
+# KonvarIO
 
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)
