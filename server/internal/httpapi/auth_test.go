@@ -35,7 +35,7 @@ func TestAuth_NoToken_401(t *testing.T) {
 }
 
 func TestAuth_ValidToken_200(t *testing.T) {
-	tok := "rt_live_abc"
+	tok := "tnc_abc"
 	lk := fakeLookup{clients: map[string]db.ApiClient{service.HashAPIKey(tok): {Status: "active"}}}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/x", nil)
@@ -47,7 +47,7 @@ func TestAuth_ValidToken_200(t *testing.T) {
 }
 
 func TestAuth_RevokedToken_401(t *testing.T) {
-	tok := "rt_live_revoked"
+	tok := "tnc_revoked"
 	lk := fakeLookup{clients: map[string]db.ApiClient{service.HashAPIKey(tok): {Status: "revoked"}}}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/x", nil)

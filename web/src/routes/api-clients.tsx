@@ -63,13 +63,13 @@ function ApiClients() {
       meta: { label: t("apiClients.name") },
     },
     {
-      accessorFn: (client) => client.key_preview ?? "rt_live_••••••••",
+      accessorFn: (client) => client.key_preview ?? "tnc_••••••••",
       id: "token",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label={t("apiClients.token")} labels={sortLabels} />
       ),
       cell: ({ row }) => (
-        <code className="text-xs text-muted-foreground">{row.original.key_preview ?? "rt_live_••••••••"}</code>
+        <code className="text-xs text-muted-foreground">{row.original.key_preview ?? "tnc_••••••••"}</code>
       ),
       meta: { label: t("apiClients.token") },
     },
@@ -131,7 +131,7 @@ function ApiClients() {
     if (!query) return true;
     return [
       client.name,
-      client.key_preview ?? "rt_live_••••••••",
+      client.key_preview ?? "tnc_••••••••",
       client.status,
       formatStatus(client.status, t),
       (client.created_at ?? "").slice(0, 10),

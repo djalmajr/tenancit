@@ -19,5 +19,5 @@ func GenerateAPIToken() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return "rt_live_" + hex.EncodeToString(b), nil
+	return "tnc_" + hex.EncodeToString(b), nil
 }
