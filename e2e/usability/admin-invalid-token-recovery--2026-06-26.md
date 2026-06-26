@@ -1,7 +1,7 @@
 # Usability — Recuperar acesso após token inválido (admin-invalid-token-recovery)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — **nenhum achado**; regressão do caminho 401 (ApiError) confirmada OK
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 1. Sem token → tela **"Acesso administrativo"** com campo Token + Entrar. ✅

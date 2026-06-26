@@ -1,7 +1,7 @@
 # Usability — Cadastrar e manter tenant com domínio (tenant-management)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
-- **Verdict:** ✅ completável — **nenhum achado** (re-run contra o TenancitIO atual)
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Verdict:** ✅ completável — **nenhum achado** (re-run contra o Tenancit atual)
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 1–2. Tenants → **Novo tenant**: diálogo abre e **recebe o foco** (fix desta sessão). ✅

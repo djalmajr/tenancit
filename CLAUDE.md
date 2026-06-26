@@ -1,4 +1,4 @@
-# TenancitIO
+# Tenancit
 
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)

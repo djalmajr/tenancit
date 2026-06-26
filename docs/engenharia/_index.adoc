@@ -1,7 +1,7 @@
 [#_engenharia]
 == Engenharia
 
-A trilha de *Engenharia* descreve como o TenancitIO é construído e
+A trilha de *Engenharia* descreve como o Tenancit é construído e
 operado: arquitetura, modelo de dados, contratos HTTP, segurança, ambiente
 local, testes e decisões arquiteturais.
 

@@ -1,7 +1,7 @@
 # Usability — Validação de formulários e erros de unicidade (admin-form-validation-and-errors)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ⚠️ completável com fricção → **achados corrigidos nesta sessão** (re-verificado ✅)
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres vazio :5433)
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres vazio :5433)
 
 ## Walkthrough
 - **Passo 2 (disabled):** "Novo tenant" com Nome/Slug vazios → botão **Criar tenant** desabilitado; ao preencher ambos, habilita. ✅

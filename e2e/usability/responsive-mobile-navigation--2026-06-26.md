@@ -1,7 +1,7 @@
 # Usability — Navegação e operação em viewport mobile (responsive-mobile-navigation)
 - **Persona:** mobile · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/ (375×812)
 - **Verdict:** ⚠️→✅ — 1 achado (sheet não fechava ao navegar), **corrigido e verificado**
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433), viewport mobile 375px.
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres :5433), viewport mobile 375px.
 
 ## Walkthrough
 1. **auth** — card "Acesso administrativo" cabe em 375px; idioma/tema acionáveis. ✅

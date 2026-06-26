@@ -46,7 +46,7 @@ Um operador que nunca usou o sistema consegue, só pela UI, entender que está v
 
 **Data:** 2026-06-26 · **Persona:** platform-operator · **Resultado:** achado confirmado e corrigido.
 
-**Ambiente:** stack TenancitIO atual — SPA via Vite em `:5180` (preview builtin), API Go atual em `:8087` (lê `TENANCIT_*`), Postgres vazio dedicado em `:5433` (DB `tenancit`, migrations aplicadas no boot). Login com `tenancit_admin_dev`.
+**Ambiente:** stack Tenancit atual — SPA via Vite em `:5180` (preview builtin), API Go atual em `:8087` (lê `TENANCIT_*`), Postgres vazio dedicado em `:5433` (DB `tenancit`, migrations aplicadas no boot). Login com `tenancit_admin_dev`.
 
 **Passos validados (1–6):**
 

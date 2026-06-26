@@ -1,7 +1,7 @@
 [#_produto]
 == Produto
 
-A trilha de *Produto* descreve o TenancitIO do ponto de vista de
+A trilha de *Produto* descreve o Tenancit do ponto de vista de
 quem usa e opera o serviço: o que ele entrega, quais conceitos existem, como as
 jornadas acontecem e o que está dentro ou fora do escopo atual. A contraparte
 técnica de cada tema vive na <<_engenharia,Parte II — Engenharia>>.

@@ -1,7 +1,7 @@
 # Usability — Tradução das telas e persistência de idioma/tema (i18n-and-preferences-persistence)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — i18n completo e prefs persistem, **nenhum achado**
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 2. **shell** — dropdown de idioma (🇧🇷/🇺🇸/🇪🇸) → **English**: nav "Overview/Tenants/Resources/API Keys", KPIs e header em inglês; `tenancitLocale=en-US`. ✅
@@ -15,5 +15,5 @@
 Nenhum. Cobertura i18n completa nas 3 locales (garantida em tempo de tipo por `MESSAGES: Record<Locale, Record<TranslationKey, string>>` — chave faltante não compila), sem strings hardcoded vazando, tema escuro consistente, e idioma+tema sobrevivem a navegação, reload e logout (reaparecem no login).
 
 ## Observações
-- O brand **TenancitIO** aparece correto no subtítulo de login em ES também (confirma o rebrand nas 3 locales).
+- O brand **Tenancit** aparece correto no subtítulo de login em ES também (confirma o rebrand nas 3 locales).
 - Botão de login em ES é "Entrar" (válido em espanhol) — não é vazamento de PT.

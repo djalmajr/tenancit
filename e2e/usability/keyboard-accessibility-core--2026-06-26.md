@@ -1,7 +1,7 @@
 # Usability — Operar o caminho principal por teclado (keyboard-accessibility-core)
 - **Persona:** accessibility · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ⚠️→✅ — 1 achado alto (focus-management dos diálogos), **corrigido e verificado**; 1 nota baixa
-- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack Tenancit atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 1. **auth** — `document.activeElement` inicia no campo **Token** (autoFocus); botão com `aria-label="Mostrar token"`; login por **Enter** (form.requestSubmit) funciona sem mouse. ✅

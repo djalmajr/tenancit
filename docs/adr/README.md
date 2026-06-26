@@ -1,6 +1,6 @@
-# ADRs — Architecture Decision Records (TenancitIO)
+# ADRs — Architecture Decision Records (Tenancit)
 
-Índice das decisões arquiteturais do **TenancitIO**. Comece por
+Índice das decisões arquiteturais do **Tenancit**. Comece por
 aqui para entender por que o serviço tem esse formato, não apenas como ele
 funciona.
 

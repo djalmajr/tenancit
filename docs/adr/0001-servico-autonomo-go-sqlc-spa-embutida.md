@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O TenancitIO atende o hot path de configuração multi-tenant:
+O Tenancit atende o hot path de configuração multi-tenant:
 serviços consumidores precisam resolver recursos por hostname com baixa
 complexidade operacional. A solução precisa ser pequena, previsível e fácil de
 rodar junto de PostgreSQL.
