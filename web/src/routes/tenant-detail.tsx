@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { StatusNotice } from "@/components/ui/status-notice";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -61,7 +61,6 @@ function TenantDetail() {
   const [pageError, setPageError] = useState("");
   const [resourceError, setResourceError] = useState("");
   const [secretsRevealed, setSecretsRevealed] = useState(false);
-  const [notice, setNotice] = useState("");
   const [pendingDomain, setPendingDomain] = useState<TenantDomain | null>(null);
   const [pendingResource, setPendingResource] = useState<TenantResource | null>(null);
 
@@ -108,7 +107,7 @@ function TenantDetail() {
     try {
       await api.updateTenant(id, edit);
       setEditOpen(false);
-      setNotice(t("tenantDetail.updated"));
+      toast.success(t("tenantDetail.updated"));
       await load(secretsRevealed);
     } catch (e) {
       setEditError(String(e));
@@ -138,7 +137,7 @@ function TenantDetail() {
       setPick("");
       setValues({});
       setPickedFields([]);
-      setNotice(t("tenantDetail.resourceAdded"));
+      toast.success(t("tenantDetail.resourceAdded"));
       await load(secretsRevealed);
     } catch (e) {
       setResourceError(String(e));
@@ -149,7 +148,7 @@ function TenantDetail() {
     const next = r.status === "active" ? "inactive" : "active";
     try {
       await api.setResourceStatus(id, r.id, next);
-      setNotice(next === "active" ? t("tenantDetail.resourceStatusActivated") : t("tenantDetail.resourceStatusDeactivated"));
+      toast.success(next === "active" ? t("tenantDetail.resourceStatusActivated") : t("tenantDetail.resourceStatusDeactivated"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
@@ -160,7 +159,7 @@ function TenantDetail() {
     try {
       await api.deleteResource(id, pendingResource.id);
       setPendingResource(null);
-      setNotice(t("tenantDetail.resourceRemoved"));
+      toast.success(t("tenantDetail.resourceRemoved"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
@@ -174,7 +173,7 @@ function TenantDetail() {
       await api.addDomain(id, hostname.trim());
       setHostname("");
       setNewDomainOpen(false);
-      setNotice(t("tenantDetail.domainAdded"));
+      toast.success(t("tenantDetail.domainAdded"));
       await load(secretsRevealed);
     } catch (e) {
       setDomainError(String(e));
@@ -185,7 +184,7 @@ function TenantDetail() {
     try {
       await api.removeDomain(id, pendingDomain.id);
       setPendingDomain(null);
-      setNotice(t("tenantDetail.domainRemoved"));
+      toast.success(t("tenantDetail.domainRemoved"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
@@ -195,7 +194,7 @@ function TenantDetail() {
   async function toggleSecrets() {
     const next = !secretsRevealed;
     setSecretsRevealed(next);
-    setNotice(next ? t("tenantDetail.secretsEnabled") : t("tenantDetail.secretsDisabled"));
+    toast.success(next ? t("tenantDetail.secretsEnabled") : t("tenantDetail.secretsDisabled"));
     await load(next);
   }
 
@@ -212,7 +211,6 @@ function TenantDetail() {
   return (
     <div className="space-y-6">
       {pageError && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{pageError}</div>}
-      <StatusNotice dismissLabel={t("common.dismiss")} message={notice} onDismiss={() => setNotice("")} />
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/tenants" className="hover:text-foreground">{t("tenants.title")}</Link>
         <ChevronRight className="size-3.5" />
