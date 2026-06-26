@@ -43,6 +43,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 
 	r.Group(func(cr chi.Router) {
 		cr.Use(RequireAPIKey(s.Q))
+		cr.Get("/v1/identify", s.handleIdentify)
 		cr.Get("/v1/resolve", s.handleResolve)
 		cr.Get("/v1/resolve/{hostname}/resources/{definitionKey}", s.handleResolveOne)
 	})

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 
+	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 )
@@ -11,6 +12,40 @@ import (
 // Short by design: clients revalidate cheaply via the ETag (304) rather than
 // holding stale config; tenant/resource edits flip the ETag immediately.
 const resolveMaxAge = "private, max-age=30"
+
+// identifyMaxAge is the Cache-Control for /v1/identify. The hostname -> tenant
+// mapping is stable, so the edge can cache the identity longer and revalidate
+// cheaply via the ETag.
+const identifyMaxAge = "private, max-age=300"
+
+// identifyResponse is the edge-facing payload: tenant identity only, no secrets.
+type identifyResponse struct {
+	TenantSlug string `json:"tenantSlug"`
+}
+
+// handleIdentify maps a hostname to its tenant slug for the edge injector, which
+// injects x-tenant-id and must never touch credentials. Emits an ETag and
+// answers If-None-Match with 304.
+func (s *Server) handleIdentify(w http.ResponseWriter, r *http.Request) {
+	hostname := r.URL.Query().Get("hostname")
+	if hostname == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "hostname required"})
+		return
+	}
+	tenant, err := s.Resolver.TenantByHostname(r.Context(), hostname)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+		return
+	}
+	etag := service.IdentityETag(tenant)
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", identifyMaxAge)
+	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	writeJSON(w, http.StatusOK, identifyResponse{TenantSlug: tenant.Slug})
+}
 
 // handleResolve resolves a tenant's active resources either by ?hostname= (edge
 // injector) or by ?tenantId=<slug> (the app resolving its own DB by identity).

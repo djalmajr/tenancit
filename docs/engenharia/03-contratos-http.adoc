@@ -90,6 +90,23 @@ O consumidor revalida com `If-None-Match: <etag>`; quando nada mudou o servidor
 responde `304 Not Modified` sem corpo e *sem redecifrar*. Qualquer alteração em
 tenant ou resource (add/remove/update/status) muda o `ETag`.
 
+Identidade para a borda (injector que injeta `x-tenant-id` e *nunca* toca em
+credenciais): retorna só o slug do tenant, sem resources/segredos.
+
+[source,http]
+----
+GET /v1/identify?hostname=cliente.example.com
+Authorization: Bearer tnc_...
+----
+
+[source,json]
+----
+{ "tenantSlug": "cliente" }
+----
+
+Também emite `ETag` (estável — só muda quando o tenant muda) e
+`Cache-Control: private, max-age=300`; revalida com `If-None-Match` → `304`.
+
 Atalho por tipo:
 
 [source,http]

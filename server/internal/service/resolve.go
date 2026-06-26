@@ -97,6 +97,16 @@ func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTen
 	return r.ResolveTenant(ctx, tenant, resources)
 }
 
+// IdentityETag is a strong ETag for the hostname -> tenant identity mapping.
+// The edge injector only needs the tenant slug (never secrets), so it resolves
+// via /v1/identify and revalidates with this tag, which changes only when the
+// tenant itself changes (slug/update) — not when a resource value changes.
+func IdentityETag(t db.Tenant) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "id:%s:%s:%d\n", t.ID, t.Slug, t.UpdatedAt.UnixNano())
+	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
+}
+
 // computeETag derives a stable strong ETag from the tenant and its active
 // resources' identities + timestamps + statuses. Any add/remove/update/status
 // change of a resource, or a tenant update, changes the tag. Order-independent

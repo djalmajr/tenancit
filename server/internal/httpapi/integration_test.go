@@ -248,4 +248,56 @@ func TestE2E_ResolveByTenantIdAndETag(t *testing.T) {
 	}
 }
 
+// /v1/identify maps a hostname to the tenant slug for the edge injector, with an
+// ETag, and must never leak resources/secrets.
+func TestE2E_Identify(t *testing.T) {
+	_, h := newTestServer(t)
+	seedTenant(t, h, "acme", "acme.example.com")
+	token := mintToken(t, h)
+
+	get := func(query, inm string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/v1/identify?"+query, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		if inm != "" {
+			req.Header.Set("If-None-Match", inm)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	ok := get("hostname=acme.example.com", "")
+	if ok.Code != 200 {
+		t.Fatalf("identify: %d %s", ok.Code, ok.Body)
+	}
+	var id struct {
+		TenantSlug string `json:"tenantSlug"`
+	}
+	mustJSON(t, ok, &id)
+	if id.TenantSlug != "acme" {
+		t.Fatalf("bad slug: %+v", id)
+	}
+	if strings.Contains(ok.Body.String(), "resources") || strings.Contains(ok.Body.String(), "values") {
+		t.Fatalf("identify must not leak resources/secrets: %s", ok.Body)
+	}
+	etag := ok.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("missing ETag on identify")
+	}
+	if nm := get("hostname=acme.example.com", etag); nm.Code != http.StatusNotModified {
+		t.Fatalf("expected 304 with matching If-None-Match, got %d", nm.Code)
+	}
+	if r := get("hostname=nope.example.com", ""); r.Code != 404 {
+		t.Fatalf("expected 404 for unknown host, got %d", r.Code)
+	}
+	if r := get("", ""); r.Code != 400 {
+		t.Fatalf("expected 400 for missing hostname, got %d", r.Code)
+	}
+	noauth := httptest.NewRecorder()
+	h.ServeHTTP(noauth, httptest.NewRequest("GET", "/v1/identify?hostname=acme.example.com", nil))
+	if noauth.Code != 401 {
+		t.Fatalf("expected 401 without key, got %d", noauth.Code)
+	}
+}
+
 func ctxTODO() context.Context { return context.Background() }
