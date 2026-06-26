@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// Admin routes require the dedicated RT_ADMIN_TOKEN boundary.
+// Admin routes require the dedicated KONVARIO_ADMIN_TOKEN boundary.
 // Mutation captured: removing RequireAdminToken from /v1/admin makes this 200.
 func TestAdmin_RequiresAdminToken(t *testing.T) {
 	_, h := newTestServer(t)

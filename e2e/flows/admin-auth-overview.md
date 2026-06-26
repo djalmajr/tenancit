@@ -7,7 +7,7 @@ entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento (`make dev-compose` ou equivalente)
   - API admin acessível pelo proxy do Vite em `/v1/admin`
-  - token administrativo de desenvolvimento conhecido: `rt_admin_dev`
+  - token administrativo de desenvolvimento conhecido: `konvario_admin_dev`
 design_refs:
   overview: "planning/konvario/proto/README.md#telas-rotas"
   shell: "planning/konvario/proto/components/app-shell.js"
@@ -22,12 +22,12 @@ Acessar o painel, autenticar-se quando necessário e entender rapidamente o esta
 1. (`overview`) Acessar o painel sem token administrativo salvo → a tela dedicada **"Acesso administrativo"** aparece em card central, sem exibir sidebar ou dashboard por trás.
 2. (`overview`) Usar o dropdown de idioma no login alternando entre **Português**, **English** e **Español** → o trigger fechado exibe apenas a bandeira, o menu aberto exibe bandeira e nome nativo, e título, descrição, botão e rótulos mudam para o idioma selecionado.
 3. (`overview`) Usar o dropdown de tema no login alternando entre **Claro**, **Escuro** e **Sistema** → a tela aplica a preferência sem deslocar o card.
-4. (`overview`) Preencher o campo **Token** com `rt_admin_dev` e clicar em **Entrar** → a página recarrega com os dados da visão geral e mantém idioma/tema escolhidos.
+4. (`overview`) Preencher o campo **Token** com `konvario_admin_dev` e clicar em **Entrar** → a página recarrega com os dados da visão geral e mantém idioma/tema escolhidos.
 5. (`overview`) Conferir os cards de KPI → a tela exibe **Tenants ativos**, **Domínios**, **Recursos provisionados** e **Definições ativas**.
 6. (`overview`) Revisar a lista de tenants no card **"Tenants"** → cada tenant mostra nome, host primário ou "sem domínio", quantidade de recursos, status e ação de navegação.
 7. (`shell`) Usar o dropdown de idioma no header alternando entre **Português**, **English** e **Español** → navegação, header e conteúdo da visão geral mudam para o idioma selecionado.
 8. (`shell`) Usar o dropdown de tema no header alternando entre **Claro**, **Escuro** e **Sistema** → o shell aplica a preferência sem perder contraste ou legibilidade.
-9. (`shell`) Clicar nos itens da sidebar **Visão geral**, **Tenants**, **Definições de recurso** e **API Clients** → cada item leva à tela correspondente e o título do header acompanha a seção.
+9. (`shell`) Clicar nos itens da sidebar **Visão geral**, **Tenants**, **Recursos** e **Chaves de API** → cada item leva à tela correspondente e o título do header acompanha a seção.
 10. (`shell`) Usar o botão de colapsar/expandir sidebar → a navegação continua utilizável por ícones/tooltips e o conteúdo principal não perde acesso.
 11. (`shell`) Clicar no botão **Sair** no rodapé da sidebar → o token administrativo é removido, a página recarrega e a tela dedicada **"Acesso administrativo"** volta a bloquear o painel.
 

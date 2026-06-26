@@ -78,7 +78,7 @@ function NavUser({ collapsed }) {
         html`
           <div class="grid flex-1 text-left text-sm leading-tight">
             <span class="truncate font-medium">Admin</span>
-            <span class="truncate text-xs text-muted-foreground">admin@centralit</span>
+            <span class="truncate text-xs text-muted-foreground">admin@example.test</span>
           </div>
         `}
       <//>

@@ -9,11 +9,11 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      RT_ADDR: ":8080"
-      RT_DATABASE_URL: "postgres://postgres:rt@postgres:5432/konvario?sslmode=disable"
-      RT_ADMIN_TOKEN: "rt_admin_dev"
-      RT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-      RT_AES_KEY_VERSION: "1"
+      KONVARIO_ADDR: ":8080"
+      KONVARIO_DATABASE_URL: "postgres://postgres:konvario@postgres:5432/konvario?sslmode=disable"
+      KONVARIO_ADMIN_TOKEN: "konvario_admin_dev"
+      KONVARIO_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      KONVARIO_AES_KEY_VERSION: "1"
     ports:
       - "8081:8080"
     volumes:

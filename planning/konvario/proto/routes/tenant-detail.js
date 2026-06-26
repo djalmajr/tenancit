@@ -28,7 +28,7 @@ function RevealableValue({ value }) {
   const [shown, setShown] = useState(false);
   return html`
     <div class="flex items-center gap-2">
-      <code class="text-xs">${shown ? value : "••••••••••••"}</code>
+	      <code class="text-xs">${shown ? value || "—" : "••••••••••••"}</code>
       <button class="text-muted-foreground hover:text-foreground" onClick=${() => setShown(!shown)} title=${shown ? "Ocultar" : "Revelar"}>
         <${Icon} icon=${shown ? "lucide:eye-off" : "lucide:eye"} />
       </button>

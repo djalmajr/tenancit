@@ -18,7 +18,7 @@ func TestRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	plain := "S3nh4-super-secreta"
+	plain := "demo-secret-value"
 	enc, err := c.Encrypt(plain)
 	if err != nil {
 		t.Fatalf("Encrypt: %v", err)

@@ -6,7 +6,7 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `rt_admin_dev`
+  - token administrativo válido disponível: `konvario_admin_dev`
   - usar uma key única por rodada, por exemplo `postgres-e2e`
 design_refs:
   definitions-list: "planning/konvario/proto/routes/definitions-list.js"
@@ -19,16 +19,16 @@ Criar um tipo de recurso dinâmico, definir campos obrigatórios/secretos e cont
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`definitions-list`) Autenticar-se se necessário e clicar em **Resource Definitions** na sidebar → a grade de definitions aparece.
-2. (`definitions-list`) Clicar em **Nova definition** → o diálogo abre com campos Key, Nome e Descrição.
-3. (`definitions-list`) Preencher Key, Nome e Descrição e clicar em **Criar definition** → a aplicação navega para o detalhe da nova definition.
+1. (`definitions-list`) Autenticar-se se necessário e clicar em **Recursos** na sidebar → a grade de definitions aparece.
+2. (`definitions-list`) Clicar em **Nova definição** → o diálogo abre com campos Key, Nome e Descrição.
+3. (`definitions-list`) Preencher Key, Nome e Descrição e clicar em **Criar definição** → a aplicação navega para o detalhe da nova definition.
 4. (`definition-detail`) Clicar em **Novo campo** → o diálogo **"Novo campo"** abre.
-5. (`definition-detail`) Preencher Chave `host`, Label `Host`, manter tipo `string`, marcar **Obrigatório** e clicar em **Adicionar campo** → o campo aparece na tabela com check em Required.
-6. (`definition-detail`) Clicar em **Novo campo** novamente, preencher Chave `password`, Label `Password`, marcar **Obrigatório** e **Secret** e clicar em **Adicionar campo** → o campo aparece com checks em Required e Secret.
-7. (`definition-detail`) Clicar em **Desativar** → o status da definition muda para inactive e a ação muda para Ativar.
-8. (`definition-detail`) Clicar em **Ativar** → o status volta para active.
-9. (`definition-detail`) Remover um campo pelo botão de lixeira → o campo deixa de aparecer na tabela.
-10. (`definitions-list`) Voltar para **Resource Definitions** pela breadcrumb → o card da definition mostra contagem atualizada de campos e secrets.
+5. (`definition-detail`) Preencher Chave `host`, Label `Host`, manter tipo `string`, marcar **Obrigatório** e clicar em **Adicionar campo** → o campo aparece na tabela e a tela mostra feedback de campo adicionado.
+6. (`definition-detail`) Clicar em **Novo campo** novamente, preencher Chave `password`, Label `Password`, marcar **Obrigatório** e **Segredo** e clicar em **Adicionar campo** → o campo aparece com checks em Obrigatório e Segredo.
+7. (`definition-detail`) Clicar em **Desativar** → o status da definition muda para inactive, a ação muda para Ativar e a tela mostra feedback de desativação.
+8. (`definition-detail`) Clicar em **Ativar** → o status volta para active e a tela mostra feedback de ativação.
+9. (`definition-detail`) Clicar na lixeira de um campo → o diálogo de confirmação informa o campo afetado; confirmar **Remover** remove o campo e exibe feedback.
+10. (`definitions-list`) Voltar para **Recursos** pela breadcrumb → o card da definition mostra contagem atualizada de campos e segredos.
 
 ## Resultado esperado
 
@@ -38,4 +38,4 @@ O operador consegue criar uma definition, adicionar campos dinâmicos, identific
 
 - A lista e o detalhe existem em `web/src/routes/definitions.tsx` e `web/src/routes/definition-detail.tsx`.
 - A implementação atual usa ícones inferidos pela key; o IconPicker do protótipo não está presente na SPA real.
-- Remoção de campo não tem confirmação dedicada; validar se isso é aceitável para uma definition já usada.
+- Remoção de campo usa confirmação dedicada antes da ação destrutiva.

@@ -33,11 +33,11 @@ describe("api client", () => {
   });
 
   it("sends the configured admin token", async () => {
-    setAdminToken("rt_admin_dev");
+    setAdminToken("konvario_admin_dev");
     const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
     await api.createTenant({ slug: "acme", name: "Acme" });
     const [, init] = spy.mock.calls[0];
-    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer rt_admin_dev");
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer konvario_admin_dev");
   });
 
   it("setResourceStatus PUTs to the status sub-resource", async () => {
@@ -69,6 +69,9 @@ describe("api client", () => {
 
     await expect(api.listTenants()).rejects.toThrow(/autenticação admin necessária/);
     expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0][0]).toMatchObject({
+      detail: { messageKey: "auth.invalidToken" },
+    });
 
     window.removeEventListener("admin-auth-required", listener);
   });

@@ -13,7 +13,7 @@ para o painel.
 * `web/` contém a SPA admin em React + TanStack Router + Tailwind/shadcn.
 * `web/dist` é copiado para `server/internal/spa/dist` e servido pelo Go via
   `embed.FS`.
-* `/v1/admin/*` é protegido por `RT_ADMIN_TOKEN`.
+* `/v1/admin/*` é protegido por `KONVARIO_ADMIN_TOKEN`.
 * `/v1/resolve*` é protegido por API clients (`Authorization: Bearer`).
 * Segredos ficam cifrados no banco e só são descriptografados server-side.
 
@@ -55,7 +55,7 @@ sequenceDiagram
 ----
 flowchart LR
   admin["Operador"] --> spa["SPA admin"]
-  spa -->|"Authorization: Bearer RT_ADMIN_TOKEN"| api["/v1/admin/*"]
+  spa -->|"Authorization: Bearer KONVARIO_ADMIN_TOKEN"| api["/v1/admin/*"]
   api --> svc["services"]
   svc --> pg["PostgreSQL"]
 ----

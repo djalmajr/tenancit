@@ -1,86 +1,81 @@
-# Referência — análise do legado (front-manager-api + hyper-resource-tenant-lib)
+# Referência — padrões legados sanitizados
 
-Engenharia reversa feita durante o grilling (2026-05-30). Serve de **inspiração de
-padrão**; o novo serviço **não** precisa ser compatível (ver [design.md](./design.md)).
+Engenharia reversa feita durante o grilling (2026-05-30). Esta versão foi
+sanitizada para remover nomes de sistemas, repositórios, segredos e detalhes
+proprietários. Serve como **inspiração de padrão**; o novo serviço **não** precisa
+ser compatível com implementações legadas específicas (ver [design.md](./design.md)).
 
-## Repositórios
+## Padrão observado
 
-- `run2biz/front-manager-api` — API REST + service + entidades JPA (Spring Boot/Java).
-- `run2biz/hyper-resource-tenant-lib` — lib de distribuição (Kafka) + manutenção de
-  cache (MinIO) + cripto (`SecurityGenerator`).
+Implementações anteriores de "resource tenant" costumavam combinar três
+responsabilidades:
 
-## API atual (`/internal/resource-tenant`)
+- API interna para criar, listar e desativar recursos por tenant.
+- Distribuição assíncrona para consumidores.
+- Cache em object storage para leitura indireta por aplicações.
 
-`ResourceTenantResource.java`:
-- `GET /platform-application/{identificationKey}` → ativos por aplicação.
-- `GET /platform-application/{identificationKey}/domain/{domain}` → ativos por domínio.
-- `GET /platform-application/{identificationKey}/tenant/{tenant}` (+ `?resourceType`).
-- `POST /platform-application/{identificationKey}/tenant/{tenant}` → create.
-- `PUT .../tenant/{tenant}/resource-tenant-id/{id}/disable` → disable.
+Esse acoplamento dificulta evolução independente, troca de criptografia e
+governança do domínio. O Konvario separa o conceito em um serviço dono de
+tenant, domains, resource definitions e tenant resources.
 
-`identificationKey` (Base64) resolve `PlatformApplication`; `tenant` resolve via
-`ClusterSpaceClient`.
+## Fluxo conceitual legado
 
-## Fluxo de create (`ResourceTenantServiceImpl.create`)
+1. Validar solicitação de criação.
+2. Resolver aplicação consumidora.
+3. Resolver tenant e domínio.
+4. Resolver template/tipo de recurso.
+5. Criptografar campos sensíveis.
+6. Garantir que não exista outro recurso ativo para o mesmo tenant e tipo.
+7. Persistir.
+8. Propagar alteração para consumidores/cache.
 
-1. `validateForCreation`.
-2. Resolve `PlatformApplication` (`getByIdentificationKey`).
-3. Resolve `ClusterSpaceClient` (`getByClusterSpaceUuid(tenant)`) → fornece
-   `alias`, `mainUrlDns` (domain), `clusterSpaceUuid`.
-4. Resolve `ResourceTemplate`.
-5. Mapeia entidade, `enabled()`.
-6. `encryptSensitiveDataField` — campos com `sensitiveData=true` passam por
-   `securityGenerator.encrypt`.
-7. `verifyContainsSomeEnabled` — impede 2º recurso ativo p/ mesmo
-   tenant+template+app.
-8. `save`.
-9. Monta `ResourceTenantBody` e `resourceTenantKafkaService.createBlockSend(body)`
-   (envio **bloqueante** com timeout).
+O Konvario mantém a regra de negócio útil, mas simplifica o contrato inicial:
+persistência própria, API HTTP síncrona e cache no cliente consumidor.
 
-`disable`: busca por clusterSpaceClient+platformApplication+id, filtra ativo,
-`disable()`, save, `disableBlockSend`.
+## Contrato de distribuição observado
 
-> **Dependências cross-domain importantes:** o fluxo depende de `ClusterSpaceClient` e
-> `PlatformApplication`, que vivem no `front-manager-api`. Foi o que motivou o pivot
-> para um serviço que é **dono** do conceito de Tenant.
+Padrões úteis, sem contrato proprietário:
 
-## Contrato Kafka (lib `maintainer`)
+- Mensagem com operação (`create`, `disable`) e payload do recurso atual.
+- Headers ou metadados com aplicação consumidora e tenant.
+- Payload contendo tenant, domínio, tipo/versão do recurso e campos.
 
-- Mensagem: `ResourceTenantMessage` (não o `ResourceTenantBody` cru).
-  - `Operation { CREATE, DISABLE }`, payload `current = ResourceTenantBody`.
-  - Headers: `X-application-identificationKey`, `Cluster-Space` (tenant uuid).
-  - Tópico: configurável (`applicationCachesTopic`).
-- `ResourceTenantBody`: `id, templateName, templateVersion, alias, domain, tenant,
-  active, appIdentificationKey, appName, fields[]`.
-  - `Field`: `value, valueId, sensitive, settingId, settingKey, settingDescription`.
+Decisão atual: não implementar mensageria no primeiro corte. Se necessário, a
+distribuição futura deve nascer de eventos próprios do Konvario, sem carregar
+contratos legados.
 
-## Contrato de cache (MinIO)
+## Cache em object storage observado
 
-`FileCacheServiceImpl`:
-- Formato do arquivo: **YAML** (`ObjectMapper(new YAMLFactory())`), serializa
-  `CacheFileObject { domain, alias, templateName, templateVersion, tenant, fields[] }`,
-  `CacheField { key, sensitive, value }`.
-- Path: `StorageFileManager.buildPathToFileCache(appName, tenant, templateName, templateVersion)`.
-- Object tags: `resource-template`, `application-name`, `domain`, `tenant`.
-- Create grava arquivo; Disable remove arquivo.
+Padrões úteis:
 
-## Criptografia legada (NÃO portar)
+- Um arquivo por tenant/recurso/versão.
+- Formato serializado simples (JSON ou YAML).
+- Tags/metadados para tenant, domínio e tipo de recurso.
 
-`ObfuscateUtil` / `SecurityGenerator`:
-- **DES** (chave efetiva 56 bits), `PBEWithMD5AndDES`, **20 iterações**, MD5.
-- Senha embutida no fonte (`PASSWORD = "jtr0>eOwb!)8)k!E"`), versionada e replicada.
-- Sem AEAD, sem rotação, prefixo fixo `!@,`.
-- **Decisão:** substituído por AES-256-GCM com chave externalizada.
+Decisão atual: não usar object storage como mecanismo de distribuição no core.
+Consumidores devem chamar a API de resolução e aplicar cache local com TTL.
 
-## Mapeamento legado → novo schema
+## Criptografia legada
 
-| Legado | Novo (ver design.md) |
-|--------|----------------------|
-| `ClusterSpaceClient` | `tenants` (+ `tenant_domains`) |
-| `ResourceTemplate` | `resource_definitions` |
-| `ResourceFieldSetting` | `resource_fields` |
-| `ResourceTenant` | `tenant_resources` |
-| `ResourceTenantFieldValue` | `tenant_resource_values` |
-| `message_key` | `resource_fields.key` |
-| `sensitive_data` | `resource_fields.is_secret` |
-| `PlatformApplication` | (removido — fora do escopo multi-app) |
+Padrões que **não** devem ser portados:
+
+- Cifras obsoletas.
+- Derivação de chave fraca.
+- Chaves ou senhas embutidas em código-fonte.
+- Ausência de autenticação de cifra.
+- Ausência de rotação.
+
+Decisão atual: AES-256-GCM com chave externalizada e `key_version`.
+
+## Mapeamento conceitual legado → Konvario
+
+| Conceito legado | Konvario |
+|-----------------|----------|
+| Cliente/tenant externo | `tenants` + `tenant_domains` |
+| Template/tipo de recurso | `resource_definitions` |
+| Campo dinâmico | `resource_fields` |
+| Recurso configurado para tenant | `tenant_resources` |
+| Valor do campo | `tenant_resource_values` |
+| Chave textual do campo | `resource_fields.key` |
+| Campo sensível | `resource_fields.is_secret` |
+| Aplicação consumidora | API client / consumidor autenticado |

@@ -8,10 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { Select, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatusNotice } from "@/components/ui/status-notice";
 import { formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
 
@@ -31,6 +40,8 @@ function DefinitionDetailPage() {
   const [fieldError, setFieldError] = useState("");
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...EMPTY });
+  const [notice, setNotice] = useState("");
+  const [pendingField, setPendingField] = useState<DefinitionDetail["fields"][number] | null>(null);
 
   const load = useCallback(() => {
     api.getDefinition(id).then((d) => {
@@ -50,14 +61,18 @@ function DefinitionDetailPage() {
       setF({ ...EMPTY });
       setFieldError("");
       setOpen(false);
+      setNotice(t("definitionDetail.fieldAdded"));
       load();
     } catch (e) {
       setFieldError(String(e));
     }
   }
-  async function removeField(fieldId: string) {
+  async function removeField() {
+    if (!pendingField) return;
     try {
-      await api.deleteField(id, fieldId);
+      await api.deleteField(id, pendingField.id);
+      setPendingField(null);
+      setNotice(t("definitionDetail.fieldRemoved"));
       load();
     } catch (e) {
       setError(String(e));
@@ -68,6 +83,7 @@ function DefinitionDetailPage() {
     const next = detail.definition.status === "active" ? "inactive" : "active";
     try {
       await api.setDefinitionStatus(id, next);
+      setNotice(next === "active" ? t("definitionDetail.statusActivated") : t("definitionDetail.statusDeactivated"));
       load();
     } catch (e) {
       setError(String(e));
@@ -88,6 +104,7 @@ function DefinitionDetailPage() {
   return (
     <div className="space-y-6">
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      <StatusNotice dismissLabel={t("common.dismiss")} message={notice} onDismiss={() => setNotice("")} />
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/resource-definitions" className="hover:text-foreground">{t("definitions.title")}</Link>
@@ -148,7 +165,7 @@ function DefinitionDetailPage() {
                     <TD>{field.required ? <Check className="size-4 text-green-600" /> : <span className="text-muted-foreground">—</span>}</TD>
                     <TD>{field.is_secret ? <Check className="size-4 text-amber-600" /> : <span className="text-muted-foreground">—</span>}</TD>
                     <TD className="text-right">
-                      <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => removeField(field.id)}>
+                      <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingField(field)}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TD>
@@ -179,10 +196,17 @@ function DefinitionDetailPage() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.type")}</label>
-              <Select value={f.dataType} onChange={(e) => setF({ ...f, dataType: e.target.value })}>
-                <SelectItem value="string">string</SelectItem>
-                <SelectItem value="int">int</SelectItem>
-                <SelectItem value="bool">bool</SelectItem>
+              <Select value={f.dataType} onValueChange={(value) => setF({ ...f, dataType: String(value) })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="string">string</SelectItem>
+                    <SelectItem value="int">int</SelectItem>
+                    <SelectItem value="bool">bool</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
               </Select>
             </div>
             <label className="flex items-center justify-between rounded-md border p-3">
@@ -207,6 +231,18 @@ function DefinitionDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        cancelLabel={t("common.cancel")}
+        confirmLabel={t("common.removeConfirm")}
+        description={t("definitionDetail.removeFieldDescription", { fieldKey: pendingField?.key ?? "" })}
+        onConfirm={removeField}
+        onOpenChange={(open) => {
+          if (!open) setPendingField(null);
+        }}
+        open={Boolean(pendingField)}
+        title={t("definitionDetail.removeFieldTitle")}
+      />
     </div>
   );
 }

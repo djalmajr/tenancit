@@ -7,19 +7,19 @@
 |===
 | Variável | Descrição
 
-| `RT_ADDR`
+| `KONVARIO_ADDR`
 | Endereço do HTTP server. Default: `:8080`.
 
-| `RT_DATABASE_URL`
+| `KONVARIO_DATABASE_URL`
 | DSN PostgreSQL. Obrigatória.
 
-| `RT_ADMIN_TOKEN`
+| `KONVARIO_ADMIN_TOKEN`
 | Token de acesso ao painel e `/v1/admin/*`. Obrigatória.
 
-| `RT_AES_KEY`
+| `KONVARIO_AES_KEY`
 | Chave AES-256-GCM atual em base64. Obrigatória.
 
-| `RT_AES_KEY_VERSION`
+| `KONVARIO_AES_KEY_VERSION`
 | Versão da chave atual. Opcional; use explicitamente em produção.
 |===
 
@@ -58,7 +58,7 @@ Resposta esperada:
 
 ==== Operação segura
 
-* Guarde `RT_ADMIN_TOKEN`, `RT_AES_KEY` e API client tokens em secret manager.
+* Guarde `KONVARIO_ADMIN_TOKEN`, `KONVARIO_AES_KEY` e API client tokens em secret manager.
 * Rotacione API clients revogando o antigo e criando um novo.
 * Não reutilize a chave AES de demo do compose.
 * Exponha `/v1/resolve` apenas por TLS.

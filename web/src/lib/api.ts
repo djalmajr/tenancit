@@ -17,8 +17,8 @@ export function setAdminToken(token: string) {
   window.dispatchEvent(new Event("admin-token-change"));
 }
 
-function notifyAdminAuthRequired(message: string) {
-  window.dispatchEvent(new CustomEvent(ADMIN_AUTH_REQUIRED_EVENT, { detail: { message } }));
+function notifyAdminAuthRequired(messageKey = "auth.requiredAccess") {
+  window.dispatchEvent(new CustomEvent(ADMIN_AUTH_REQUIRED_EVENT, { detail: { messageKey } }));
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -31,7 +31,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (res.status === 401) {
-    notifyAdminAuthRequired("Informe o token administrativo para acessar o painel.");
+    notifyAdminAuthRequired("auth.invalidToken");
     throw new Error("401: autenticação admin necessária");
   }
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);

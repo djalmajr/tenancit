@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Menu as BaseMenu } from "@base-ui-components/react/menu";
+import { Menu as BaseMenu } from "@base-ui/react/menu";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 

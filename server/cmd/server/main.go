@@ -25,14 +25,14 @@ func main() {
 }
 
 func run() error {
-	addr := envOr("RT_ADDR", ":8080")
-	dsn := os.Getenv("RT_DATABASE_URL")
+	addr := envOr("KONVARIO_ADDR", ":8080")
+	dsn := os.Getenv("KONVARIO_DATABASE_URL")
 	if dsn == "" {
-		return errors.New("RT_DATABASE_URL is required")
+		return errors.New("KONVARIO_DATABASE_URL is required")
 	}
-	adminToken := os.Getenv("RT_ADMIN_TOKEN")
+	adminToken := os.Getenv("KONVARIO_ADMIN_TOKEN")
 	if adminToken == "" {
-		return errors.New("RT_ADMIN_TOKEN is required")
+		return errors.New("KONVARIO_ADMIN_TOKEN is required")
 	}
 
 	if err := store.Migrate(dsn); err != nil {
