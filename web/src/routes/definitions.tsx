@@ -123,7 +123,7 @@ function Definitions() {
               <Input placeholder="Conexão de banco por tenant" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
-          {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
             <Button disabled={!form.key || !form.name} onClick={create}>{t("definitions.create")}</Button>
