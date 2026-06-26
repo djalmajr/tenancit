@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/djalmajr/konvario/server/internal/service"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/service"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 )
 
 type fakeLookup struct{ clients map[string]db.ApiClient }

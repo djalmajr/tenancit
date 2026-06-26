@@ -6,7 +6,7 @@ binário e usa a API admin same-origin.
 
 ==== Admin API
 
-Proteção: `Authorization: Bearer <KONVARIO_ADMIN_TOKEN>`.
+Proteção: `Authorization: Bearer <TENANCIT_ADMIN_TOKEN>`.
 
 [cols="1,2,3",options="header"]
 |===

@@ -1,6 +1,6 @@
 # Story 8 — docker-image
 
-**Origin:** `planning/konvario/epics/01-konvario/00-overview.md`
+**Origin:** `planning/tenancit/epics/01-tenancit/00-overview.md`
 **Status:** [x] Done
 
 ## Context

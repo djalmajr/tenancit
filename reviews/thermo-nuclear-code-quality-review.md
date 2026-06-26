@@ -1,6 +1,6 @@
 # Thermo-Nuclear Code Quality Review
 
-**Scope:** Initial commit on `main` (Konvario). Uncommitted changes are only `CLAUDE.md` / tooling — not reviewed here.
+**Scope:** Initial commit on `main` (Tenancit). Uncommitted changes are only `CLAUDE.md` / tooling — not reviewed here.
 
 **Verdict: Do not approve.** Behavior largely matches the epic checklist, but several structural issues would compound quickly. The biggest gaps are non-atomic writes, duplicated read assembly, N+1 query patterns, and a reveal/auth contract that the UI effectively bypasses.
 

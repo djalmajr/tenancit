@@ -15,7 +15,7 @@ responsabilidades:
 - Cache em object storage para leitura indireta por aplicações.
 
 Esse acoplamento dificulta evolução independente, troca de criptografia e
-governança do domínio. O Konvario separa o conceito em um serviço dono de
+governança do domínio. O Tenancit separa o conceito em um serviço dono de
 tenant, domains, resource definitions e tenant resources.
 
 ## Fluxo conceitual legado
@@ -29,7 +29,7 @@ tenant, domains, resource definitions e tenant resources.
 7. Persistir.
 8. Propagar alteração para consumidores/cache.
 
-O Konvario mantém a regra de negócio útil, mas simplifica o contrato inicial:
+O Tenancit mantém a regra de negócio útil, mas simplifica o contrato inicial:
 persistência própria, API HTTP síncrona e cache no cliente consumidor.
 
 ## Contrato de distribuição observado
@@ -41,7 +41,7 @@ Padrões úteis, sem contrato proprietário:
 - Payload contendo tenant, domínio, tipo/versão do recurso e campos.
 
 Decisão atual: não implementar mensageria no primeiro corte. Se necessário, a
-distribuição futura deve nascer de eventos próprios do Konvario, sem carregar
+distribuição futura deve nascer de eventos próprios do Tenancit, sem carregar
 contratos legados.
 
 ## Cache em object storage observado
@@ -67,9 +67,9 @@ Padrões que **não** devem ser portados:
 
 Decisão atual: AES-256-GCM com chave externalizada e `key_version`.
 
-## Mapeamento conceitual legado → Konvario
+## Mapeamento conceitual legado → Tenancit
 
-| Conceito legado | Konvario |
+| Conceito legado | Tenancit |
 |-----------------|----------|
 | Cliente/tenant externo | `tenants` + `tenant_domains` |
 | Template/tipo de recurso | `resource_definitions` |

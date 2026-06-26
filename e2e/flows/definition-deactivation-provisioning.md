@@ -6,12 +6,12 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - existe um tenant ativo para provisionar recursos
 design_refs:
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
-  definition-detail: "planning/konvario/proto/routes/definition-detail.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
+  definition-detail: "planning/tenancit/proto/routes/definition-detail.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
 ---
 
 ## Objetivo do usuário
@@ -20,7 +20,7 @@ Confirmar que o ciclo de vida (active/inactive) de uma resource definition contr
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`auth`) Autenticar-se com `konvario_admin_dev` → painel acessível.
+1. (`auth`) Autenticar-se com `tenancit_admin_dev` → painel acessível.
 2. (`definitions-list`) Criar (ou usar) uma definition ativa `toggle-e2e` com ao menos um campo obrigatório → a definition aparece como ativa.
 3. (`tenant-detail`) Abrir o tenant de teste, clicar em **Adicionar recurso** e abrir o seletor de tipo → a definition `toggle-e2e` aparece entre os tipos disponíveis; fechar o diálogo sem salvar.
 4. (`definition-detail`) Abrir `toggle-e2e` e clicar em **Desativar** → o status muda para inactive e a tela mostra feedback.

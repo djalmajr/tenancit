@@ -7,19 +7,19 @@
 |===
 | Variável | Descrição
 
-| `KONVARIO_ADDR`
+| `TENANCIT_ADDR`
 | Endereço do HTTP server. Default: `:8080`.
 
-| `KONVARIO_DATABASE_URL`
+| `TENANCIT_DATABASE_URL`
 | DSN PostgreSQL. Obrigatória.
 
-| `KONVARIO_ADMIN_TOKEN`
+| `TENANCIT_ADMIN_TOKEN`
 | Token de acesso ao painel e `/v1/admin/*`. Obrigatória.
 
-| `KONVARIO_AES_KEY`
+| `TENANCIT_AES_KEY`
 | Chave AES-256-GCM atual em base64. Obrigatória.
 
-| `KONVARIO_AES_KEY_VERSION`
+| `TENANCIT_AES_KEY_VERSION`
 | Versão da chave atual. Opcional; use explicitamente em produção.
 |===
 
@@ -58,7 +58,7 @@ Resposta esperada:
 
 ==== Operação segura
 
-* Guarde `KONVARIO_ADMIN_TOKEN`, `KONVARIO_AES_KEY` e API client tokens em secret manager.
+* Guarde `TENANCIT_ADMIN_TOKEN`, `TENANCIT_AES_KEY` e API client tokens em secret manager.
 * Rotacione API clients revogando o antigo e criando um novo.
 * Não reutilize a chave AES de demo do compose.
 * Exponha `/v1/resolve` apenas por TLS.

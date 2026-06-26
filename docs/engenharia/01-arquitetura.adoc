@@ -1,7 +1,7 @@
 [#eng-arquitetura]
 === Arquitetura
 
-O KonvarIO é um binário Go que combina API HTTP, painel SPA
+O TenancitIO é um binário Go que combina API HTTP, painel SPA
 embutido, migrations e acesso direto ao PostgreSQL. O desenho favorece poucas
 partes móveis: não há broker, cache externo, ORM mágico ou serviço separado
 para o painel.
@@ -13,13 +13,13 @@ para o painel.
 * `web/` contém a SPA admin em React + TanStack Router + Tailwind/shadcn.
 * `web/dist` é copiado para `server/internal/spa/dist` e servido pelo Go via
   `embed.FS`.
-* `/v1/admin/*` é protegido por `KONVARIO_ADMIN_TOKEN`.
+* `/v1/admin/*` é protegido por `TENANCIT_ADMIN_TOKEN`.
 * `/v1/resolve*` é protegido por API clients (`Authorization: Bearer`).
 * Segredos ficam cifrados no banco e só são descriptografados server-side.
 
 [source]
 ----
-konvario/
+tenancit/
 ├── server/
 │   ├── cmd/server/              # boot, env, migrate, HTTP server
 │   ├── internal/httpapi/         # chi routes e handlers
@@ -29,7 +29,7 @@ konvario/
 ├── web/
 │   └── src/                      # painel admin
 ├── docs/                         # esta documentação
-└── planning/konvario/
+└── planning/tenancit/
 ----
 
 ==== Fluxo de consumo
@@ -38,7 +38,7 @@ konvario/
 ----
 sequenceDiagram
   participant C as Serviço consumidor
-  participant RTS as KonvarIO
+  participant RTS as TenancitIO
   participant PG as PostgreSQL
 
   C->>RTS: GET /v1/resolve?hostname=tenant.example.com
@@ -55,7 +55,7 @@ sequenceDiagram
 ----
 flowchart LR
   admin["Operador"] --> spa["SPA admin"]
-  spa -->|"Authorization: Bearer KONVARIO_ADMIN_TOKEN"| api["/v1/admin/*"]
+  spa -->|"Authorization: Bearer TENANCIT_ADMIN_TOKEN"| api["/v1/admin/*"]
   api --> svc["services"]
   svc --> pg["PostgreSQL"]
 ----

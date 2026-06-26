@@ -3,9 +3,9 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/djalmajr/konvario/server/internal/crypto"
-	"github.com/djalmajr/konvario/server/internal/service"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/service"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"

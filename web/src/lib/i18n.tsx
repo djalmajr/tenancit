@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ApiError } from "./api";
 
-export const LOCALE_STORAGE_KEY = "konvarioLocale";
+export const LOCALE_STORAGE_KEY = "tenancitLocale";
 
 export const LOCALE_OPTIONS = [
   { flag: "🇧🇷", label: "Português", value: "pt-BR" },
@@ -46,8 +46,8 @@ const ptBR = {
   "apiClients.tokenGenerated.description": "Copie agora; não será possível visualizá-lo novamente.",
   "apiClients.tokenGenerated.title": "Token gerado",
   "app.subtitle": "Console admin",
-  "app.title": "KonvarIO",
-  "auth.description": "Informe o token administrativo do KonvarIO.",
+  "app.title": "TenancitIO",
+  "auth.description": "Informe o token administrativo do TenancitIO.",
   "auth.enter": "Entrar",
   "auth.hideToken": "Ocultar token",
   "auth.invalidToken": "Token inválido ou expirado. Informe um token administrativo válido.",
@@ -257,8 +257,8 @@ const enUS: Record<TranslationKey, string> = {
   "apiClients.tokenGenerated.description": "Copy it now; it cannot be viewed again.",
   "apiClients.tokenGenerated.title": "Generated token",
   "app.subtitle": "Admin Console",
-  "app.title": "KonvarIO",
-  "auth.description": "Enter the KonvarIO admin token.",
+  "app.title": "TenancitIO",
+  "auth.description": "Enter the TenancitIO admin token.",
   "auth.enter": "Enter",
   "auth.hideToken": "Hide token",
   "auth.invalidToken": "Invalid or expired token. Enter a valid admin token.",
@@ -463,8 +463,8 @@ const esES: Record<TranslationKey, string> = {
   "apiClients.tokenGenerated.description": "Cópialo ahora; no podrás verlo nuevamente.",
   "apiClients.tokenGenerated.title": "Token generado",
   "app.subtitle": "Consola admin",
-  "app.title": "KonvarIO",
-  "auth.description": "Informa el token administrativo de KonvarIO.",
+  "app.title": "TenancitIO",
+  "auth.description": "Informa el token administrativo de TenancitIO.",
   "auth.enter": "Entrar",
   "auth.hideToken": "Ocultar token",
   "auth.invalidToken": "Token inválido o vencido. Informa un token administrativo válido.",

@@ -6,12 +6,12 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - existe um tenant ativo
   - existe uma resource definition ativa ainda não provisionada para esse tenant, com ao menos um campo obrigatório e um campo segredo
 design_refs:
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
-  definition-detail: "planning/konvario/proto/routes/definition-detail.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
+  definition-detail: "planning/tenancit/proto/routes/definition-detail.js"
 ---
 
 ## Objetivo do usuário

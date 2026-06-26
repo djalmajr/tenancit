@@ -1,7 +1,7 @@
 # Usability — Admin até Consumer API por hostname (admin-to-consumer-golden-path)
 - **Persona:** service-integrator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — **nenhum achado** (fluxo híbrido; validação assistida por terminal)
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 Os blocos de configuração no painel (criar definition + campos, tenant, domínio, recurso, API key) foram validados em detalhe nos flows irmãos desta mesma rodada — `resource-definition-management`, `tenant-management`, `tenant-resource-lifecycle`, `api-client-token-lifecycle` (todos ✅). Aqui o foco é o **contrato da Consumer API** ponta a ponta.

@@ -27,7 +27,7 @@
 | Prioridade | Incremento
 
 | P1
-| Login humano do painel admin, mantendo `KONVARIO_ADMIN_TOKEN` como bootstrap ou
+| Login humano do painel admin, mantendo `TENANCIT_ADMIN_TOKEN` como bootstrap ou
   break-glass.
 
 | P1

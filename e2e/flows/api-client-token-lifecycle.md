@@ -6,10 +6,10 @@ persona: service-integrator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - clipboard do browser permitido ou fallback visual aceito para copiar manualmente
 design_refs:
-  api-clients: "planning/konvario/proto/routes/api-clients.js"
+  api-clients: "planning/tenancit/proto/routes/api-clients.js"
 ---
 
 ## Objetivo do usuário

@@ -6,12 +6,12 @@ persona: accessibility
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - existe ao menos um tenant para abrir o detalhe
 design_refs:
-  shell: "planning/konvario/proto/components/app-shell.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
-  api-clients: "planning/konvario/proto/routes/api-clients.js"
+  shell: "planning/tenancit/proto/components/app-shell.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
+  api-clients: "planning/tenancit/proto/routes/api-clients.js"
 ---
 
 ## Objetivo do usuário

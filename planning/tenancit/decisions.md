@@ -1,4 +1,4 @@
-# Decisões — Konvario
+# Decisões — Tenancit
 
 Registro das decisões tomadas na sessão de grilling (2026-05-30). Cada uma com a
 opção escolhida e o porquê. Detalhe técnico em [design.md](./design.md).

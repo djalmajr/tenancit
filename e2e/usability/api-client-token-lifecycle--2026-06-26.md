@@ -1,7 +1,7 @@
 # Usability — Gerar, copiar, revogar e reativar chave de API (api-client-token-lifecycle)
 - **Persona:** service-integrator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ⚠️→✅ — 1 achado (reativar inalcançável) **corrigido e verificado**; 1 observação (doc desatualizado)
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 1. Chaves de API → tabela de chaves (token mascarado). O **alerta de segredos em claro** + **snippet `/v1/resolve`** ficam atrás do botão **"Ajuda"** (popover), não inline. ✅ (com observação)

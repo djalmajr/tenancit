@@ -1,4 +1,4 @@
-module github.com/djalmajr/konvario/server
+module github.com/djalmajr/tenancit/server
 
 go 1.25.7
 

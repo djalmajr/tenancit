@@ -6,7 +6,7 @@
 1. **Sair** removeu o acesso administrativo e voltou para a tela dedicada **Acesso administrativo**, sem renderizar o shell por trás.
 2. O menu de idioma no login alternou **Português**, **English** e **Español**; o trigger fechado exibiu apenas a bandeira.
 3. O menu de tema no login alternou **Claro**, **Escuro** e **Sistema** sem deslocar o card.
-4. O token `konvario_admin_dev` carregou a visão geral com KPIs reais.
+4. O token `tenancit_admin_dev` carregou a visão geral com KPIs reais.
 5. O header autenticado alternou idioma e tema; navegação e conteúdo acompanharam o idioma.
 6. A sidebar navegou por **Visão geral**, **Tenants**, **Recursos** e **Chaves de API**.
 7. A sidebar colapsada manteve `aria-label` nos links; **Sair** no rodapé voltou ao login e removeu o shell.

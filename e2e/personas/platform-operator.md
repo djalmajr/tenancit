@@ -5,7 +5,7 @@ nome: Operador técnico da plataforma
 
 # Persona — Operador técnico da plataforma
 
-Quem a validação encarna ao testar os fluxos do painel administrativo do Konvario.
+Quem a validação encarna ao testar os fluxos do painel administrativo do Tenancit.
 
 ## Perfil
 

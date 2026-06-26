@@ -10,7 +10,7 @@ Há duas fronteiras independentes:
 | Superfície | Credencial | Propósito
 
 | `/v1/admin/*`
-| `KONVARIO_ADMIN_TOKEN`
+| `TENANCIT_ADMIN_TOKEN`
 | Operação humana/admin e bootstrap de API clients.
 
 | `/v1/resolve*`
@@ -18,7 +18,7 @@ Há duas fronteiras independentes:
 | Consumo server-to-server por aplicações.
 |===
 
-`KONVARIO_ADMIN_TOKEN` não é persistido no banco. O servidor guarda em memória apenas
+`TENANCIT_ADMIN_TOKEN` não é persistido no banco. O servidor guarda em memória apenas
 o hash SHA-256 para comparação. API clients são persistidos em `api_clients`
 com hash SHA-256; o token bruto é exibido uma única vez.
 
@@ -30,13 +30,13 @@ Campos marcados como `is_secret` são cifrados com AES-256-GCM. Variáveis:
 |===
 | Variável | Uso
 
-| `KONVARIO_AES_KEY`
+| `TENANCIT_AES_KEY`
 | Chave atual em base64, obrigatoriamente 32 bytes.
 
-| `KONVARIO_AES_KEY_VERSION`
+| `TENANCIT_AES_KEY_VERSION`
 | Versão atual da chave. Default lógico: `1`.
 
-| `KONVARIO_AES_KEY_V<n>`
+| `TENANCIT_AES_KEY_V<n>`
 | Chaves antigas opcionais para decrypt durante rotação futura.
 |===
 

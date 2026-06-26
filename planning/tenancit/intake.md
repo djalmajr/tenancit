@@ -1,9 +1,9 @@
-# Intake: Konvario como serviço independente
+# Intake: Tenancit como serviço independente
 
 **Origin:** necessidade recorrente de separar a configuração de recursos por tenant
 de aplicações consumidoras. Este documento é uma versão sanitizada do intake
 histórico; detalhes de sistemas internos e referências proprietárias foram
-removidos para manter o Konvario como produto independente.
+removidos para manter o Tenancit como produto independente.
 
 ## Context
 
@@ -11,7 +11,7 @@ removidos para manter o Konvario como produto independente.
   configuração de recursos por tenant ao próprio backend consumidor. Isso cria
   deploys mais arriscados, dificulta reutilização e espalha detalhes de
   infraestrutura como banco, storage, autenticação e e-mail em pontos diferentes.
-- **Initial objective:** criar um serviço dedicado (`Konvario`) que seja dono do
+- **Initial objective:** criar um serviço dedicado (`Tenancit`) que seja dono do
   domínio de configuração de recursos por tenant, com persistência, criptografia
   de campos sensíveis e API de resolução por hostname.
 - **Expected value signal:** deploy e evolução independentes do domínio;
@@ -76,7 +76,7 @@ removidos para manter o Konvario como produto independente.
 
 Implementações legadas desse tipo de domínio costumam conter problemas como
 cifras antigas, chaves embutidas, payloads acoplados ao consumidor e caches
-mantidos fora de um dono claro. O Konvario não deve portar esses padrões. A
+mantidos fora de um dono claro. O Tenancit não deve portar esses padrões. A
 decisão atual é usar AES-256-GCM com chave externalizada, `key_version` no dado
 criptografado e API síncrona simples no primeiro corte.
 
@@ -115,7 +115,7 @@ decisivos → Go**. A decisão consolidada posterior foi Go.
 
 ## Recommended next step
 
-`/agile-epic` — A criação do Konvario é uma iniciativa coordenada com múltiplas
+`/agile-epic` — A criação do Tenancit é uma iniciativa coordenada com múltiplas
 dependências: definição de stack, modelo de dados, API REST, criptografia,
 painel administrativo, autenticação, documentação e validação E2E.
 
@@ -125,4 +125,4 @@ painel administrativo, autenticação, documentação e validação E2E.
 - [x] Constraints and assumptions have been made explicit
 - [x] The next artifact in the flow has been defined
 
-<!-- Save to: planning/konvario/intake.md -->
+<!-- Save to: planning/tenancit/intake.md -->

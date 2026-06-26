@@ -6,13 +6,13 @@ persona: mobile
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - navegador em largura mobile (ex.: 390px) durante todo o fluxo
   - existe ao menos um tenant e uma definition para abrir telas de detalhe
 design_refs:
-  shell: "planning/konvario/proto/components/app-shell.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
+  shell: "planning/tenancit/proto/components/app-shell.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
 ---
 
 ## Objetivo do usuário
@@ -21,7 +21,7 @@ Usar o painel administrativo num celular e conseguir navegar, ler e operar todas
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`auth`) Em largura mobile, acessar o painel e autenticar com `konvario_admin_dev` → o card de **Acesso administrativo** cabe na tela e os controles de idioma/tema permanecem acionáveis.
+1. (`auth`) Em largura mobile, acessar o painel e autenticar com `tenancit_admin_dev` → o card de **Acesso administrativo** cabe na tela e os controles de idioma/tema permanecem acionáveis.
 2. (`shell`) Observar a sidebar → em mobile ela fica recolhida/offcanvas; tocar no **gatilho de menu** (SidebarTrigger) → a navegação abre como painel/sheet sobre o conteúdo.
 3. (`shell`) Tocar em **Tenants**, **Recursos** e **Chaves de API** pelo menu mobile → cada seleção navega e o menu se fecha, deixando o conteúdo visível.
 4. (`tenants-list`) Conferir a tabela de tenants e a busca em mobile → o conteúdo reflui ou rola horizontalmente sem quebrar; **Novo tenant** continua acionável.

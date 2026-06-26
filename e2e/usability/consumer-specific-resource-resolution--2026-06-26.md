@@ -1,7 +1,7 @@
 # Usability — Resolver recurso específico por hostname e key (consumer-specific-resource-resolution)
 - **Persona:** service-integrator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — **nenhum achado** (fluxo híbrido; validação assistida por terminal)
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 Blocos de configuração no painel validados nos flows irmãos desta rodada. Foco: o endpoint `/v1/resolve/{hostname}/resources/{definitionKey}`.

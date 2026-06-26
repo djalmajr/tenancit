@@ -1,6 +1,6 @@
-# ADRs — Architecture Decision Records (KonvarIO)
+# ADRs — Architecture Decision Records (TenancitIO)
 
-Índice das decisões arquiteturais do **KonvarIO**. Comece por
+Índice das decisões arquiteturais do **TenancitIO**. Comece por
 aqui para entender por que o serviço tem esse formato, não apenas como ele
 funciona.
 

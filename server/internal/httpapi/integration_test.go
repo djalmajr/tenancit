@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/djalmajr/konvario/server/internal/crypto"
-	"github.com/djalmajr/konvario/server/internal/testsupport"
+	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/testsupport"
 )
 
 const testAdminToken = "admin-test-token"

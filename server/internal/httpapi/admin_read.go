@@ -3,8 +3,8 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/djalmajr/konvario/server/internal/service"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/service"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 )
 
 // listTenantDomains: GET /v1/admin/tenants/{id}/domains

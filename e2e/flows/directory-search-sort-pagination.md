@@ -6,11 +6,11 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - há registros suficientes para paginar (idealmente >= 12 tenants e >= 12 API clients ativos); se não houver, criar alguns durante o fluxo (custo de seed assumido)
 design_refs:
-  tenants-list: "planning/konvario/proto/routes/tenants-list.js"
-  api-clients: "planning/konvario/proto/routes/api-clients.js"
+  tenants-list: "planning/tenancit/proto/routes/tenants-list.js"
+  api-clients: "planning/tenancit/proto/routes/api-clients.js"
 ---
 
 ## Objetivo do usuário
@@ -19,7 +19,7 @@ Localizar rapidamente um registro específico em listas grandes usando busca, or
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`auth`) Autenticar-se com `konvario_admin_dev` → painel acessível.
+1. (`auth`) Autenticar-se com `tenancit_admin_dev` → painel acessível.
 2. (`tenants-list`) Abrir **Tenants**; se a lista for curta, criar tenants suficientes para passar de uma página → a tabela exibe controles de paginação e o indicador de página/itens.
 3. (`tenants-list`) Usar os controles **próxima / última / anterior / primeira página** → a navegação respeita os limites (não passa do início/fim) e o indicador atualiza.
 4. (`tenants-list`) Alterar **linhas por página** → a quantidade de linhas exibidas muda conforme selecionado.

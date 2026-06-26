@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/djalmajr/konvario/server/internal/crypto"
-	"github.com/djalmajr/konvario/server/internal/httpapi"
-	"github.com/djalmajr/konvario/server/internal/spa"
-	"github.com/djalmajr/konvario/server/internal/store"
+	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/httpapi"
+	"github.com/djalmajr/tenancit/server/internal/spa"
+	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,14 +25,14 @@ func main() {
 }
 
 func run() error {
-	addr := envOr("KONVARIO_ADDR", ":8080")
-	dsn := os.Getenv("KONVARIO_DATABASE_URL")
+	addr := envOr("TENANCIT_ADDR", ":8080")
+	dsn := os.Getenv("TENANCIT_DATABASE_URL")
 	if dsn == "" {
-		return errors.New("KONVARIO_DATABASE_URL is required")
+		return errors.New("TENANCIT_DATABASE_URL is required")
 	}
-	adminToken := os.Getenv("KONVARIO_ADMIN_TOKEN")
+	adminToken := os.Getenv("TENANCIT_ADMIN_TOKEN")
 	if adminToken == "" {
-		return errors.New("KONVARIO_ADMIN_TOKEN is required")
+		return errors.New("TENANCIT_ADMIN_TOKEN is required")
 	}
 
 	if err := store.Migrate(dsn); err != nil {

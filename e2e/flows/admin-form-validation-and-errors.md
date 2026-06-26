@@ -6,12 +6,12 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - usar valores únicos por rodada para os casos de sucesso e reaproveitar os mesmos para forçar conflito
 design_refs:
-  tenants-list: "planning/konvario/proto/routes/tenants-list.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
+  tenants-list: "planning/tenancit/proto/routes/tenants-list.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
 ---
 
 ## Objetivo do usuário
@@ -20,7 +20,7 @@ Receber feedback claro e recuperável quando envia dados inválidos ou em confli
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`auth`) Autenticar-se com `konvario_admin_dev` → painel acessível.
+1. (`auth`) Autenticar-se com `tenancit_admin_dev` → painel acessível.
 2. (`tenants-list`) Abrir **Novo tenant** e deixar Nome e Slug vazios → o botão **Criar tenant** permanece desabilitado; ao preencher ambos, habilita.
 3. (`tenants-list`) Criar um tenant com slug `dup-e2e`; abrir **Novo tenant** de novo e tentar criar outro com o mesmo slug `dup-e2e` → a criação falha (conflito de unicidade, 409), a mensagem de erro aparece dentro do diálogo e o diálogo **não** navega nem fecha.
 4. (`tenants-list`) Clicar em **Cancelar** no diálogo → fecha sem criar nada e sem efeito colateral.

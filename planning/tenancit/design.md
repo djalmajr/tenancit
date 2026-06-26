@@ -1,4 +1,4 @@
-# Design — Konvario
+# Design — Tenancit
 
 **Status:** Decisões consolidadas após sessão de grilling (2026-05-30).
 **Relacionado:** [intake.md](./intake.md) · [decisions.md](./decisions.md)
@@ -14,7 +14,7 @@
 Serviço autônomo que é dono da **configuração de recursos por tenant**. Caso de uso central:
 
 > Um serviço consumidor identifica o tenant pela **URL/hostname** → consulta o
-> `Konvario` → recebe a **conexão de banco daquele tenant** (cada tenant tem
+> `Tenancit` → recebe a **conexão de banco daquele tenant** (cada tenant tem
 > banco próprio), além de **bucket MinIO** e outras configurações por tenant.
 
 Valor: multi-tenancy real (banco/storage/config isolados por cliente), descoberta de
@@ -33,7 +33,7 @@ configuração centralizada, evolução e deploy independentes.
 - **Criptografia: AES-256-GCM** com chave externalizada (env/config), pronta para
   rotação. Substitui o DES/PBE/MD5 legado (quebrado, senha embutida).
 - **Decrypt server-side**: o serviço descriptografa e retorna o valor em claro sobre
-  TLS para consumidores autenticados. A chave de cripto fica **só** no Konvario.
+  TLS para consumidores autenticados. A chave de cripto fica **só** no Tenancit.
 - **Auth: API key / token de serviço + TLS** (endpoints server-to-server).
 
 ## 3. Modelo de domínio

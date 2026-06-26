@@ -1,6 +1,6 @@
 // Thin client for the admin API. Same-origin (SPA served by the Go binary).
 const BASE = "/v1/admin";
-const ADMIN_TOKEN_KEY = "konvarioAdminToken";
+const ADMIN_TOKEN_KEY = "tenancitAdminToken";
 const ADMIN_AUTH_REQUIRED_EVENT = "admin-auth-required";
 
 export function clearAdminToken() {

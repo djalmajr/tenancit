@@ -1,7 +1,7 @@
 # Usability — Desativação de definition afeta o provisionamento (definition-deactivation-provisioning)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — invariante cross-screen correto, **nenhum achado**
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433)
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433)
 
 ## Walkthrough
 1. **auth** — painel acessível (sessão já autenticada). ✅

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/djalmajr/konvario/server/internal/crypto"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 )
 
 // MaskedValue is the masked placeholder returned by admin endpoints (RN-06).

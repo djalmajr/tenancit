@@ -31,6 +31,6 @@
   O token bruto é exibido apenas na criação; o banco guarda só o hash.
 
 | Admin token
-| Token operacional definido por `KONVARIO_ADMIN_TOKEN`, usado para acessar
+| Token operacional definido por `TENANCIT_ADMIN_TOKEN`, usado para acessar
   `/v1/admin/*` e o painel embutido.
 |===

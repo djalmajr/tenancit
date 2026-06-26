@@ -1,7 +1,7 @@
 # Usability — Criar e manter resource definition (resource-definition-management)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
-- **Verdict:** ✅ completável — **nenhum achado** (re-run contra o KonvarIO atual)
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433). Key de teste: `postgres-e2e`.
+- **Verdict:** ✅ completável — **nenhum achado** (re-run contra o TenancitIO atual)
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433). Key de teste: `postgres-e2e`.
 
 ## Walkthrough
 1–3. Recursos → **Nova definição** (Key/Nome/Descrição) → **Criar definição** → navega para o detalhe (Postgres E2E). ✅

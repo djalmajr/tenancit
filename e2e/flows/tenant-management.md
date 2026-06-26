@@ -6,11 +6,11 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - usar valores únicos por rodada, por exemplo slug `acme-e2e` e hostname `app.acme-e2e.local`
 design_refs:
-  tenants-list: "planning/konvario/proto/routes/tenants-list.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
+  tenants-list: "planning/tenancit/proto/routes/tenants-list.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
 ---
 
 ## Objetivo do usuário

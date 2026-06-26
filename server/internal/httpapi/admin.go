@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/djalmajr/konvario/server/internal/service"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/service"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )

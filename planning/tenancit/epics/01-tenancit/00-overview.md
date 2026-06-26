@@ -1,15 +1,15 @@
-# Epic: Konvario — monorepo Go + SPA, com Docker validado
+# Epic: Tenancit — monorepo Go + SPA, com Docker validado
 
-**Origin:** `planning/konvario/intake.md`
+**Origin:** `planning/tenancit/intake.md`
 
 ## Traceability
-- Prototype routes/screens: `planning/konvario/proto/` — `/`, `/tenants`, `/tenants/:id`, `/resource-definitions`, `/resource-definitions/:id`, `/api-clients`
-- Business rules: wiki ai-memory `djalmajr/konvario` → `business/rules.md` (RN-01..RN-09)
+- Prototype routes/screens: `planning/tenancit/proto/` — `/`, `/tenants`, `/tenants/:id`, `/resource-definitions`, `/resource-definitions/:id`, `/api-clients`
+- Business rules: wiki ai-memory `djalmajr/tenancit` → `business/rules.md` (RN-01..RN-09)
 - Source docs (wiki): `architecture/why-this-service`, `architecture/overview`, `architecture/data-model`, `decisions/decision-log` (#1..#14), `prototype/admin-console`
 
 ## Context
 - **Macro problem:** A plataforma precisa de multi-tenancy de infraestrutura — cada tenant tem banco, bucket e configs próprios. Falta um dono leve e autônomo desse conhecimento, consultável por hostname no hot path.
-- **Initiative objective:** Entregar o `Konvario` como serviço autônomo: server Go + SPA admin no mesmo binário, criptografia moderna de secrets, API de consumo (resolve por hostname) e API admin, empacotado em imagem Docker validada.
+- **Initiative objective:** Entregar o `Tenancit` como serviço autônomo: server Go + SPA admin no mesmo binário, criptografia moderna de secrets, API de consumo (resolve por hostname) e API admin, empacotado em imagem Docker validada.
 - **Expected outcome:** Binário único deployável só com PostgreSQL; resolução determinística `hostname → config do tenant`; secrets AES-256-GCM; painel admin para cadastro/gestão.
 - **Constraints/premises:** Stack fixada (decisões #6/#7/#13): Go + chi + pgx + sqlc + goose; SPA React + shadcn + **TanStack Router**; SPA embutido via `embed.FS`; só Postgres como dependência de runtime; TDD no desenvolvimento.
 
@@ -156,4 +156,4 @@ flowchart TD
 ## Recommended next step
 - `/agile-story` para criar o plano de execução da **Story 1 (bootstrap-monorepo)** — primeira por dependência.
 
-<!-- Save as: planning/konvario/epics/01-konvario/00-overview.md -->
+<!-- Save as: planning/tenancit/epics/01-tenancit/00-overview.md -->

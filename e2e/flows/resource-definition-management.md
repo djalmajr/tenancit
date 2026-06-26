@@ -6,11 +6,11 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - usar uma key única por rodada, por exemplo `postgres-e2e`
 design_refs:
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
-  definition-detail: "planning/konvario/proto/routes/definition-detail.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
+  definition-detail: "planning/tenancit/proto/routes/definition-detail.js"
 ---
 
 ## Objetivo do usuário

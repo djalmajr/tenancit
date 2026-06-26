@@ -7,9 +7,9 @@
 :source-highlighter: highlight.js
 :experimental:
 
-= KonvarIO — Documentação
+= TenancitIO — Documentação
 
-O KonvarIO é um control plane autônomo para manter configuração de recursos por
+O TenancitIO é um control plane autônomo para manter configuração de recursos por
 tenant em aplicações multi-tenant. Ele resolve um hostname para um tenant e
 entrega, para consumidores autenticados, recursos como banco de dados, storage,
 Keycloak e outras configurações operacionais. O serviço também inclui um painel
@@ -35,10 +35,10 @@ Esta documentação segue duas trilhas:
 ====
 Fontes de verdade, em ordem de precedência: *o código* (última palavra) →
 *esta documentação* (`/docs`) → *ai-memory* (`workspace = djalmajr`,
-`project = konvario`, contexto e histórico entre sessões). Quando algo
+`project = tenancit`, contexto e histórico entre sessões). Quando algo
 divergir, o código vence; atualize o documento e registre a correção.
 
-O material em `planning/konvario/` preserva o histórico de
+O material em `planning/tenancit/` preserva o histórico de
 execução do épico. Esta pasta `/docs` é o manual de leitura contínua do projeto.
 ====
 

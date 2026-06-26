@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/djalmajr/konvario/server/internal/store"
+	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -29,7 +29,7 @@ func NewDB(t *testing.T) *pgxpool.Pool {
 	ctx := context.Background()
 
 	container, err := tcpg.Run(ctx, "postgres:16-alpine",
-		tcpg.WithDatabase("konvario_test"),
+		tcpg.WithDatabase("tenancit_test"),
 		tcpg.WithUsername("postgres"),
 		tcpg.WithPassword("test"),
 		testcontainers.WithWaitStrategy(

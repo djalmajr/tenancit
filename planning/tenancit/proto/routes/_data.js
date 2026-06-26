@@ -1,4 +1,4 @@
-// Seed/mock data do painel Konvario. SEM imports — apenas dados exportados.
+// Seed/mock data do painel Tenancit. SEM imports — apenas dados exportados.
 
 export const DEFINITIONS = [
   {

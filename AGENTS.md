@@ -1,4 +1,4 @@
-# KonvarIO
+# TenancitIO
 
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)

@@ -1,19 +1,19 @@
 ---
 id: admin-to-consumer-golden-path
 name: Configurar tenant no admin e resolver por hostname na Consumer API
-reference: planning/konvario/epics/01-konvario/05-consumer-api-auth.md
+reference: planning/tenancit/epics/01-tenancit/05-consumer-api-auth.md
 persona: service-integrator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento com banco descartável ou namespace de teste único
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
   - é permitido usar um cliente HTTP externo no fim do fluxo para validar `/v1/resolve`
 design_refs:
-  overview: "planning/konvario/proto/routes/overview.js"
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
-  tenants-list: "planning/konvario/proto/routes/tenants-list.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
-  api-clients: "planning/konvario/proto/routes/api-clients.js"
+  overview: "planning/tenancit/proto/routes/overview.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
+  tenants-list: "planning/tenancit/proto/routes/tenants-list.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
+  api-clients: "planning/tenancit/proto/routes/api-clients.js"
 ---
 
 ## Objetivo do usuário

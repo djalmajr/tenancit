@@ -22,10 +22,10 @@ O compose publica:
 
 * App: `http://localhost:8080`
 * Postgres: `localhost:5432`
-* Admin token de demo: `konvario_admin_dev`
+* Admin token de demo: `tenancit_admin_dev`
 
 Quando a API admin responde 401, o painel abre um diálogo para informar o token.
-Em ambientes reais, substitua `KONVARIO_ADMIN_TOKEN` e `KONVARIO_AES_KEY`.
+Em ambientes reais, substitua `TENANCIT_ADMIN_TOKEN` e `TENANCIT_AES_KEY`.
 
 ==== Rodar com volumes para desenvolvimento
 
@@ -66,10 +66,10 @@ make dev-compose-down
 [source,bash]
 ----
 # terminal 1
-export KONVARIO_DATABASE_URL='postgres://postgres:konvario@localhost:5432/konvario?sslmode=disable'
-export KONVARIO_ADMIN_TOKEN='konvario_admin_dev'
-export KONVARIO_AES_KEY='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='
-export KONVARIO_AES_KEY_VERSION='1'
+export TENANCIT_DATABASE_URL='postgres://postgres:tenancit@localhost:5432/tenancit?sslmode=disable'
+export TENANCIT_ADMIN_TOKEN='tenancit_admin_dev'
+export TENANCIT_AES_KEY='MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='
+export TENANCIT_AES_KEY_VERSION='1'
 make dev-server
 
 # terminal 2

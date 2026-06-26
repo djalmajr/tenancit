@@ -6,7 +6,7 @@
 1. Sem token salvo, a tela dedicada **Acesso administrativo** apareceu com campo **Token**, alternadores de preferência e botão **Entrar**.
 2. Ao informar `rt_admin_invalido` e clicar em **Entrar**, a aplicação retornou para a tela de acesso, sem vazar shell ou dashboard por trás.
 3. A mensagem exibida foi **"Informe o token administrativo para acessar o painel."**; o operador entende que precisa corrigir a credencial, mas a causa não fica explícita.
-4. Ao informar `konvario_admin_dev` e clicar em **Entrar**, a visão geral carregou com KPIs reais e navegação lateral.
+4. Ao informar `tenancit_admin_dev` e clicar em **Entrar**, a visão geral carregou com KPIs reais e navegação lateral.
 5. Ao clicar em **Sair**, a tela de **Acesso administrativo** voltou a bloquear o painel.
 
 ## Findings (prioritized)

@@ -6,13 +6,13 @@ persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento com banco vazio (sem tenants, definitions ou API clients)
-  - token administrativo válido disponível: `konvario_admin_dev`
+  - token administrativo válido disponível: `tenancit_admin_dev`
 design_refs:
-  overview: "planning/konvario/proto/routes/overview.js"
-  tenants-list: "planning/konvario/proto/routes/tenants-list.js"
-  definitions-list: "planning/konvario/proto/routes/definitions-list.js"
-  api-clients: "planning/konvario/proto/routes/api-clients.js"
-  tenant-detail: "planning/konvario/proto/routes/tenant-detail.js"
+  overview: "planning/tenancit/proto/routes/overview.js"
+  tenants-list: "planning/tenancit/proto/routes/tenants-list.js"
+  definitions-list: "planning/tenancit/proto/routes/definitions-list.js"
+  api-clients: "planning/tenancit/proto/routes/api-clients.js"
+  tenant-detail: "planning/tenancit/proto/routes/tenant-detail.js"
 ---
 
 ## Objetivo do usuário
@@ -21,7 +21,7 @@ Entrar pela primeira vez num ambiente recém-provisionado e entender, em cada te
 
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
-1. (`auth`) Acessar o painel e autenticar com `konvario_admin_dev` → a visão geral carrega sem erro mesmo sem nenhum dado.
+1. (`auth`) Acessar o painel e autenticar com `tenancit_admin_dev` → a visão geral carrega sem erro mesmo sem nenhum dado.
 2. (`overview`) Conferir os cards de KPI → **Tenants ativos**, **Domínios**, **Recursos provisionados** e **Definições ativas** exibem `0` sem layout quebrado.
 3. (`overview`) Revisar o card **"Tenants"** → aparece a mensagem de estado vazio (nenhum tenant cadastrado) em vez de uma lista vazia silenciosa.
 4. (`shell`) Clicar em **Tenants** na sidebar → a tabela mostra o estado **"sem resultados"** e o botão **Novo tenant** continua visível e acionável.
@@ -46,7 +46,7 @@ Um operador que nunca usou o sistema consegue, só pela UI, entender que está v
 
 **Data:** 2026-06-26 · **Persona:** platform-operator · **Resultado:** achado confirmado e corrigido.
 
-**Ambiente:** stack KonvarIO atual — SPA via Vite em `:5180` (preview builtin), API Go atual em `:8087` (lê `KONVARIO_*`), Postgres vazio dedicado em `:5433` (DB `konvario`, migrations aplicadas no boot). Login com `konvario_admin_dev`.
+**Ambiente:** stack TenancitIO atual — SPA via Vite em `:5180` (preview builtin), API Go atual em `:8087` (lê `TENANCIT_*`), Postgres vazio dedicado em `:5433` (DB `tenancit`, migrations aplicadas no boot). Login com `tenancit_admin_dev`.
 
 **Passos validados (1–6):**
 

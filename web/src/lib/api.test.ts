@@ -33,11 +33,11 @@ describe("api client", () => {
   });
 
   it("sends the configured admin token", async () => {
-    setAdminToken("konvario_admin_dev");
+    setAdminToken("tenancit_admin_dev");
     const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
     await api.createTenant({ slug: "acme", name: "Acme" });
     const [, init] = spy.mock.calls[0];
-    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer konvario_admin_dev");
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer tenancit_admin_dev");
   });
 
   it("setResourceStatus PUTs to the status sub-resource", async () => {

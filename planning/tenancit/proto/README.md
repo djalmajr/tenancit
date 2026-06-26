@@ -1,12 +1,12 @@
-# Protótipo — Konvario Admin Console
+# Protótipo — Tenancit Admin Console
 
-Protótipo interativo (hi-fi) do painel administrativo do serviço Konvario.
+Protótipo interativo (hi-fi) do painel administrativo do serviço Tenancit.
 Stack CDN-only (z-proto + Tailwind v4 + shadcn + Preact/htm). Sem build.
 
 ## Rodar
 
 ```bash
-cd planning/konvario/proto
+cd planning/tenancit/proto
 bunx serve -s .
 # abre http://localhost:3000
 ```

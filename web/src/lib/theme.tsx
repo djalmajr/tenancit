@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export const THEME_STORAGE_KEY = "konvarioTheme";
+export const THEME_STORAGE_KEY = "tenancitTheme";
 
 const DEFAULT_THEME = "system";
 

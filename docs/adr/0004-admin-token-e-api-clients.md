@@ -18,12 +18,12 @@ administrativo públicos para qualquer agente que alcance a porta.
 
 Separar credenciais:
 
-- `/v1/admin/*` exige `Authorization: Bearer <KONVARIO_ADMIN_TOKEN>`;
+- `/v1/admin/*` exige `Authorization: Bearer <TENANCIT_ADMIN_TOKEN>`;
 - `/v1/resolve*` exige API client persistido em `api_clients`;
 - API clients guardam apenas hash SHA-256;
 - o token bruto de API client aparece uma única vez na criação.
 
-`KONVARIO_ADMIN_TOKEN` é obrigatório no boot e deve vir de secret manager ou variável
+`TENANCIT_ADMIN_TOKEN` é obrigatório no boot e deve vir de secret manager ou variável
 de ambiente segura.
 
 ## Consequências
@@ -40,7 +40,7 @@ Custos:
 
 - operadores precisam configurar o token no painel ou em scripts;
 - login humano completo continua fora do escopo atual;
-- `KONVARIO_ADMIN_TOKEN` precisa ser rotacionado por processo externo.
+- `TENANCIT_ADMIN_TOKEN` precisa ser rotacionado por processo externo.
 
 ## Status
 

@@ -1,6 +1,6 @@
 # Story 3 — crypto-module
 
-**Origin:** `planning/konvario/epics/01-konvario/00-overview.md`
+**Origin:** `planning/tenancit/epics/01-tenancit/00-overview.md`
 **Status:** [x] Done
 
 ## Context
@@ -14,7 +14,7 @@
 | File | Action | Reason | Confidence |
 |---|---|---|---|
 | `server/internal/crypto/crypto.go` | Create | Cryptor AES-256-GCM versionado | core |
-| `server/internal/crypto/config.go` | Create | `FromEnv` (KONVARIO_AES_KEY base64 + versão) | core |
+| `server/internal/crypto/config.go` | Create | `FromEnv` (TENANCIT_AES_KEY base64 + versão) | core |
 | `server/internal/crypto/crypto_test.go` | Create | round-trip, tamper, nonce, key size, cross-version | core |
 
 ## Detail

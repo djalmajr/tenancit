@@ -1,7 +1,7 @@
 # Usability — Busca, ordenação e paginação das tabelas (directory-search-sort-pagination)
 - **Persona:** platform-operator · **Date:** 2026-06-26 · **Entry:** http://localhost:5180/
 - **Verdict:** ✅ completável — DataTable robusta, **nenhum achado**
-- **Ambiente:** stack KonvarIO atual (Vite :5180 + API :8087 + Postgres :5433); seed de 15 tenants e 14 API clients ativos.
+- **Ambiente:** stack TenancitIO atual (Vite :5180 + API :8087 + Postgres :5433); seed de 15 tenants e 14 API clients ativos.
 
 ## Walkthrough
 2. **tenants-list** — 15 itens, "Página 1 de 3", 5 linhas/página, headers Nome/Slug/Status, controles de paginação visíveis. ✅

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/djalmajr/konvario/server/internal/crypto"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )

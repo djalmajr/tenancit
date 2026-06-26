@@ -2,8 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_PASSWORD: konvario
-      POSTGRES_DB: konvario
+      POSTGRES_PASSWORD: tenancit
+      POSTGRES_DB: tenancit
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -18,12 +18,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      KONVARIO_ADDR: ":8080"
-      KONVARIO_DATABASE_URL: "postgres://postgres:konvario@postgres:5432/konvario?sslmode=disable"
+      TENANCIT_ADDR: ":8080"
+      TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
       # demo admin token. Replace in real deployments.
-      KONVARIO_ADMIN_TOKEN: "konvario_admin_dev"
+      TENANCIT_ADMIN_TOKEN: "tenancit_admin_dev"
       # demo key (32 bytes, base64). Replace in real deployments.
-      KONVARIO_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-      KONVARIO_AES_KEY_VERSION: "1"
+      TENANCIT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      TENANCIT_AES_KEY_VERSION: "1"
     ports:
       - "8080:8080"

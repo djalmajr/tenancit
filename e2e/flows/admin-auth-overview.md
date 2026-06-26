@@ -7,10 +7,10 @@ entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento (`make dev-compose` ou equivalente)
   - API admin acessível pelo proxy do Vite em `/v1/admin`
-  - token administrativo de desenvolvimento conhecido: `konvario_admin_dev`
+  - token administrativo de desenvolvimento conhecido: `tenancit_admin_dev`
 design_refs:
-  overview: "planning/konvario/proto/README.md#telas-rotas"
-  shell: "planning/konvario/proto/components/app-shell.js"
+  overview: "planning/tenancit/proto/README.md#telas-rotas"
+  shell: "planning/tenancit/proto/components/app-shell.js"
 ---
 
 ## Objetivo do usuário
@@ -22,7 +22,7 @@ Acessar o painel, autenticar-se quando necessário e entender rapidamente o esta
 1. (`overview`) Acessar o painel sem token administrativo salvo → a tela dedicada **"Acesso administrativo"** aparece em card central, sem exibir sidebar ou dashboard por trás.
 2. (`overview`) Usar o dropdown de idioma no login alternando entre **Português**, **English** e **Español** → o trigger fechado exibe apenas a bandeira, o menu aberto exibe bandeira e nome nativo, e título, descrição, botão e rótulos mudam para o idioma selecionado.
 3. (`overview`) Usar o dropdown de tema no login alternando entre **Claro**, **Escuro** e **Sistema** → a tela aplica a preferência sem deslocar o card.
-4. (`overview`) Preencher o campo **Token** com `konvario_admin_dev` e clicar em **Entrar** → a página recarrega com os dados da visão geral e mantém idioma/tema escolhidos.
+4. (`overview`) Preencher o campo **Token** com `tenancit_admin_dev` e clicar em **Entrar** → a página recarrega com os dados da visão geral e mantém idioma/tema escolhidos.
 5. (`overview`) Conferir os cards de KPI → a tela exibe **Tenants ativos**, **Domínios**, **Recursos provisionados** e **Definições ativas**.
 6. (`overview`) Revisar a lista de tenants no card **"Tenants"** → cada tenant mostra nome, host primário ou "sem domínio", quantidade de recursos, status e ação de navegação.
 7. (`shell`) Usar o dropdown de idioma no header alternando entre **Português**, **English** e **Español** → navegação, header e conteúdo da visão geral mudam para o idioma selecionado.

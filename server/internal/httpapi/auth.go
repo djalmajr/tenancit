@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/djalmajr/konvario/server/internal/service"
-	"github.com/djalmajr/konvario/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/service"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
 )
 
 // apiKeyLookup resolves a key hash to a client; error if absent.
@@ -35,7 +35,7 @@ func RequireAPIKey(q apiKeyLookup) func(http.Handler) http.Handler {
 	}
 }
 
-// RequireAdminToken protects the human/admin API surface with KONVARIO_ADMIN_TOKEN.
+// RequireAdminToken protects the human/admin API surface with TENANCIT_ADMIN_TOKEN.
 func RequireAdminToken(adminTokenHash string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

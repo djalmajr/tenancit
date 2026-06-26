@@ -58,7 +58,7 @@ function AppInfo({ collapsed }) {
         ${!collapsed &&
         html`
           <div class="grid flex-1 text-left text-sm leading-tight">
-            <span class="truncate font-medium">Konvario</span>
+            <span class="truncate font-medium">Tenancit</span>
             <span class="truncate text-xs">Admin Console</span>
           </div>
         `}

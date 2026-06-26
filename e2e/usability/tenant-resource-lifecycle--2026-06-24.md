@@ -44,5 +44,5 @@ Nenhum achado aberto após a validação pós-fix.
 
 ## Execution notes
 - Browser plugin usado no fluxo `tenant-resource-lifecycle`.
-- Precondição criada pela Admin API com `konvario_admin_dev`.
+- Precondição criada pela Admin API com `tenancit_admin_dev`.
 - Resultado funcional: fluxo completou sem erro bloqueante; segredo ficou oculto por padrão e só apareceu após ação explícita por campo.
