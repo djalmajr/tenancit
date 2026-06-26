@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusNotice } from "@/components/ui/status-notice";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
 
 export const Route = createRoute({
@@ -49,7 +49,7 @@ function DefinitionDetailPage() {
       setError("");
     }).catch((e) => {
       setDetail(null);
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     });
   }, [id]);
   useEffect(() => load(), [load]);
@@ -64,7 +64,7 @@ function DefinitionDetailPage() {
       setNotice(t("definitionDetail.fieldAdded"));
       load();
     } catch (e) {
-      setFieldError(String(e));
+      setFieldError(apiErrorMessage(e, t));
     }
   }
   async function removeField() {
@@ -75,7 +75,7 @@ function DefinitionDetailPage() {
       setNotice(t("definitionDetail.fieldRemoved"));
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
   async function toggleStatus() {
@@ -86,7 +86,7 @@ function DefinitionDetailPage() {
       setNotice(next === "active" ? t("definitionDetail.statusActivated") : t("definitionDetail.statusDeactivated"));
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 

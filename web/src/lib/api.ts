@@ -21,6 +21,19 @@ function notifyAdminAuthRequired(messageKey = "auth.requiredAccess") {
   window.dispatchEvent(new CustomEvent(ADMIN_AUTH_REQUIRED_EVENT, { detail: { messageKey } }));
 }
 
+/** Error thrown by the admin API client, carrying the HTTP status so the UI can
+ *  map it to a human, localized message instead of surfacing raw backend text. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly serverMessage: string;
+  constructor(status: number, serverMessage = "") {
+    super(serverMessage ? `${status}: ${serverMessage}` : String(status));
+    this.name = "ApiError";
+    this.status = status;
+    this.serverMessage = serverMessage;
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAdminToken();
   const res = await fetch(BASE + path, {
@@ -32,9 +45,18 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (res.status === 401) {
     notifyAdminAuthRequired("auth.invalidToken");
-    throw new Error("401: autenticação admin necessária");
+    throw new ApiError(401);
   }
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    let serverMessage = "";
+    try {
+      const body = (await res.json()) as { error?: unknown };
+      if (typeof body?.error === "string") serverMessage = body.error;
+    } catch {
+      // non-JSON error body; leave serverMessage empty
+    }
+    throw new ApiError(res.status, serverMessage);
+  }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }

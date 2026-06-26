@@ -12,7 +12,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type ApiClient } from "@/lib/api";
 import { useDataTable } from "@/hooks/use-data-table";
 
@@ -141,7 +141,7 @@ function ApiClients() {
   const load = () => api.listAPIClients().then((c) => {
     setClients(c ?? []);
     setError("");
-  }).catch((e) => setError(String(e)));
+  }).catch((e) => setError(apiErrorMessage(e, t)));
   useEffect(() => void load(), []);
 
   function start() {
@@ -159,7 +159,7 @@ function ApiClients() {
       setToken(res.token);
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
   function copy() {
@@ -180,7 +180,7 @@ function ApiClients() {
       setNotice(t("apiClients.statusRevoked"));
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 
