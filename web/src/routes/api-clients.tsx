@@ -6,13 +6,13 @@ import { Route as rootRoute } from "./__root";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Toast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type ApiClient } from "@/lib/api";
 import { useDataTable } from "@/hooks/use-data-table";
 
@@ -31,7 +31,6 @@ function ApiClients() {
   const [token, setToken] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState<"resource" | "tenant" | "">("");
-  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const tenantResolveSnippet = `curl -H "Authorization: Bearer <token>" \\
   "/v1/resolve?hostname=<tenant-hostname>"`;
@@ -141,7 +140,7 @@ function ApiClients() {
   const load = () => api.listAPIClients().then((c) => {
     setClients(c ?? []);
     setError("");
-  }).catch((e) => setError(String(e)));
+  }).catch((e) => setError(apiErrorMessage(e, t)));
   useEffect(() => void load(), []);
 
   function start() {
@@ -159,7 +158,7 @@ function ApiClients() {
       setToken(res.token);
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
   function copy() {
@@ -168,19 +167,19 @@ function ApiClients() {
   function copyResolveSnippet(snippet: string, snippetKey: "resource" | "tenant") {
     navigator.clipboard?.writeText(snippet).then(() => {
       setCopiedSnippet(snippetKey);
-      setNotice(t("apiClients.resolveSnippet.copied"));
+      toast.success(t("apiClients.resolveSnippet.copied"));
     }).catch(() => {
       setCopiedSnippet(snippetKey);
-      setNotice(t("apiClients.resolveSnippet.copied"));
+      toast.success(t("apiClients.resolveSnippet.copied"));
     });
   }
   async function revoke(c: ApiClient) {
     try {
       await api.setAPIClientStatus(c.id, "revoked");
-      setNotice(t("apiClients.statusRevoked"));
+      toast.success(t("apiClients.statusRevoked"));
       load();
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 
@@ -206,7 +205,6 @@ function ApiClients() {
       </div>
 
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      <Toast dismissLabel={t("common.dismiss")} message={notice} onDismiss={() => setNotice("")} />
 
       <DataTable labels={dataTableLabels} table={table}>
         <div className="flex items-center justify-between gap-2">

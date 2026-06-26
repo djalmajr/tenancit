@@ -125,14 +125,21 @@ export function SidebarMenuButton({
   isActive = false,
   tooltip,
   children,
+  onClick,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   asChild?: boolean;
   isActive?: boolean;
   tooltip?: string;
 }) {
-  const { open, isMobile } = useSidebar();
+  const { open, isMobile, setOpenMobile } = useSidebar();
   const Comp: any = asChild ? Slot : "button";
+  // On mobile the sidebar is an overlay sheet; close it when a menu item is
+  // activated so the user lands on the chosen screen instead of the open menu.
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (isMobile) setOpenMobile(false);
+    onClick?.(event);
+  };
   const button = (
     <Comp
       data-active={isActive}
@@ -144,6 +151,7 @@ export function SidebarMenuButton({
         "[&_svg]:size-4 [&_svg]:shrink-0",
         className,
       )}
+      onClick={handleClick}
       {...props}
     >
       {children}

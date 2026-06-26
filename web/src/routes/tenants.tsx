@@ -11,7 +11,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Tenant } from "@/lib/api";
 import { useDataTable } from "@/hooks/use-data-table";
 
@@ -111,7 +111,7 @@ function Tenants() {
   const load = () => api.listTenants().then((t) => {
     setPageError("");
     setTenants(t ?? []);
-  }).catch((e) => setPageError(String(e)));
+  }).catch((e) => setPageError(apiErrorMessage(e, t)));
   useEffect(() => void load(), []);
 
   async function create() {
@@ -122,7 +122,7 @@ function Tenants() {
       setOpen(false);
       navigate({ to: "/tenants/$id", params: { id: created.id } });
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 

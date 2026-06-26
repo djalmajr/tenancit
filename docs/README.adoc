@@ -7,9 +7,9 @@
 :source-highlighter: highlight.js
 :experimental:
 
-= Konvario — Documentação
+= KonvarIO — Documentação
 
-O Konvario é um control plane autônomo para manter configuração de recursos por
+O KonvarIO é um control plane autônomo para manter configuração de recursos por
 tenant em aplicações multi-tenant. Ele resolve um hostname para um tenant e
 entrega, para consumidores autenticados, recursos como banco de dados, storage,
 Keycloak e outras configurações operacionais. O serviço também inclui um painel

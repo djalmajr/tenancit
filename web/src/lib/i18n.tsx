@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ApiError } from "./api";
 
 export const LOCALE_STORAGE_KEY = "konvarioLocale";
 
@@ -45,8 +46,8 @@ const ptBR = {
   "apiClients.tokenGenerated.description": "Copie agora; não será possível visualizá-lo novamente.",
   "apiClients.tokenGenerated.title": "Token gerado",
   "app.subtitle": "Console admin",
-  "app.title": "Konvario",
-  "auth.description": "Informe o token administrativo do Konvario.",
+  "app.title": "KonvarIO",
+  "auth.description": "Informe o token administrativo do KonvarIO.",
   "auth.enter": "Entrar",
   "auth.hideToken": "Ocultar token",
   "auth.invalidToken": "Token inválido ou expirado. Informe um token administrativo válido.",
@@ -112,12 +113,18 @@ const ptBR = {
   "definitionDetail.statusDeactivated": "Definição desativada.",
   "definitions.create": "Criar definição",
   "definitions.description": "Catálogo de tipos de recurso e seus campos.",
+  "definitions.empty": "Nenhuma definição ainda.",
   "definitions.emptyDescription": "Sem descrição.",
   "definitions.footerCounts": "Campos: {fieldCount} · Segredos: {secretCount}",
   "definitions.new": "Nova definição",
   "definitions.newDialog.description": "Defina um tipo de recurso. Os campos são adicionados em seguida.",
   "definitions.newDialog.title": "Nova definição",
   "definitions.title": "Definições de recurso",
+  "errors.conflict": "Já existe um registro com esse valor. Verifique se não está duplicando.",
+  "errors.generic": "Algo deu errado. Tente novamente.",
+  "errors.invalidData": "Dados inválidos. Revise os campos.",
+  "errors.notFound": "Registro não encontrado.",
+  "errors.server": "Erro no servidor. Tente novamente em instantes.",
   "nav.apiClients": "Chaves de API",
   "nav.definitions": "Recursos",
   "nav.logout": "Sair",
@@ -250,8 +257,8 @@ const enUS: Record<TranslationKey, string> = {
   "apiClients.tokenGenerated.description": "Copy it now; it cannot be viewed again.",
   "apiClients.tokenGenerated.title": "Generated token",
   "app.subtitle": "Admin Console",
-  "app.title": "Konvario",
-  "auth.description": "Enter the Konvario admin token.",
+  "app.title": "KonvarIO",
+  "auth.description": "Enter the KonvarIO admin token.",
   "auth.enter": "Enter",
   "auth.hideToken": "Hide token",
   "auth.invalidToken": "Invalid or expired token. Enter a valid admin token.",
@@ -317,12 +324,18 @@ const enUS: Record<TranslationKey, string> = {
   "definitionDetail.statusDeactivated": "Definition deactivated.",
   "definitions.create": "Create definition",
   "definitions.description": "Catalog of resource types and their fields.",
+  "definitions.empty": "No definitions yet.",
   "definitions.emptyDescription": "No description.",
   "definitions.footerCounts": "Fields: {fieldCount} · Secrets: {secretCount}",
   "definitions.new": "New definition",
   "definitions.newDialog.description": "Define a resource type. Fields are added next.",
   "definitions.newDialog.title": "New definition",
   "definitions.title": "Resource Definitions",
+  "errors.conflict": "A record with this value already exists. Check for duplicates.",
+  "errors.generic": "Something went wrong. Please try again.",
+  "errors.invalidData": "Invalid data. Review the fields.",
+  "errors.notFound": "Record not found.",
+  "errors.server": "Server error. Please try again shortly.",
   "nav.apiClients": "API Keys",
   "nav.definitions": "Resources",
   "nav.logout": "Log out",
@@ -450,8 +463,8 @@ const esES: Record<TranslationKey, string> = {
   "apiClients.tokenGenerated.description": "Cópialo ahora; no podrás verlo nuevamente.",
   "apiClients.tokenGenerated.title": "Token generado",
   "app.subtitle": "Consola admin",
-  "app.title": "Konvario",
-  "auth.description": "Informa el token administrativo de Konvario.",
+  "app.title": "KonvarIO",
+  "auth.description": "Informa el token administrativo de KonvarIO.",
   "auth.enter": "Entrar",
   "auth.hideToken": "Ocultar token",
   "auth.invalidToken": "Token inválido o vencido. Informa un token administrativo válido.",
@@ -517,12 +530,18 @@ const esES: Record<TranslationKey, string> = {
   "definitionDetail.statusDeactivated": "Definición desactivada.",
   "definitions.create": "Crear definición",
   "definitions.description": "Catálogo de tipos de recurso y sus campos.",
+  "definitions.empty": "Aún no hay definiciones.",
   "definitions.emptyDescription": "Sin descripción.",
   "definitions.footerCounts": "Campos: {fieldCount} · Secretos: {secretCount}",
   "definitions.new": "Nueva definición",
   "definitions.newDialog.description": "Define un tipo de recurso. Los campos se agregan después.",
   "definitions.newDialog.title": "Nueva definición",
   "definitions.title": "Definiciones de recurso",
+  "errors.conflict": "Ya existe un registro con ese valor. Verifica si no está duplicado.",
+  "errors.generic": "Algo salió mal. Inténtalo de nuevo.",
+  "errors.invalidData": "Datos inválidos. Revisa los campos.",
+  "errors.notFound": "Registro no encontrado.",
+  "errors.server": "Error del servidor. Inténtalo en unos instantes.",
   "nav.apiClients": "Claves de API",
   "nav.definitions": "Recursos",
   "nav.logout": "Salir",
@@ -654,6 +673,24 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 export function formatStatus(status: string, t: I18nContextValue["t"]): string {
   const key = `status.${status}` as TranslationKey;
   return hasTranslation(key) ? t(key) : status;
+}
+
+/** Maps an API/client error to a human, localized message — never raw backend text. */
+export function apiErrorMessage(error: unknown, t: I18nContextValue["t"]): string {
+  if (error instanceof ApiError) {
+    switch (error.status) {
+      case 400:
+        return t("errors.invalidData");
+      case 401:
+        return t("auth.invalidToken");
+      case 404:
+        return t("errors.notFound");
+      case 409:
+        return t("errors.conflict");
+    }
+    if (error.status >= 500) return t("errors.server");
+  }
+  return t("errors.generic");
 }
 
 export function hasTranslation(key: string): key is TranslationKey {

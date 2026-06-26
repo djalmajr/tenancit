@@ -83,11 +83,11 @@ export function DataTable<TData>({
                       return (
                         <td
                           className={cn(
-                            "px-2 py-2 align-middle whitespace-nowrap",
+                            "truncate px-2 py-2 align-middle",
                             columnAlignment(cell.column.columnDef.meta),
                           )}
                           key={cell.id}
-                          style={hasFixedSize ? { maxWidth: size, minWidth: size, width: size } : undefined}
+                          style={hasFixedSize ? { maxWidth: size, minWidth: size, width: size } : { maxWidth: "24rem" }}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
