@@ -1,17 +1,19 @@
 import { createRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Search, ChevronRight } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, ChevronRight } from "lucide-react";
 import { Route as rootRoute } from "./__root";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Tenant } from "@/lib/api";
+import { useDataTable } from "@/hooks/use-data-table";
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -23,21 +25,94 @@ function Tenants() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "" });
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
+  const sortLabels = useMemo(() => ({
+    asc: t("dataTable.sortAsc"),
+    desc: t("dataTable.sortDesc"),
+    reset: t("dataTable.sortReset"),
+  }), [t]);
+  const dataTableLabels = useMemo(() => ({
+    goToFirstPage: t("dataTable.firstPage"),
+    goToLastPage: t("dataTable.lastPage"),
+    goToNextPage: t("dataTable.nextPage"),
+    goToPreviousPage: t("dataTable.previousPage"),
+    item: t("dataTable.item"),
+    items: t("dataTable.items"),
+    noResults: t("tenants.empty"),
+    page: t("dataTable.page"),
+    pageOf: t("dataTable.pageOf"),
+    rowsPerPage: t("dataTable.rowsPerPage"),
+  }), [t]);
+  const columns = useMemo<ColumnDef<Tenant>[]>(() => [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label={t("common.name")} labels={sortLabels} />
+      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      meta: { label: t("common.name") },
+    },
+    {
+      accessorKey: "slug",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label={t("common.slug")} labels={sortLabels} />
+      ),
+      cell: ({ row }) => <code className="text-xs">{row.original.slug}</code>,
+      meta: { label: t("common.slug") },
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label={t("common.status")} labels={sortLabels} />
+      ),
+      cell: ({ row }) => (
+        <Badge variant={row.original.status === "active" ? "default" : "secondary"}>
+          {formatStatus(row.original.status, t)}
+        </Badge>
+      ),
+      meta: { label: t("common.status") },
+    },
+    {
+      enableSorting: false,
+      header: "",
+      id: "actions",
+      cell: () => (
+        <div className="flex justify-end">
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </div>
+      ),
+      meta: { align: "right", label: t("common.actions") },
+      size: 40,
+    },
+  ], [sortLabels, t]);
+  const filterTenants = useCallback((tenant: Tenant, filterValue: string) => {
+    const query = filterValue.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      tenant.name,
+      tenant.slug,
+      tenant.status,
+      formatStatus(tenant.status, t),
+    ].some((value) => value.toLowerCase().includes(query));
+  }, [t]);
+  const initialTableState = useMemo(() => ({
+    sorting: [{ desc: false, id: "name" }],
+  }), []);
+  const { globalFilter, setGlobalFilter, table } = useDataTable({
+    columns,
+    data: tenants,
+    globalFilterFn: filterTenants,
+    initialState: initialTableState,
+  });
 
   const load = () => api.listTenants().then((t) => {
     setPageError("");
     setTenants(t ?? []);
   }).catch((e) => setPageError(String(e)));
   useEffect(() => void load(), []);
-
-  const filtered = tenants.filter(
-    (t) => t.name.toLowerCase().includes(q.toLowerCase()) || t.slug.includes(q.toLowerCase()),
-  );
 
   async function create() {
     setError("");
@@ -63,37 +138,21 @@ function Tenants() {
 
       {pageError && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{pageError}</div>}
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-        <Input className="pl-8" placeholder={t("tenants.search")} value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
-
-      <Card>
-        <Table>
-          <THead>
-            <TR>
-              <TH>{t("common.name")}</TH>
-              <TH>{t("common.slug")}</TH>
-              <TH>{t("common.status")}</TH>
-              <TH className="w-10"></TH>
-            </TR>
-          </THead>
-          <TBody>
-            {filtered.map((tenant) => (
-              <TR
-                key={tenant.id}
-                className="cursor-pointer"
-                onClick={() => navigate({ to: "/tenants/$id", params: { id: tenant.id } })}
-              >
-                <TD className="font-medium">{tenant.name}</TD>
-                <TD><code className="text-xs">{tenant.slug}</code></TD>
-                <TD><Badge variant={tenant.status === "active" ? "default" : "secondary"}>{formatStatus(tenant.status, t)}</Badge></TD>
-                <TD><ChevronRight className="size-4 text-muted-foreground" /></TD>
-              </TR>
-            ))}
-          </TBody>
-        </Table>
-      </Card>
+      <DataTable
+        labels={dataTableLabels}
+        onRowClick={(tenant) => navigate({ to: "/tenants/$id", params: { id: tenant.id } })}
+        table={table}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <Input
+            aria-label={t("tenants.search")}
+            className="max-w-xs"
+            onChange={(event) => setGlobalFilter(event.target.value)}
+            placeholder={t("tenants.search")}
+            value={globalFilter}
+          />
+        </div>
+      </DataTable>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

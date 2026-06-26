@@ -6,7 +6,7 @@ persona: service-integrator
 entry: "http://localhost:5180/"
 preconditions:
   - app no ar em modo desenvolvimento com banco descartável ou namespace de teste único
-  - token administrativo válido disponível: `rt_admin_dev`
+  - token administrativo válido disponível: `konvario_admin_dev`
   - é permitido usar um cliente HTTP externo no fim do fluxo para validar `/v1/resolve`
 design_refs:
   overview: "planning/konvario/proto/routes/overview.js"
@@ -23,18 +23,18 @@ Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio, r
 ## Passos (cada passo é uma AÇÃO de UI/API + o resultado esperado)
 
 1. (`overview`) Autenticar-se se necessário → o painel administrativo fica acessível.
-2. (`definitions-list`) Abrir **Resource Definitions**, criar uma definition ativa com key única e adicionar campos `host` obrigatório e `password` obrigatório/secret → a definition aparece com os campos corretos.
+2. (`definitions-list`) Abrir **Recursos**, criar uma definition ativa com key única e adicionar campos `host` obrigatório e `password` obrigatório/segredo → a definition aparece com os campos corretos.
 3. (`tenants-list`) Abrir **Tenants** e criar um tenant com slug único → a aplicação navega para o detalhe do tenant.
 4. (`tenant-detail`) Abrir a aba **Domínios** e adicionar um hostname único → o hostname aparece na tabela do tenant.
-5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada e preencher `host` e `password` → o recurso fica ativo no tenant e o segredo aparece mascarado no painel.
-6. (`api-clients`) Abrir **API Clients**, criar um client e copiar o token exibido uma única vez → o client aparece ativo na tabela.
+5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada e preencher `host` e `password` → o recurso fica ativo no tenant, o segredo aparece mascarado e **Prontidão para consumo** indica domínio/recurso/chave quando aplicável.
+6. (`api-clients`) Abrir **Chaves de API**, conferir o snippet de `/v1/resolve`, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
 7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/resolve?hostname=<hostname>` com `Authorization: Bearer <token>` → a resposta retorna status 200, o slug do tenant e o recurso ativo.
 8. (`consumer-api`) Repetir a chamada sem o token → a resposta retorna 401.
 9. (`consumer-api`) Chamar com um hostname desconhecido e token válido → a resposta retorna 404.
 
 ## Resultado esperado
 
-O caminho admin-to-consumer funciona de ponta a ponta: dados criados no painel são resolvidos pela Consumer API com API key ativa, secret descriptografado sobre o contrato HTTP e erros corretos para ausência de token ou hostname desconhecido.
+O caminho admin-to-consumer funciona de ponta a ponta: dados criados no painel são resolvidos pela Consumer API com API key ativa, segredo descriptografado sobre o contrato HTTP e erros corretos para ausência de token ou hostname desconhecido.
 
 ## Estado atual × design
 

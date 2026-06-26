@@ -14,7 +14,7 @@
 | File | Action | Reason | Confidence |
 |---|---|---|---|
 | `server/internal/crypto/crypto.go` | Create | Cryptor AES-256-GCM versionado | core |
-| `server/internal/crypto/config.go` | Create | `FromEnv` (RT_AES_KEY base64 + versão) | core |
+| `server/internal/crypto/config.go` | Create | `FromEnv` (KONVARIO_AES_KEY base64 + versão) | core |
 | `server/internal/crypto/crypto_test.go` | Create | round-trip, tamper, nonce, key size, cross-version | core |
 
 ## Detail

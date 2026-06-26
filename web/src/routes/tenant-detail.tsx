@@ -1,8 +1,9 @@
 import { createRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  CheckCircle2,
   Building2, ChevronRight, Database, Eye, EyeOff, Globe, Plus, Trash2, Lock,
-  Power, PowerOff, Settings2,
+  CircleAlert, Power, PowerOff, Settings2,
 } from "lucide-react";
 import { Route as rootRoute } from "./__root";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -13,11 +14,20 @@ import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { Select, SelectItem } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatusNotice } from "@/components/ui/status-notice";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RevealValue } from "@/components/ui/reveal-value";
 import { formatStatus, useI18n } from "@/lib/i18n";
 import {
-  api, type Tenant, type TenantDomain, type TenantResource, type Definition, type Field,
+  api, type Tenant, type TenantDomain, type TenantResource, type Definition, type Field, type ApiClient,
 } from "@/lib/api";
 
 export const Route = createRoute({
@@ -34,6 +44,7 @@ function TenantDetail() {
   const [domains, setDomains] = useState<TenantDomain[]>([]);
   const [resources, setResources] = useState<TenantResource[]>([]);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
+  const [apiClients, setApiClients] = useState<ApiClient[]>([]);
 
   const [hostname, setHostname] = useState("");
   const [newDomainOpen, setNewDomainOpen] = useState(false);
@@ -50,6 +61,9 @@ function TenantDetail() {
   const [pageError, setPageError] = useState("");
   const [resourceError, setResourceError] = useState("");
   const [secretsRevealed, setSecretsRevealed] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [pendingDomain, setPendingDomain] = useState<TenantDomain | null>(null);
+  const [pendingResource, setPendingResource] = useState<TenantResource | null>(null);
 
   const load = useCallback(async (reveal: boolean) => {
     try {
@@ -71,9 +85,12 @@ function TenantDetail() {
   useEffect(() => {
     void load(false);
     api.listDefinitions().then((d) => setDefinitions(d ?? [])).catch((e) => setPageError(String(e)));
+    api.listAPIClients().then((c) => setApiClients(c ?? [])).catch((e) => setPageError(String(e)));
   }, [load]);
 
   const activeKeys = new Set(resources.filter((r) => r.status === "active").map((r) => r.definitionKey));
+  const activeResourceCount = resources.filter((r) => r.status === "active").length;
+  const activeApiKeyCount = apiClients.filter((c) => c.status === "active").length;
   const available = definitions.filter((d) => d.status === "active" && !activeKeys.has(d.key));
   const picked = available.find((d) => d.key === pick) ?? null;
   const requiredFilled =
@@ -91,6 +108,7 @@ function TenantDetail() {
     try {
       await api.updateTenant(id, edit);
       setEditOpen(false);
+      setNotice(t("tenantDetail.updated"));
       await load(secretsRevealed);
     } catch (e) {
       setEditError(String(e));
@@ -120,6 +138,7 @@ function TenantDetail() {
       setPick("");
       setValues({});
       setPickedFields([]);
+      setNotice(t("tenantDetail.resourceAdded"));
       await load(secretsRevealed);
     } catch (e) {
       setResourceError(String(e));
@@ -127,16 +146,21 @@ function TenantDetail() {
   }
 
   async function toggleResource(r: TenantResource) {
+    const next = r.status === "active" ? "inactive" : "active";
     try {
-      await api.setResourceStatus(id, r.id, r.status === "active" ? "inactive" : "active");
+      await api.setResourceStatus(id, r.id, next);
+      setNotice(next === "active" ? t("tenantDetail.resourceStatusActivated") : t("tenantDetail.resourceStatusDeactivated"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
     }
   }
-  async function removeResource(r: TenantResource) {
+  async function removeResource() {
+    if (!pendingResource) return;
     try {
-      await api.deleteResource(id, r.id);
+      await api.deleteResource(id, pendingResource.id);
+      setPendingResource(null);
+      setNotice(t("tenantDetail.resourceRemoved"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
@@ -150,14 +174,18 @@ function TenantDetail() {
       await api.addDomain(id, hostname.trim());
       setHostname("");
       setNewDomainOpen(false);
+      setNotice(t("tenantDetail.domainAdded"));
       await load(secretsRevealed);
     } catch (e) {
       setDomainError(String(e));
     }
   }
-  async function removeDomain(d: TenantDomain) {
+  async function removeDomain() {
+    if (!pendingDomain) return;
     try {
-      await api.removeDomain(id, d.id);
+      await api.removeDomain(id, pendingDomain.id);
+      setPendingDomain(null);
+      setNotice(t("tenantDetail.domainRemoved"));
       await load(secretsRevealed);
     } catch (e) {
       setPageError(String(e));
@@ -167,6 +195,7 @@ function TenantDetail() {
   async function toggleSecrets() {
     const next = !secretsRevealed;
     setSecretsRevealed(next);
+    setNotice(next ? t("tenantDetail.secretsEnabled") : t("tenantDetail.secretsDisabled"));
     await load(next);
   }
 
@@ -183,6 +212,7 @@ function TenantDetail() {
   return (
     <div className="space-y-6">
       {pageError && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{pageError}</div>}
+      <StatusNotice dismissLabel={t("common.dismiss")} message={notice} onDismiss={() => setNotice("")} />
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/tenants" className="hover:text-foreground">{t("tenants.title")}</Link>
         <ChevronRight className="size-3.5" />
@@ -207,6 +237,35 @@ function TenantDetail() {
         </Button>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("tenantDetail.readiness.title")}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t("tenantDetail.readiness.description")}</p>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          <ReadinessItem
+            label={t("tenantDetail.readiness.tenant")}
+            ready={tenant.status === "active"}
+            value={formatStatus(tenant.status, t)}
+          />
+          <ReadinessItem
+            label={t("tenantDetail.readiness.domains")}
+            ready={domains.length > 0}
+            value={domains.length > 0 ? String(domains.length) : t("tenantDetail.readiness.missingDomain")}
+          />
+          <ReadinessItem
+            label={t("tenantDetail.readiness.activeResources")}
+            ready={activeResourceCount > 0}
+            value={activeResourceCount > 0 ? String(activeResourceCount) : t("tenantDetail.readiness.missingResource")}
+          />
+          <ReadinessItem
+            label={t("tenantDetail.readiness.activeApiKeys")}
+            ready={activeApiKeyCount > 0}
+            value={activeApiKeyCount > 0 ? String(activeApiKeyCount) : t("tenantDetail.readiness.missingApiKey")}
+          />
+        </CardContent>
+      </Card>
+
       <div className="flex gap-1 border-b">
         <TabBtn active={tab === "resources"} onClick={() => setTab("resources")} icon={<Database className="size-4" />}>
           {t("tenantDetail.resourcesTab")}
@@ -222,7 +281,7 @@ function TenantDetail() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={toggleSecrets}>
                 {secretsRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                {secretsRevealed ? t("tenantDetail.hideSecrets") : t("tenantDetail.revealSecrets")}
+                {secretsRevealed ? t("tenantDetail.hideSecrets") : t("tenantDetail.enableSecretReveal")}
               </Button>
               <Button onClick={() => { setResourceError(""); setPick(""); setPickedFields([]); setResOpen(true); }}>
                 <Plus className="size-4" /> {t("tenantDetail.addResource")}
@@ -254,7 +313,7 @@ function TenantDetail() {
                     >
                       {r.status === "active" ? <Power className="size-4" /> : <PowerOff className="size-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => removeResource(r)}>
+                    <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingResource(r)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
@@ -282,7 +341,7 @@ function TenantDetail() {
                               <code className="text-xs">{f.value || "—"}</code>
                             )}
                           </TD>
-                          <TD>{f.isSecret && <Badge variant="secondary" className="text-amber-600">secret</Badge>}</TD>
+                          <TD>{f.isSecret && <Badge variant="secondary" className="text-amber-600">{t("common.secret")}</Badge>}</TD>
                         </TR>
                       ))}
                     </TBody>
@@ -321,7 +380,7 @@ function TenantDetail() {
                     <TR key={d.id}>
                       <TD className="font-medium"><code className="text-xs">{d.hostname}</code></TD>
                       <TD className="text-right">
-                        <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => removeDomain(d)}>
+                        <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingDomain(d)}>
                           <Trash2 className="size-4" />
                         </Button>
                       </TD>
@@ -352,9 +411,16 @@ function TenantDetail() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.status")}</label>
-              <Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>
-                <SelectItem value="active">{formatStatus("active", t)}</SelectItem>
-                <SelectItem value="inactive">{formatStatus("inactive", t)}</SelectItem>
+              <Select value={edit.status} onValueChange={(value) => setEdit({ ...edit, status: String(value) })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="active">{formatStatus("active", t)}</SelectItem>
+                    <SelectItem value="inactive">{formatStatus("inactive", t)}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
               </Select>
             </div>
             {editError && <div className="text-sm text-destructive">{editError}</div>}
@@ -382,11 +448,17 @@ function TenantDetail() {
               <>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("tenantDetail.resourceType")}</label>
-                  <Select value={pick} onChange={(e) => choose(e.target.value)}>
-                    <SelectItem value="">{t("tenantDetail.selectResource")}</SelectItem>
-                    {available.map((d) => (
-                      <SelectItem key={d.key} value={d.key}>{d.name}</SelectItem>
-                    ))}
+                  <Select value={pick || null} onValueChange={(value) => choose(value ? String(value) : "")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("tenantDetail.selectResource")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {available.map((d) => (
+                          <SelectItem key={d.key} value={d.key}>{d.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
                   </Select>
                 </div>
                 {pickedFields.map((f) => (
@@ -432,6 +504,54 @@ function TenantDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        cancelLabel={t("common.cancel")}
+        confirmLabel={t("common.removeConfirm")}
+        description={t("tenantDetail.confirmRemoveResourceDescription", { resourceName: pendingResource?.name ?? "" })}
+        onConfirm={removeResource}
+        onOpenChange={(open) => {
+          if (!open) setPendingResource(null);
+        }}
+        open={Boolean(pendingResource)}
+        title={t("tenantDetail.confirmRemoveResourceTitle")}
+      />
+
+      <ConfirmDialog
+        cancelLabel={t("common.cancel")}
+        confirmLabel={t("common.removeConfirm")}
+        description={t("tenantDetail.confirmRemoveDomainDescription", { hostname: pendingDomain?.hostname ?? "" })}
+        onConfirm={removeDomain}
+        onOpenChange={(open) => {
+          if (!open) setPendingDomain(null);
+        }}
+        open={Boolean(pendingDomain)}
+        title={t("tenantDetail.confirmRemoveDomainTitle")}
+      />
+    </div>
+  );
+}
+
+function ReadinessItem({
+  label,
+  ready,
+  value,
+}: {
+  label: string;
+  ready: boolean;
+  value: string;
+}) {
+  return (
+    <div className="flex min-h-20 items-start gap-3 rounded-md border p-3">
+      {ready ? (
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-green-600" />
+      ) : (
+        <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+      )}
+      <div className="min-w-0">
+        <div className="text-sm font-medium">{label}</div>
+        <div className="break-words text-sm text-muted-foreground">{value}</div>
+      </div>
     </div>
   );
 }

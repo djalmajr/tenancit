@@ -58,8 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [hasAdminToken, setHasAdminToken] = React.useState(() => Boolean(getAdminToken()));
 
   React.useEffect(() => {
-    function requestAdminAuth() {
-      setAuthMessageKey("auth.requiredAccess");
+    function requestAdminAuth(event: Event) {
+      const messageKey = event instanceof CustomEvent ? event.detail?.messageKey : undefined;
+      setAuthMessageKey(messageKey === "auth.invalidToken" ? "auth.invalidToken" : "auth.requiredAccess");
       setDraftAdminToken("");
       clearAdminToken();
       setHasAdminToken(false);
@@ -205,11 +206,11 @@ function AdminAccessScreen({
           {t("auth.token")}
         </label>
         <div className="relative mt-2">
-          <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <KeyRound className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoComplete="off"
             autoFocus
-            className="h-10 pl-9 pr-10"
+            className="pl-7 pr-7"
             id="admin-token"
             onChange={(event) => onDraftAdminTokenChange(event.target.value)}
             type={showToken ? "text" : "password"}
@@ -217,11 +218,11 @@ function AdminAccessScreen({
           />
           <button
             aria-label={showToken ? t("auth.hideToken") : t("auth.showToken")}
-            className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
             onClick={() => setShowToken((value) => !value)}
             type="button"
           >
-            {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {showToken ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </button>
         </div>
 

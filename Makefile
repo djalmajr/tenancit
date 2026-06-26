@@ -27,12 +27,12 @@ test-web:
 
 ## test-db: Go tests against an ephemeral Postgres
 test-db: pg-test-up
-	cd server && TEST_DATABASE_URL="postgres://postgres:test@localhost:55432/rt_test?sslmode=disable" go test ./...
+	cd server && TEST_DATABASE_URL="postgres://postgres:test@localhost:55432/konvario_test?sslmode=disable" go test ./...
 	$(MAKE) pg-test-down
 
 pg-test-up:
 	docker rm -f konvario-pg-test >/dev/null 2>&1 || true
-	docker run -d --name konvario-pg-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=rt_test -p 55432:5432 postgres:16-alpine >/dev/null
+	docker run -d --name konvario-pg-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=konvario_test -p 55432:5432 postgres:16-alpine >/dev/null
 	@for i in $$(seq 1 30); do docker exec konvario-pg-test pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
 
 pg-test-down:

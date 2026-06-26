@@ -68,11 +68,11 @@ function Definitions() {
         {defs.map((d) => (
           <button
             key={d.id}
-            className="text-left"
+            className="h-full text-left"
             onClick={() => navigate({ to: "/resource-definitions/$id", params: { id: d.id } })}
           >
-            <Card className="h-full transition-colors hover:border-primary/50">
-              <CardHeader>
+            <Card className="flex h-full flex-col overflow-hidden transition-colors hover:border-primary/50">
+              <CardHeader className="flex flex-1 flex-col">
                 <div className="flex items-center justify-between">
                   <div className="flex size-9 items-center justify-center rounded-md bg-muted">
                     {defIcon(d.key)}
@@ -83,7 +83,7 @@ function Definitions() {
                 <p className="text-sm text-muted-foreground">{d.description || t("definitions.emptyDescription")}</p>
                 <code className="text-xs text-muted-foreground">{d.key}</code>
               </CardHeader>
-              <CardFooter className="text-xs text-muted-foreground">
+              <CardFooter className="flex min-h-10 items-center px-4 py-0 text-xs text-muted-foreground">
                 {t("definitions.footerCounts", { fieldCount: d.fieldCount ?? 0, secretCount: d.secretCount ?? 0 })}
               </CardFooter>
             </Card>

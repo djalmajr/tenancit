@@ -23,5 +23,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/server ./cmd/serv
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=server /out/server /server
 EXPOSE 8080
-ENV RT_ADDR=:8080
+ENV KONVARIO_ADDR=:8080
 ENTRYPOINT ["/server"]

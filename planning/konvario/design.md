@@ -3,11 +3,11 @@
 **Status:** Decisões consolidadas após sessão de grilling (2026-05-30).
 **Relacionado:** [intake.md](./intake.md) · [decisions.md](./decisions.md)
 
-> ⚠️ **Pivot em relação ao intake original.** O intake descrevia um *port fiel* do
-> "resource tenant" do `front-manager-api` com 100% de compatibilidade. Essa premissa
-> **caiu**. O serviço passa a ser um **serviço de configuração multi-tenant**
-> independente. Os projetos `front-manager-api` e `hyper-resource-tenant-lib` passam a
-> ser **inspiração de padrão**, não contrato a respeitar.
+> ⚠️ **Pivot em relação ao intake original.** O intake descrevia um *port fiel* de
+> uma implementação legada de "resource tenant" com 100% de compatibilidade. Essa
+> premissa **caiu**. O serviço passa a ser um **serviço de configuração
+> multi-tenant** independente. Implementações legadas passam a ser **inspiração de
+> padrão**, não contrato a respeitar.
 
 ## 1. Objetivo
 
@@ -164,7 +164,7 @@ Regras:
 - Kafka / mensageria.
 - Cache em object storage (MinIO) como mecanismo de distribuição.
 - Cofre de segredos externo (Vault/OpenBao) — chave AES fica em env/config.
-- Compatibilidade com dados/contratos do `front-manager-api`.
+- Compatibilidade com dados/contratos de implementações legadas específicas.
 
 ## 6. Decisões em aberto (não bloqueiam o epic)
 

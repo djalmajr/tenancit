@@ -42,7 +42,7 @@ autenticado sobre TLS.
   um recurso ativo.
 * *Definitions dinâmicas.* Novo tipo de recurso não exige migration, apenas uma
   nova definition e seus fields.
-* *Admin seguro por padrão.* O painel admin exige `RT_ADMIN_TOKEN`; segredos
+* *Admin seguro por padrão.* O painel admin exige `KONVARIO_ADMIN_TOKEN`; segredos
   aparecem mascarados até uma ação explícita de reveal.
 * *Consumidor simples.* Serviços consumidores não conhecem criptografia nem
   schema interno; eles recebem um contrato JSON pronto para uso.

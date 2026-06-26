@@ -1,4 +1,4 @@
-# ADRs — Architecture Decision Records (resource-tenant)
+# ADRs — Architecture Decision Records (Konvario)
 
 Índice das decisões arquiteturais do **Konvario**. Comece por
 aqui para entender por que o serviço tem esse formato, não apenas como ele

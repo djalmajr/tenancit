@@ -9,8 +9,8 @@
 
 = Konvario — Documentação
 
-O Konvario é o serviço autônomo da Central IT para manter a
-configuração de recursos por tenant. Ele resolve um hostname para um tenant e
+O Konvario é um control plane autônomo para manter configuração de recursos por
+tenant em aplicações multi-tenant. Ele resolve um hostname para um tenant e
 entrega, para consumidores autenticados, recursos como banco de dados, storage,
 Keycloak e outras configurações operacionais. O serviço também inclui um painel
 admin embutido para cadastrar tenants, domains, definitions, resources e API

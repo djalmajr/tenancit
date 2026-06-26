@@ -19,7 +19,7 @@ As alternativas consideradas foram:
 ## Decisão
 
 Campos marcados como `is_secret` são cifrados em repouso com AES-256-GCM. A
-chave atual vem de `RT_AES_KEY` e a versão de `RT_AES_KEY_VERSION`. O schema
+chave atual vem de `KONVARIO_AES_KEY` e a versão de `KONVARIO_AES_KEY_VERSION`. O schema
 guarda `key_version` para permitir rotação futura.
 
 O decrypt acontece server-side:

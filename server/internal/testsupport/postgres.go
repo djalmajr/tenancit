@@ -29,7 +29,7 @@ func NewDB(t *testing.T) *pgxpool.Pool {
 	ctx := context.Background()
 
 	container, err := tcpg.Run(ctx, "postgres:16-alpine",
-		tcpg.WithDatabase("rt_test"),
+		tcpg.WithDatabase("konvario_test"),
 		tcpg.WithUsername("postgres"),
 		tcpg.WithPassword("test"),
 		testcontainers.WithWaitStrategy(
