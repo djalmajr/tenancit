@@ -94,18 +94,59 @@ export function DialogContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   const { open, setOpen } = useDialogContext();
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+
+    const getFocusable = () => {
+      const panel = panelRef.current;
+      if (!panel) return [] as HTMLElement[];
+      return Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
+    };
+
+    // Move focus into the dialog on open (first focusable, else the panel).
+    (getFocusable()[0] ?? panelRef.current)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpen(false);
+        return;
+      }
+      // Trap Tab within the dialog so focus can't escape to the page behind it.
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const items = getFocusable();
+      if (items.length === 0) {
+        event.preventDefault();
+        panelRef.current.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !panelRef.current.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panelRef.current.contains(active)) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      // Restore focus to whatever was focused before the dialog opened.
+      previouslyFocused.current?.focus?.();
+    };
   }, [open, setOpen]);
 
   if (!open || typeof document === "undefined") {
@@ -120,7 +161,9 @@ export function DialogContent({
         onClick={() => setOpen(false)}
       />
       <div
+        ref={panelRef}
         aria-modal="true"
+        tabIndex={-1}
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg outline-none",
           className,
