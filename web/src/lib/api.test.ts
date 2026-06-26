@@ -67,7 +67,9 @@ describe("api client", () => {
     window.addEventListener("admin-auth-required", listener);
     mockFetch(() => new Response("missing bearer token", { status: 401 }));
 
-    await expect(api.listTenants()).rejects.toThrow(/autenticação admin necessária/);
+    // A 401 rejects with an ApiError carrying the status; the human-readable
+    // message is derived at display time (apiErrorMessage), not baked in here.
+    await expect(api.listTenants()).rejects.toMatchObject({ status: 401 });
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0]).toMatchObject({
       detail: { messageKey: "auth.invalidToken" },
