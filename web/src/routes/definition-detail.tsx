@@ -20,7 +20,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { StatusNotice } from "@/components/ui/status-notice";
+import { toast } from "sonner";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
 
@@ -40,7 +40,6 @@ function DefinitionDetailPage() {
   const [fieldError, setFieldError] = useState("");
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...EMPTY });
-  const [notice, setNotice] = useState("");
   const [pendingField, setPendingField] = useState<DefinitionDetail["fields"][number] | null>(null);
 
   const load = useCallback(() => {
@@ -61,7 +60,7 @@ function DefinitionDetailPage() {
       setF({ ...EMPTY });
       setFieldError("");
       setOpen(false);
-      setNotice(t("definitionDetail.fieldAdded"));
+      toast.success(t("definitionDetail.fieldAdded"));
       load();
     } catch (e) {
       setFieldError(apiErrorMessage(e, t));
@@ -72,7 +71,7 @@ function DefinitionDetailPage() {
     try {
       await api.deleteField(id, pendingField.id);
       setPendingField(null);
-      setNotice(t("definitionDetail.fieldRemoved"));
+      toast.success(t("definitionDetail.fieldRemoved"));
       load();
     } catch (e) {
       setError(apiErrorMessage(e, t));
@@ -83,7 +82,7 @@ function DefinitionDetailPage() {
     const next = detail.definition.status === "active" ? "inactive" : "active";
     try {
       await api.setDefinitionStatus(id, next);
-      setNotice(next === "active" ? t("definitionDetail.statusActivated") : t("definitionDetail.statusDeactivated"));
+      toast.success(next === "active" ? t("definitionDetail.statusActivated") : t("definitionDetail.statusDeactivated"));
       load();
     } catch (e) {
       setError(apiErrorMessage(e, t));
@@ -104,7 +103,6 @@ function DefinitionDetailPage() {
   return (
     <div className="space-y-6">
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      <StatusNotice dismissLabel={t("common.dismiss")} message={notice} onDismiss={() => setNotice("")} />
 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/resource-definitions" className="hover:text-foreground">{t("definitions.title")}</Link>
