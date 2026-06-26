@@ -1,13 +1,13 @@
 [#prod-visao-geral]
 === Visão geral
 
-O Konvario resolve uma dor específica de plataformas
+O KonvarIO resolve uma dor específica de plataformas
 multi-tenant: cada cliente pode ter recursos próprios, mas os sistemas
 consumidores precisam descobrir essa configuração de forma determinística,
 segura e simples.
 
 Em vez de cada aplicação manter sua própria tabela de conexões, buckets,
-realms e chaves de integração, o Konvario centraliza esse
+realms e chaves de integração, o KonvarIO centraliza esse
 catálogo. Um consumidor informa o hostname público do tenant e recebe os
 recursos ativos daquele tenant por uma API server-to-server autenticada.
 

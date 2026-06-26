@@ -1,7 +1,7 @@
 [#eng-arquitetura]
 === Arquitetura
 
-O Konvario é um binário Go que combina API HTTP, painel SPA
+O KonvarIO é um binário Go que combina API HTTP, painel SPA
 embutido, migrations e acesso direto ao PostgreSQL. O desenho favorece poucas
 partes móveis: não há broker, cache externo, ORM mágico ou serviço separado
 para o painel.
@@ -38,7 +38,7 @@ konvario/
 ----
 sequenceDiagram
   participant C as Serviço consumidor
-  participant RTS as Konvario
+  participant RTS as KonvarIO
   participant PG as PostgreSQL
 
   C->>RTS: GET /v1/resolve?hostname=tenant.example.com
