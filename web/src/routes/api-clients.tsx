@@ -1,7 +1,7 @@
 import { createRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, ShieldAlert, Copy, Check, Ban, CircleHelp } from "lucide-react";
+import { Plus, ShieldAlert, Copy, Check, Ban, RotateCcw, CircleHelp } from "lucide-react";
 import { Route as rootRoute } from "./__root";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,6 @@ function ApiClients() {
   "/v1/resolve?hostname=<tenant-hostname>"`;
   const resourceResolveSnippet = `curl -H "Authorization: Bearer <token>" \\
   "/v1/resolve/<tenant-hostname>/resources/<definition-key>"`;
-  const activeClients = useMemo(() => clients.filter((client) => client.status === "active"), [clients]);
   const sortLabels = useMemo(() => ({
     asc: t("dataTable.sortAsc"),
     desc: t("dataTable.sortDesc"),
@@ -102,14 +101,25 @@ function ApiClients() {
       id: "actions",
       cell: ({ row }) => (
         <div className="text-right">
-          <Button
-            onClick={() => revoke(row.original)}
-            size="icon-sm"
-            title={t("apiClients.revoke")}
-            variant="ghost"
-          >
-            <Ban className="size-4" />
-          </Button>
+          {row.original.status === "active" ? (
+            <Button
+              onClick={() => revoke(row.original)}
+              size="icon-sm"
+              title={t("apiClients.revoke")}
+              variant="ghost"
+            >
+              <Ban className="size-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={() => reactivate(row.original)}
+              size="icon-sm"
+              title={t("apiClients.reactivate")}
+              variant="ghost"
+            >
+              <RotateCcw className="size-4" />
+            </Button>
+          )}
         </div>
       ),
       meta: { align: "right", label: t("apiClients.actions") },
@@ -132,7 +142,7 @@ function ApiClients() {
   }), []);
   const { globalFilter, setGlobalFilter, table } = useDataTable({
     columns,
-    data: activeClients,
+    data: clients,
     globalFilterFn: filterClients,
     initialState: initialTableState,
   });
@@ -177,6 +187,15 @@ function ApiClients() {
     try {
       await api.setAPIClientStatus(c.id, "revoked");
       toast.success(t("apiClients.statusRevoked"));
+      load();
+    } catch (e) {
+      setError(apiErrorMessage(e, t));
+    }
+  }
+  async function reactivate(c: ApiClient) {
+    try {
+      await api.setAPIClientStatus(c.id, "active");
+      toast.success(t("apiClients.statusReactivated"));
       load();
     } catch (e) {
       setError(apiErrorMessage(e, t));
