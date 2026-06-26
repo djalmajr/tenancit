@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O Konvario atende o hot path de configuração multi-tenant:
+O KonvarIO atende o hot path de configuração multi-tenant:
 serviços consumidores precisam resolver recursos por hostname com baixa
 complexidade operacional. A solução precisa ser pequena, previsível e fácil de
 rodar junto de PostgreSQL.

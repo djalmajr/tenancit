@@ -7,7 +7,7 @@
 
 Vários resources contêm secrets operacionais, como senhas de banco e tokens. O
 serviço consumidor precisa receber esses valores prontos para uso, mas a chave
-de criptografia não deve sair do Konvario.
+de criptografia não deve sair do KonvarIO.
 
 As alternativas consideradas foram:
 

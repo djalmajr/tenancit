@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
-import { formatStatus, useI18n } from "@/lib/i18n";
+import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Definition } from "@/lib/api";
 
 export const Route = createRoute({
@@ -36,7 +36,7 @@ function Definitions() {
   const load = () => api.listDefinitions().then((d) => {
     setError("");
     setDefs(d ?? []);
-  }).catch((e) => setError(String(e)));
+  }).catch((e) => setError(apiErrorMessage(e, t)));
   useEffect(() => void load(), []);
 
   async function create() {
@@ -48,7 +48,7 @@ function Definitions() {
       setOpen(false);
       navigate({ to: "/resource-definitions/$id", params: { id: created.id } });
     } catch (e) {
-      setError(String(e));
+      setError(apiErrorMessage(e, t));
     }
   }
 
@@ -59,39 +59,51 @@ function Definitions() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("definitions.title")}</h1>
           <p className="text-muted-foreground">{t("definitions.description")}</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus className="size-4" /> {t("definitions.new")}</Button>
+        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("definitions.new")}</Button>
       </div>
 
       {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {defs.map((d) => (
-          <button
-            key={d.id}
-            className="h-full text-left"
-            onClick={() => navigate({ to: "/resource-definitions/$id", params: { id: d.id } })}
-          >
-            <Card className="flex h-full flex-col overflow-hidden transition-colors hover:border-primary/50">
-              <CardHeader className="flex flex-1 flex-col">
-                <div className="flex items-center justify-between">
-                  <div className="flex size-9 items-center justify-center rounded-md bg-muted">
-                    {defIcon(d.key)}
+      {defs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
+          <div className="flex size-10 items-center justify-center rounded-md bg-muted">
+            <Box className="size-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">{t("definitions.empty")}</p>
+          <Button variant="outline" onClick={() => { setError(""); setOpen(true); }}>
+            <Plus className="size-4" /> {t("definitions.new")}
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {defs.map((d) => (
+            <button
+              key={d.id}
+              className="h-full text-left"
+              onClick={() => navigate({ to: "/resource-definitions/$id", params: { id: d.id } })}
+            >
+              <Card className="flex h-full flex-col overflow-hidden transition-colors hover:border-primary/50">
+                <CardHeader className="flex flex-1 flex-col">
+                  <div className="flex items-center justify-between">
+                    <div className="flex size-9 items-center justify-center rounded-md bg-muted">
+                      {defIcon(d.key)}
+                    </div>
+                    <Badge variant={d.status === "active" ? "default" : "secondary"}>{formatStatus(d.status, t)}</Badge>
                   </div>
-                  <Badge variant={d.status === "active" ? "default" : "secondary"}>{formatStatus(d.status, t)}</Badge>
-                </div>
-                <CardTitle className="mt-2 text-base">{d.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{d.description || t("definitions.emptyDescription")}</p>
-                <code className="text-xs text-muted-foreground">{d.key}</code>
-              </CardHeader>
-              <CardFooter className="flex min-h-10 items-center px-4 py-0 text-xs text-muted-foreground">
-                {t("definitions.footerCounts", { fieldCount: d.fieldCount ?? 0, secretCount: d.secretCount ?? 0 })}
-              </CardFooter>
-            </Card>
-          </button>
-        ))}
-      </div>
+                  <CardTitle className="mt-2 text-base">{d.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{d.description || t("definitions.emptyDescription")}</p>
+                  <code className="text-xs text-muted-foreground">{d.key}</code>
+                </CardHeader>
+                <CardFooter className="flex min-h-10 items-center px-4 py-0 text-xs text-muted-foreground">
+                  {t("definitions.footerCounts", { fieldCount: d.fieldCount ?? 0, secretCount: d.secretCount ?? 0 })}
+                </CardFooter>
+              </Card>
+            </button>
+          ))}
+        </div>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setError(""); setOpen(o); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("definitions.newDialog.title")}</DialogTitle>
@@ -111,6 +123,7 @@ function Definitions() {
               <Input placeholder="Conexão de banco por tenant" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
+          {error && <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
             <Button disabled={!form.key || !form.name} onClick={create}>{t("definitions.create")}</Button>
