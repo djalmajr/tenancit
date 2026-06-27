@@ -55,6 +55,19 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Ten
 	return i, err
 }
 
+const deleteTenant = `-- name: DeleteTenant :execrows
+DELETE FROM tenants WHERE id = $1
+`
+
+// Cascades to tenant_domains, tenant_resources and tenant_resource_values (FK ON DELETE CASCADE).
+func (q *Queries) DeleteTenant(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenant, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getTenant = `-- name: GetTenant :one
 SELECT id, slug, name, status, created_at, updated_at FROM tenants WHERE id = $1
 `

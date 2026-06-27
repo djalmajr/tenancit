@@ -57,6 +57,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.Get("/tenants", s.listTenants)
 		ar.Get("/tenants/{id}", s.getTenant)
 		ar.Put("/tenants/{id}", s.updateTenant)
+		ar.Delete("/tenants/{id}", s.deleteTenant)
 		ar.Post("/tenants/{id}/domains", s.addDomain)
 		ar.Get("/tenants/{id}/domains", s.listTenantDomains)
 		ar.Delete("/tenants/{id}/domains/{domainId}", s.deleteDomain)

@@ -212,6 +212,44 @@ func TestAddDomain_DuplicateHostname_Conflict(t *testing.T) {
 	}
 }
 
+// Deleting a tenant returns 204, cascades to its domains/resources, and is 404
+// thereafter (and on a missing id).
+// Mutation captured: a DeleteTenant that ignores RowsAffected returns 204 on a
+// missing tenant; a delete that doesn't cascade leaves the domain resolvable.
+func TestDeleteTenant_CascadesAnd404(t *testing.T) {
+	_, h := newTestServer(t)
+	seedDefinition(t, h, "pg")
+	tid := seedTenant(t, h, "delme", "delme.example.com")
+	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources",
+		map[string]any{"definitionKey": "pg", "values": map[string]string{"host": "h", "password": "p"}}); rec.Code != 201 {
+		t.Fatalf("seed resource: %d %s", rec.Code, rec.Body)
+	}
+	token := mintToken(t, h)
+	resolve := func() int {
+		req := httptest.NewRequest("GET", "/v1/resolve?hostname=delme.example.com", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		return rr.Code
+	}
+
+	if c := resolve(); c != http.StatusOK {
+		t.Fatalf("pre-delete resolve got %d, want 200", c)
+	}
+	if rec := do(t, h, "DELETE", "/v1/admin/tenants/"+tid, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete got %d, want 204 (%s)", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, "GET", "/v1/admin/tenants/"+tid, nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("get after delete got %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+	if c := resolve(); c != http.StatusNotFound {
+		t.Fatalf("post-delete resolve got %d, want 404 (domain should cascade)", c)
+	}
+	if rec := do(t, h, "DELETE", "/v1/admin/tenants/"+tid, nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("second delete got %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+}
+
 // Tenant update persists changes (name/slug/status).
 // Mutation captured: a no-op UpdateTenant (returns input unchanged) fails the reread.
 func TestUpdateTenant_Persists(t *testing.T) {

@@ -16,9 +16,9 @@ Proteção: `Authorization: Bearer <TENANCIT_ADMIN_TOKEN>`.
 | `/v1/admin/overview`
 | Métricas e cards resumidos do painel.
 
-| `POST`, `GET`, `GET`, `PUT`
+| `POST`, `GET`, `GET`, `PUT`, `DELETE`
 | `/v1/admin/tenants`, `/v1/admin/tenants/{id}`
-| CRUD principal de tenants.
+| CRUD principal de tenants. `DELETE` remove o tenant e, por FK `ON DELETE CASCADE`, seus domains/resources/values (204; 404 se não existir).
 
 | `POST`, `GET`, `DELETE`
 | `/v1/admin/tenants/{id}/domains`

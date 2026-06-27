@@ -37,6 +37,26 @@ func (s *Server) updateTenant(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, t)
 }
 
+// DELETE /v1/admin/tenants/{id} — remove a tenant and (via FK cascade) its
+// domains, resources and resource values. Returns 404 if it does not exist.
+func (s *Server) deleteTenant(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	n, err := s.Q.DeleteTenant(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if n == 0 {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // DELETE /v1/admin/tenants/{id}/domains/{domainId}
 func (s *Server) deleteDomain(w http.ResponseWriter, r *http.Request) {
 	did, err := parseParam(r, "domainId")

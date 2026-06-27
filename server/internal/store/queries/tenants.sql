@@ -11,6 +11,10 @@ SELECT * FROM tenants ORDER BY name;
 UPDATE tenants SET name = $2, slug = $3, status = $4, updated_at = now()
 WHERE id = $1 RETURNING *;
 
+-- name: DeleteTenant :execrows
+-- Cascades to tenant_domains, tenant_resources and tenant_resource_values (FK ON DELETE CASCADE).
+DELETE FROM tenants WHERE id = $1;
+
 -- name: AddTenantDomain :one
 INSERT INTO tenant_domains (tenant_id, hostname) VALUES ($1, $2) RETURNING *;
 
