@@ -37,6 +37,7 @@ fi
 export TENANCIT_E2E_ADMIN_TOKEN="${TENANCIT_E2E_ADMIN_TOKEN:-scale-admin-$(openssl rand -hex 16)}"
 export TENANCIT_E2E_AES_KEY="${TENANCIT_E2E_AES_KEY:-$(openssl rand -base64 32)}"
 export TENANCIT_E2E_DB_PASSWORD="${TENANCIT_E2E_DB_PASSWORD:-scaledb$(openssl rand -hex 16)}"
+export TENANCIT_E2E_OPERATIONS_TOKEN="${TENANCIT_E2E_OPERATIONS_TOKEN:-scale-operations-$(openssl rand -hex 16)}"
 
 mkdir -p "$output_dir"
 chmod 700 "$output_dir"
