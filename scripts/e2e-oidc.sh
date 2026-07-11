@@ -99,4 +99,4 @@ TENANCIT_E2E_AUTH_MODE=oidc \
 TENANCIT_E2E_BASE_URL="http://127.0.0.1:18081" \
 TENANCIT_E2E_RETRIES=0 \
 TENANCIT_E2E_OUTPUT_DIR="$output_dir" \
-  bunx playwright test --project=chromium --no-deps oidc-auth.e2e.test.ts
+  bunx playwright test --project=chromium --no-deps 'oidc-.*\.e2e\.test\.ts'

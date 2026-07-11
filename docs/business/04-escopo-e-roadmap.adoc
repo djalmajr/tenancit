@@ -9,13 +9,13 @@
 * Criptografia AES-256-GCM com `key_version`.
 * Resolução por hostname canônico (case-insensitive, sem trailing dot).
 * API key server-to-server para consumo.
-* Token dedicado para admin.
+* Login humano OIDC com sessão opaca, CSRF, RBAC e break-glass explícito.
 * Dockerfile e `docker-compose.yml` para execução local/containerizada.
 * Headers HTTP defensivos na SPA e na API.
 
 ==== Fora do escopo atual
 
-* Login humano completo para o painel admin via IdP.
+* Ativação no IdP corporativo e definição do primeiro alvo de produção.
 * Rotação automática de chaves AES.
 * Multi-região ou cache distribuído.
 * Versionamento coexistente de definitions.
@@ -37,14 +37,14 @@ fronteira de secrets.
 | Aprovar link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[ADR 0005]
   e definir IdP/claims.
 | SPA sem token admin em `localStorage`; testes negativos OIDC/CSRF/RBAC verdes.
-| Design proposto
+| Implementado e validado com Dex; ativação real depende do IdP
 
 | P1
 | Auditoria de ações admin
 | Ator, ação, alvo, resultado e `request_id` consultáveis sem registrar secrets.
 | Integrar o futuro principal OIDC e definir retenção organizacional.
 | Todas as mutações e reveals geram evento append-only; testes de redação verdes.
-| Implementada para token compartilhado; OIDC no epic 03
+| Implementada para principal legado, OIDC e break-glass
 
 | P2
 | Governança de API clients

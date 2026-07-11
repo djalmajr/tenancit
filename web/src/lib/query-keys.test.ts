@@ -12,6 +12,8 @@ describe("admin query keys", () => {
       adminQueryKeys.definitions(),
       adminQueryKeys.definition("definition-1"),
       adminQueryKeys.apiClients(),
+      adminQueryKeys.sessions(),
+      adminQueryKeys.settings(),
     ];
 
     expect(keys.every(([root]) => root === "admin")).toBe(true);

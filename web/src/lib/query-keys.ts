@@ -5,6 +5,8 @@ export const adminQueryKeys = {
     [...adminQueryKeys.definitions(), "detail", definitionId] as const,
   definitions: () => [...adminQueryKeys.all, "definitions"] as const,
   overview: () => [...adminQueryKeys.all, "overview"] as const,
+  sessions: () => [...adminQueryKeys.all, "sessions"] as const,
+  settings: () => [...adminQueryKeys.all, "settings"] as const,
   tenant: (tenantId: string) =>
     [...adminQueryKeys.tenants(), "detail", tenantId] as const,
   tenantDomains: (tenantId: string) =>

@@ -18,6 +18,16 @@ type fakeSessionStore struct {
 	authError   error
 }
 
+type fixedSessionPolicy struct {
+	absolute time.Duration
+	idle     time.Duration
+	err      error
+}
+
+func (p fixedSessionPolicy) SessionPolicy(context.Context) (time.Duration, time.Duration, error) {
+	return p.absolute, p.idle, p.err
+}
+
 func (f *fakeSessionStore) CreateAdminSession(_ context.Context, params CreateSessionParams) (StoredSession, error) {
 	f.created = params
 	if f.createError != nil {
@@ -125,6 +135,29 @@ func TestSessionManagerNeverAdoptsAPreexistingSessionCredential(t *testing.T) {
 	}
 	if first.Token == second.Token || first.CSRFToken == second.CSRFToken {
 		t.Fatal("a new login reused a preexisting session credential")
+	}
+}
+
+func TestSessionManagerUsesRuntimePolicyForCreateAndAuthenticate(t *testing.T) {
+	store := &fakeSessionStore{}
+	now := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+	manager := NewSessionManager(store, testCryptor(t), bytes.NewReader(bytes.Repeat([]byte{0x44}, 128)), func() time.Time { return now }, 8*time.Hour, 30*time.Minute)
+	manager.SetPolicyProvider(fixedSessionPolicy{absolute: 4 * time.Hour, idle: 15 * time.Minute})
+
+	created, err := manager.Create(context.Background(), SessionIdentity{
+		Issuer: "https://id.example.test", Subject: "user-1", Roles: []Role{RoleViewer}, Permissions: []string{"admin.read"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if !created.Identity.ExpiresAt.Equal(now.Add(4*time.Hour)) || !created.Identity.IdleExpiresAt.Equal(now.Add(15*time.Minute)) {
+		t.Fatalf("runtime expiry absolute=%v idle=%v", created.Identity.ExpiresAt, created.Identity.IdleExpiresAt)
+	}
+	if _, err := manager.Authenticate(context.Background(), created.Token); err != nil {
+		t.Fatalf("Authenticate: %v", err)
+	}
+	if store.auth.IdleSeconds != 900 {
+		t.Fatalf("runtime idle seconds=%d", store.auth.IdleSeconds)
 	}
 }
 

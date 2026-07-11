@@ -8,6 +8,8 @@ import { Route as definitionDetailRoute } from "./routes/definition-detail";
 import { Route as apiClientsRoute } from "./routes/api-clients";
 import { Route as usageRoute } from "./routes/usage";
 import { Route as auditEventsRoute } from "./routes/audit-events";
+import { Route as sessionsRoute } from "./routes/sessions";
+import { Route as settingsRoute } from "./routes/settings";
 import { RoutePending } from "./components/route-pending";
 
 const routeTree = rootRoute.addChildren([
@@ -19,6 +21,8 @@ const routeTree = rootRoute.addChildren([
   apiClientsRoute,
   usageRoute,
   auditEventsRoute,
+  sessionsRoute,
+  settingsRoute,
 ]);
 
 export const router = createRouter({

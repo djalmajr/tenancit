@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -77,6 +78,11 @@ type SessionManager struct {
 	now         func() time.Time
 	absoluteTTL time.Duration
 	idleTTL     time.Duration
+	policy      sessionPolicyProvider
+}
+
+type sessionPolicyProvider interface {
+	SessionPolicy(context.Context) (time.Duration, time.Duration, error)
 }
 
 func NewSessionManager(store sessionStore, cryptor *appcrypto.Cryptor, random io.Reader, now func() time.Time, absoluteTTL, idleTTL time.Duration) *SessionManager {
@@ -89,11 +95,19 @@ func NewSessionManager(store sessionStore, cryptor *appcrypto.Cryptor, random io
 	return &SessionManager{store: store, cryptor: cryptor, random: random, now: now, absoluteTTL: absoluteTTL, idleTTL: idleTTL}
 }
 
+func (m *SessionManager) SetPolicyProvider(provider sessionPolicyProvider) {
+	m.policy = provider
+}
+
 func (m *SessionManager) Create(ctx context.Context, identity SessionIdentity) (CreatedSession, error) {
 	if m.store == nil || m.cryptor == nil || strings.TrimSpace(identity.Issuer) == "" || strings.TrimSpace(identity.Subject) == "" || len(identity.Roles) == 0 || len(identity.Permissions) == 0 {
 		return CreatedSession{}, errors.New("complete session identity and store are required")
 	}
-	if m.absoluteTTL <= 0 || m.idleTTL <= 0 || m.idleTTL > m.absoluteTTL {
+	absoluteTTL, idleTTL, err := m.policyFor(ctx)
+	if err != nil {
+		return CreatedSession{}, err
+	}
+	if absoluteTTL <= 0 || idleTTL <= 0 || idleTTL > absoluteTTL {
 		return CreatedSession{}, errors.New("invalid session expiry policy")
 	}
 	token, err := randomCredential(m.random)
@@ -120,7 +134,7 @@ func (m *SessionManager) Create(ctx context.Context, identity SessionIdentity) (
 		CSRFKeyVersion: int16(csrfEncrypted.KeyVersion),
 		ActorIssuer:    identity.Issuer, ActorSubject: identity.Subject, ActorLabel: label,
 		Roles: roles, Permissions: append([]string(nil), identity.Permissions...), CreatedAt: now,
-		ExpiresAt: now.Add(m.absoluteTTL), IdleExpiresAt: now.Add(m.idleTTL),
+		ExpiresAt: now.Add(absoluteTTL), IdleExpiresAt: now.Add(idleTTL),
 	})
 	if err != nil {
 		return CreatedSession{}, err
@@ -133,16 +147,35 @@ func (m *SessionManager) Create(ctx context.Context, identity SessionIdentity) (
 }
 
 func (m *SessionManager) Authenticate(ctx context.Context, token string) (SessionIdentity, error) {
-	if m.store == nil || strings.TrimSpace(token) == "" || m.idleTTL <= 0 {
+	if m.store == nil || strings.TrimSpace(token) == "" {
 		return SessionIdentity{}, errors.New("invalid session credential")
 	}
+	_, idleTTL, err := m.policyFor(ctx)
+	if err != nil {
+		return SessionIdentity{}, err
+	}
 	stored, err := m.store.AuthenticateAdminSession(ctx, AuthenticateSessionParams{
-		TokenHash: HashCredential(token), UsedAt: m.now().UTC(), IdleSeconds: int32(m.idleTTL / time.Second),
+		TokenHash: HashCredential(token), UsedAt: m.now().UTC(), IdleSeconds: int32(idleTTL / time.Second),
 	})
 	if err != nil {
 		return SessionIdentity{}, err
 	}
 	return m.identityFromSession(stored)
+}
+
+func (m *SessionManager) policyFor(ctx context.Context) (time.Duration, time.Duration, error) {
+	absoluteTTL, idleTTL := m.absoluteTTL, m.idleTTL
+	if m.policy != nil {
+		var err error
+		absoluteTTL, idleTTL, err = m.policy.SessionPolicy(ctx)
+		if err != nil {
+			return 0, 0, fmt.Errorf("load session policy: %w", err)
+		}
+	}
+	if absoluteTTL <= 0 || idleTTL <= 0 || idleTTL > absoluteTTL {
+		return 0, 0, errors.New("invalid session expiry policy")
+	}
+	return absoluteTTL, idleTTL, nil
 }
 
 func (m *SessionManager) Revoke(ctx context.Context, sessionID string) error {

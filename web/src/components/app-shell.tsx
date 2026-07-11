@@ -15,6 +15,8 @@ import {
   Moon,
   Sun,
   ScrollText,
+  Settings,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -42,6 +44,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   ADMIN_TOKEN_CHANGE_EVENT,
+  api,
   clearAdminToken,
   consumePendingAdminAuthMessage,
   fetchAdminAuthConfig,
@@ -53,7 +56,7 @@ import {
   type AdminAuthMessage,
   type AdminSession,
 } from "@/lib/api";
-import { LOCALE_OPTIONS, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
+import { LOCALE_OPTIONS, LOCALE_STORAGE_KEY, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -64,10 +67,12 @@ const NAV: Array<{ exact?: boolean; icon: LucideIcon; labelKey: TranslationKey; 
   { icon: KeyRound, labelKey: "nav.apiClients", to: "/api-clients" },
   { icon: BarChart3, labelKey: "nav.usage", to: "/usage" },
   { icon: ScrollText, labelKey: "nav.audit", to: "/audit-events" },
+  { icon: ShieldCheck, labelKey: "nav.sessions", to: "/security/sessions" },
+  { icon: Settings, labelKey: "nav.settings", to: "/operations/settings" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { t } = useI18n();
+  const { setLocale, t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [authMessageKey, setAuthMessageKey] = React.useState<TranslationKey | "">("");
   const [draftAdminToken, setDraftAdminToken] = React.useState(() => getAdminToken());
@@ -96,6 +101,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void loadAuthentication();
     return () => controller.abort();
   }, []);
+
+  React.useEffect(() => {
+    const authenticated = authConfig?.mode === "oidc" ? Boolean(adminSession) : hasAdminToken;
+    if (!authenticated || localStorage.getItem(LOCALE_STORAGE_KEY)) return;
+    const controller = new AbortController();
+    void api.getSettings(controller.signal).then((snapshot) => {
+      const configured = snapshot.values.default_locale;
+      if (LOCALE_OPTIONS.some((option) => option.value === configured)) setLocale(configured as Locale);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [adminSession, authConfig?.mode, hasAdminToken, setLocale]);
 
   React.useEffect(() => {
     function showAdminAuth(messageKey: AdminAuthMessage) {
@@ -508,5 +524,7 @@ function pageLabel(pathname: string, t: (key: TranslationKey) => string): string
   if (pathname.startsWith("/api-clients")) return t("nav.apiClients");
   if (pathname.startsWith("/usage")) return t("nav.usage");
   if (pathname.startsWith("/audit-events")) return t("nav.audit");
+  if (pathname.startsWith("/security/sessions")) return t("nav.sessions");
+  if (pathname.startsWith("/operations/settings")) return t("nav.settings");
   return "";
 }

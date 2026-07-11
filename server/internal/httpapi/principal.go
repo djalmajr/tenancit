@@ -15,6 +15,8 @@ const (
 	permissionAPIClientManage  adminPermission = "api_client.manage"
 	permissionResourceWrite    adminPermission = "resource.write"
 	permissionSecretReveal     adminPermission = "secret.reveal"
+	permissionSessionManage    adminPermission = "session.manage"
+	permissionSettingsManage   adminPermission = "settings.manage"
 	permissionTenantHardDelete adminPermission = "tenant.hard_delete"
 	permissionTenantWrite      adminPermission = "tenant.write"
 )
@@ -25,6 +27,8 @@ var sharedAdminPermissions = [...]adminPermission{
 	permissionAPIClientManage,
 	permissionResourceWrite,
 	permissionSecretReveal,
+	permissionSessionManage,
+	permissionSettingsManage,
 	permissionTenantHardDelete,
 	permissionTenantWrite,
 }
@@ -61,6 +65,8 @@ var permissionsByRole = map[adminRole][]adminPermission{
 		permissionAPIClientManage,
 		permissionResourceWrite,
 		permissionSecretReveal,
+		permissionSessionManage,
+		permissionSettingsManage,
 		permissionTenantHardDelete,
 		permissionTenantWrite,
 	},

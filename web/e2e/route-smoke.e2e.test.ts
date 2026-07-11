@@ -33,6 +33,8 @@ test("all business routes support navigation, deep links, and reload", async ({ 
       { path: "/api-clients", heading: "Chaves de API" },
       { path: "/usage", heading: "Uso das chaves de API" },
       { path: "/audit-events", heading: "Auditoria administrativa" },
+      { path: "/security/sessions", heading: "Sessões administrativas" },
+      { path: "/operations/settings", heading: "Configurações operacionais" },
     ];
 
     for (const route of routes) {

@@ -23,6 +23,7 @@ import { consumerSnippets } from "@/lib/consumer-snippets";
 import { useDataTable } from "@/hooks/use-data-table";
 import { invalidateApiClients } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
+import { adminQueryKeys } from "@/lib/query-keys";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Combobox } from "@/components/ui/combobox";
@@ -56,6 +57,10 @@ export default function ApiClients() {
   >("");
   const [error, setError] = useState("");
   const clientsQuery = useQuery(adminQueryOptions.apiClients());
+  const settingsQuery = useQuery({
+    queryKey: adminQueryKeys.settings(),
+    queryFn: ({ signal }) => api.getSettings(signal),
+  });
   // TanStack Table uses referential equality to detect data changes. A module
   // constant prevents its auto-reset logic from looping during query loading.
   const clients = clientsQuery.data ?? EMPTY_API_CLIENTS;
@@ -216,8 +221,8 @@ export default function ApiClients() {
     setCopied(false);
     setError("");
     setScopes(["tenant:identify", "resource:resolve"]);
-    setRpmLimit("300");
-    setExpirationDays("90");
+    setRpmLimit(settingsQuery.data?.values.api_client_default_rpm ?? "300");
+    setExpirationDays(settingsQuery.data?.values.api_client_default_ttl_days ?? "90");
     setOpen(true);
   }
   function startEdit(client: ApiClient) {

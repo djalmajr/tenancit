@@ -8,6 +8,7 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/service"
+	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,6 +26,8 @@ type Server struct {
 	Usage          usageRecorder
 	Limiter        ratelimit.Limiter
 	AdminAuth      *AdminAuthRuntime
+	AdminAuthStore *adminauth.PostgresSessionStore
+	Settings       *appsettings.Repository
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
@@ -39,6 +42,7 @@ func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server
 		Now:            time.Now,
 		Usage:          discardUsageRecorder{},
 		Limiter:        ratelimit.NewMemory(time.Now),
+		Settings:       appsettings.NewRepository(pool, time.Now),
 	}
 }
 
@@ -119,12 +123,22 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.With(requireAdminPermission(permissionAPIClientManage)).Delete("/api-clients/{id}", s.deleteAPIClient)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/api-clients/{id}/usage", s.listAPIClientUsage)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/api-client-usage", s.listAPIClientUsageOverview)
+
+		ar.With(requireAdminPermission(permissionAdminRead)).Get("/settings", s.getSettings)
+		ar.With(requireAdminPermission(permissionSettingsManage)).Patch("/settings", s.updateSettings)
+		ar.With(requireAdminPermission(permissionSessionManage)).Get("/sessions", s.listAdminSessions)
+		ar.With(requireAdminPermission(permissionSessionManage)).Delete("/sessions/{id}", s.revokeAdminSession)
+		ar.With(requireAdminPermission(permissionSessionManage)).Post("/sessions/revoke-principal", s.revokeAdminPrincipalSessions)
 	})
 
 	if staticHandler != nil {
 		r.NotFound(staticHandler.ServeHTTP)
 	}
 	return r
+}
+
+func (s *Server) SetAdminAuthStore(store *adminauth.PostgresSessionStore) {
+	s.AdminAuthStore = store
 }
 
 func (s *Server) ConfigureAdminAuth(config adminauth.Config, oidc *adminauth.OIDCManager, sessions *adminauth.SessionManager) {

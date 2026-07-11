@@ -61,6 +61,8 @@ func run() error {
 	}
 
 	srv := httpapi.NewServer(pool, cryptor, authConfig.LegacyToken)
+	authStore := adminauth.NewPostgresSessionStore(pool)
+	srv.SetAdminAuthStore(authStore)
 	srv.ConfigureAdminAuth(authConfig, nil, nil)
 	if authConfig.Mode == adminauth.ModeOIDC {
 		discoveryCtx, cancelDiscovery := context.WithTimeout(ctx, 10*time.Second)
@@ -69,11 +71,11 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		authStore := adminauth.NewPostgresSessionStore(pool)
 		sessions := adminauth.NewSessionManager(
 			authStore, cryptor, nil, time.Now,
 			authConfig.SessionAbsolute, authConfig.SessionIdle,
 		)
+		sessions.SetPolicyProvider(srv.Settings)
 		oidcManager := adminauth.NewOIDCManager(authConfig.OIDC, provider, authStore, sessions, cryptor, nil, time.Now)
 		srv.ConfigureAdminAuth(authConfig, oidcManager, sessions)
 	}
@@ -101,7 +103,7 @@ func run() error {
 	usageCollector := usage.NewCollector(db.New(pool), 4096, 10*time.Second)
 	srv.SetUsageRecorder(usageCollector)
 	go usageCollector.Run(ctx)
-	go usage.RunRetention(ctx, db.New(pool), time.Now, 24*time.Hour)
+	go usage.RunRetention(ctx, db.New(pool), srv.Settings, time.Now, 24*time.Hour)
 	httpServer := newHTTPServer(addr, srv.Routes(staticHandler))
 
 	go func() {

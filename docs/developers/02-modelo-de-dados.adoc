@@ -32,6 +32,14 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 
 | `api_clients`
 | Tokens server-to-server. Guarda apenas hash SHA-256 do token bruto.
+
+| `admin_sessions`
+| Sessões humanas opacas: hashes de token/CSRF, principal OIDC, roles,
+  expiração absoluta/idle e revogação; nunca guarda token OIDC ou cookie bruto.
+
+| `admin_settings`, `admin_settings_revision`
+| Valores não secretos de um registry fechado e sua revisão global para
+  compare-and-set. Secrets de infraestrutura permanecem no ambiente/secret manager.
 |===
 
 ==== Invariantes

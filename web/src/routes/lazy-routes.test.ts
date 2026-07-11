@@ -7,6 +7,8 @@ import { Route as definitionDetailRoute } from "./definition-detail";
 import { Route as apiClientsRoute } from "./api-clients";
 import { Route as usageRoute } from "./usage";
 import { Route as auditEventsRoute } from "./audit-events";
+import { Route as sessionsRoute } from "./sessions";
+import { Route as settingsRoute } from "./settings";
 
 const routes = [
   ["overview", overviewRoute],
@@ -17,6 +19,8 @@ const routes = [
   ["API clients", apiClientsRoute],
   ["usage", usageRoute],
   ["audit events", auditEventsRoute],
+  ["sessions", sessionsRoute],
+  ["settings", settingsRoute],
 ] as const;
 
 describe("business route loading boundary", () => {

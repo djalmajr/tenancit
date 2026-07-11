@@ -144,6 +144,15 @@ describe("api client", () => {
     expect(init?.method).toBe("DELETE");
   });
 
+  it("updates settings with an optimistic concurrency precondition", async () => {
+    const spy = mockFetch(() => new Response(JSON.stringify({ revision: 4, values: {}, definitions: [] }), { status: 200 }));
+    await api.updateSettings({ session_idle_minutes: "45" }, 3);
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/v1/admin/settings");
+    expect(init?.method).toBe("PATCH");
+    expect(new Headers(init?.headers).get("If-Match")).toBe('"settings-3"');
+  });
+
   it("aborts stalled requests with a typed timeout error", async () => {
     vi.useFakeTimers();
     try {
@@ -177,6 +186,8 @@ describe("api client", () => {
       (signal) => api.listDefinitions(signal),
       (signal) => api.getDefinition("definition-1", signal),
       (signal) => api.listAPIClients(signal),
+      (signal) => api.getSettings(signal),
+      (signal) => api.listAdminSessions(signal),
     ];
 
     for (const read of calls) {

@@ -292,6 +292,37 @@ export interface AdminAuditPage {
   next_cursor?: string;
 }
 
+export interface AdminSettingDefinition {
+  key: string;
+  type: "integer" | "enum";
+  default_value: string;
+  owner: string;
+  minimum?: number;
+  maximum?: number;
+  options?: string[];
+}
+
+export interface AdminSettingsSnapshot {
+  revision: number;
+  values: Record<string, string>;
+  definitions: AdminSettingDefinition[];
+}
+
+export interface AdminSessionView {
+  id: string;
+  issuer: string;
+  subject: string;
+  label: string;
+  roles: string[];
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  idle_expires_at: string;
+  revoked_at?: string;
+  status: "active" | "revoked" | "expired" | "idle_expired";
+  current: boolean;
+}
+
 export interface OverviewTenant {
   id: string;
   name: string;
@@ -391,4 +422,19 @@ export const api = {
   },
   listAuditEvents: (query: URLSearchParams, signal?: AbortSignal) =>
     req<AdminAuditPage>(`/audit-events?${query}`, { signal }),
+
+  getSettings: (signal?: AbortSignal) => req<AdminSettingsSnapshot>("/settings", { signal }),
+  updateSettings: (values: Record<string, string>, revision: number) =>
+    req<AdminSettingsSnapshot>("/settings", {
+      method: "PATCH",
+      headers: { "If-Match": `"settings-${revision}"` },
+      body: JSON.stringify({ values }),
+    }),
+  listAdminSessions: (signal?: AbortSignal) => req<AdminSessionView[]>("/sessions", { signal }),
+  revokeAdminSession: (id: string) => req<void>(`/sessions/${id}`, { method: "DELETE" }),
+  revokeAdminPrincipalSessions: (issuer: string, subject: string) =>
+    req<{ revoked: number }>("/sessions/revoke-principal", {
+      method: "POST",
+      body: JSON.stringify({ issuer, subject }),
+    }),
 };
