@@ -58,7 +58,7 @@ func ProvisionResource(ctx context.Context, deps ProvisionResourceDeps, in Provi
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	res, err := provisionResource(ctx, deps.Queries.WithTx(tx), deps.Cryptor, in)
+	res, err := ProvisionResourceInTx(ctx, deps.Queries.WithTx(tx), deps.Cryptor, in)
 	if err != nil {
 		return db.TenantResource{}, err
 	}
@@ -71,6 +71,12 @@ func ProvisionResource(ctx context.Context, deps ProvisionResourceDeps, in Provi
 		return db.TenantResource{}, err
 	}
 	return res, nil
+}
+
+// ProvisionResourceInTx applies provisioning inside a caller-owned transaction.
+// It lets HTTP orchestration commit domain, audit, outbox, and idempotency as one unit.
+func ProvisionResourceInTx(ctx context.Context, q ProvisionQuerier, cryptor *crypto.Cryptor, in ProvisionResourceInput) (db.TenantResource, error) {
+	return provisionResource(ctx, q, cryptor, in)
 }
 
 func provisionResource(

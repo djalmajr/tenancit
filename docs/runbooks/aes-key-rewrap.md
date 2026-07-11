@@ -192,6 +192,11 @@ Antes de remover uma chave antiga, considere também backups retidos: um dump
 feito antes do rewrap ainda depende dela. Escolha explicitamente entre manter a
 chave pelo mesmo prazo do dump ou expirar ambos juntos.
 
+Confirme também que `audit_export_jobs` e `admin_idempotency_records` não
+possuem envelopes não expirados na versão antiga. Esses payloads são
+transitórios e não entram no rewrap de resources; mantenha o keyring antigo por
+pelo menos a janela máxima de 24 horas e valide os workers de expiração/cleanup.
+
 Depois da retirada:
 
 1. aplique a configuração sem a versão antiga;

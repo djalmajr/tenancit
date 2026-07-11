@@ -14,6 +14,7 @@ Nomes estáveis:
 - `tenancit.dependency.operations`, `duration`;
 - `tenancit.worker.cycles`, `items`, `duration`; workers `audit_export` e
   `audit_retention` cobrem materialização/expiração, partições e legal holds;
+  `idempotency_cleanup` remove envelopes expirados em lotes limitados;
 - `tenancit.rewrap.batches`, `rows.by_version`, `rows.remaining.by_version`,
   `failures`, `campaigns` e durações de lote/campanha.
 

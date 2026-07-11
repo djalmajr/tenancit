@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Plus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Tenant } from "@/lib/api";
+import { stableIdempotencyKey, type IdempotencyAttempt } from "@/lib/idempotency";
 import { useDataTable } from "@/hooks/use-data-table";
 import { invalidateTenants } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
@@ -27,12 +28,15 @@ export default function Tenants() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "" });
   const [error, setError] = useState("");
+  const createAttempt = useRef<IdempotencyAttempt>(null);
   const tenantsQuery = useQuery(adminQueryOptions.tenants());
   // TanStack Table treats a new data reference as a data change and schedules
   // pagination resets. Keep the loading fallback stable across renders so an
   // interaction while the query is in flight cannot enter a render loop.
   const tenants = tenantsQuery.data ?? EMPTY_TENANTS;
-  const createTenantMutation = useMutation({ mutationFn: api.createTenant });
+  const createTenantMutation = useMutation({
+    mutationFn: ({ body, key }: { body: { slug: string; name: string }; key: string }) => api.createTenant(body, key),
+  });
   const pageError = tenantsQuery.error ? apiErrorMessage(tenantsQuery.error, t) : "";
   const sortLabels = useMemo(() => ({
     asc: t("dataTable.sortAsc"),
@@ -115,11 +119,12 @@ export default function Tenants() {
   async function create() {
     setError("");
     try {
-      const created = await createTenantMutation.mutateAsync(form);
+      const created = await createTenantMutation.mutateAsync({ body: form, key: stableIdempotencyKey(createAttempt, form) });
       await invalidateTenants(queryClient);
       setForm({ slug: "", name: "" });
       setOpen(false);
       await navigate({ to: "/tenants/$id", params: { id: created.id } });
+      createAttempt.current = null;
     } catch (e) {
       setError(apiErrorMessage(e, t));
     }

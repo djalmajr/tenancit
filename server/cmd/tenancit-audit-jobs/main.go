@@ -12,6 +12,7 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/auditops"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/idempotency"
 	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
 	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -66,6 +67,7 @@ func run() error {
 	settings := appsettings.NewRepository(pool, time.Now)
 	go auditops.RunExportWorker(ctx, repository, time.Second)
 	go auditops.RunMaintenance(ctx, pool, settings, time.Now, 24*time.Hour)
+	go idempotency.RunCleanupWorker(ctx, pool, time.Now, time.Hour)
 	<-ctx.Done()
 	return nil
 }

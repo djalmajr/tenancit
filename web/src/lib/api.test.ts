@@ -37,10 +37,11 @@ describe("api client", () => {
   // these assertions fail — locks the request contract.
   it("createTenant POSTs to /v1/admin/tenants with the body", async () => {
     const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
-    await api.createTenant({ slug: "acme", name: "Acme" });
+    await api.createTenant({ slug: "acme", name: "Acme" }, "00000000-0000-4000-8000-000000000001");
     const [url, init] = spy.mock.calls[0];
     expect(url).toBe("/v1/admin/tenants");
     expect(init?.method).toBe("POST");
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("00000000-0000-4000-8000-000000000001");
     if (typeof init?.body !== "string") throw new TypeError("expected a serialized request body");
     expect(JSON.parse(init.body)).toEqual({ slug: "acme", name: "Acme" });
   });

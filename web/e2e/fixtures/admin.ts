@@ -23,7 +23,10 @@ export async function adminRequest<T>(
   if (!adminToken) throw new Error("TENANCIT_E2E_ADMIN_TOKEN is required");
   const response = await request[method](path, {
     data,
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: {
+      Authorization: `Bearer ${adminToken}`,
+      ...(method === "post" ? { "Idempotency-Key": crypto.randomUUID() } : {}),
+    },
   });
   expect(response.ok(), `${method.toUpperCase()} ${path}: ${response.status()}`).toBeTruthy();
   if (response.status() === 204) return undefined as T;

@@ -43,6 +43,9 @@ func do(t *testing.T, h http.Handler, method, path string, body any) *httptest.R
 	req := httptest.NewRequest(method, path, &buf)
 	if strings.HasPrefix(path, "/v1/admin") {
 		req.Header.Set("Authorization", "Bearer "+testAdminToken)
+		if method == http.MethodPost {
+			req.Header.Set("Idempotency-Key", uuid.NewString())
+		}
 	}
 	h.ServeHTTP(rec, req)
 	return rec

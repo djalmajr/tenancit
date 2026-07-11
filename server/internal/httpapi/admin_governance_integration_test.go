@@ -11,6 +11,7 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
 	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
+	"github.com/google/uuid"
 )
 
 type governanceFixture struct {
@@ -60,6 +61,9 @@ func (f governanceFixture) request(t *testing.T, method, path string, body any, 
 	if method != http.MethodGet {
 		request.Header.Set("Origin", f.adminOrigin)
 		request.Header.Set("X-CSRF-Token", f.current.CSRFToken)
+		if method == http.MethodPost {
+			request.Header.Set("Idempotency-Key", uuid.NewString())
+		}
 	}
 	if ifMatch != "" {
 		request.Header.Set("If-Match", ifMatch)

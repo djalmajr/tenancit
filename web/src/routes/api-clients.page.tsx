@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type ApiClient } from "@/lib/api";
+import { stableIdempotencyKey, type IdempotencyAttempt } from "@/lib/idempotency";
 import { apiClientCreatedAtSortValue } from "@/lib/api-client-sort";
 import {
   canChangeAPIClientDialogOpen,
@@ -57,6 +58,8 @@ export default function ApiClients() {
     "identify" | "tenantId" | "hostname" | "resource" | ""
   >("");
   const [error, setError] = useState("");
+  const createAttempt = useRef<IdempotencyAttempt>(null);
+  const rotateAttempts = useRef(new Map<string, IdempotencyAttempt>());
   const clientsQuery = useQuery(adminQueryOptions.apiClients());
   const settingsQuery = useQuery({
     queryKey: adminQueryKeys.settings(),
@@ -252,6 +255,7 @@ export default function ApiClients() {
     }
     setIsCreating(true);
     setError("");
+    let createdNewClient = false;
     try {
       const policy = {
         name: trimmedName,
@@ -264,11 +268,13 @@ export default function ApiClients() {
         setOpen(false);
         toast.success(t("apiClients.updated"));
       } else {
-        const result = await api.createAPIClient(policy);
+        const result = await api.createAPIClient(policy, stableIdempotencyKey(createAttempt, policy));
+        createdNewClient = true;
         setToken(result.token);
         setOpen(true);
       }
       await invalidateApiClients(queryClient);
+      if (createdNewClient) createAttempt.current = null;
     } catch (createError) {
       setError(apiErrorMessage(createError, t));
     } finally {
@@ -290,7 +296,11 @@ export default function ApiClients() {
     setIsLifecyclePending(true);
     setError("");
     try {
-      const result = await api.rotateAPIClient(client.id, 300);
+      const attempt = { clientId: client.id, graceSeconds: 300 };
+      const holder = { current: rotateAttempts.current.get(client.id) ?? null };
+      const key = stableIdempotencyKey(holder, attempt);
+      rotateAttempts.current.set(client.id, holder.current);
+      const result = await api.rotateAPIClient(client.id, 300, key);
       setEditingClient(null);
       setName(client.name);
       setToken(result.token);
@@ -298,6 +308,7 @@ export default function ApiClients() {
       setOpen(true);
       await invalidateApiClients(queryClient);
       toast.success(t("apiClients.rotated"));
+      rotateAttempts.current.delete(client.id);
     } catch (rotateError) {
       setError(apiErrorMessage(rotateError, t));
     } finally {

@@ -52,7 +52,7 @@ opt-in e justificada por demanda, nunca efeito implícito deste epic.
 | 06 | Deploy, DB roles e continuidade | Ambiente alvo passa preflight, rollout, restore e rollback | XL | 02, 05 | entregue localmente; alvo real pendente |
 | 07 | Rewrap AES executável | Operador recriptografa em lotes com dry-run e retomada | L | 01, 05, 06 | entregue localmente; campanha real pendente |
 | 08 | Auditoria, retenção e exportação | Auditor consulta/exporta trilha íntegra e limitada | L | 02, 05 | entregue localmente; política/destino real pendentes |
-| 09 | Idempotência administrativa | Retry de mutação não duplica efeitos nem sucessores | L | 01, 04 | pendente |
+| 09 | Idempotência administrativa | Retry de mutação não duplica efeitos nem sucessores | L | 01, 04 | entregue localmente |
 | 10 | Console por persona e catálogo E2E | UI cobre identidade, segurança e operação em 3 idiomas | XL | 03–09 | pendente |
 | 11 | Gate de escala e contract final | Decisão de paginação baseada em evidência e docs encerradas | M | 10 | pendente |
 

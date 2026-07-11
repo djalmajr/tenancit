@@ -27,12 +27,19 @@ func (s *Server) createTenant(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "slug and name required"})
 		return
 	}
+	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/tenants", in, adminMutationTTL)
+	if !ok {
+		return
+	}
 	tx, err := s.DB.Begin(r.Context())
 	if err != nil {
 		writeInternalError(w, r, "begin tenant create", err)
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if proceed, _ := s.beginAdminIdempotency(w, r, tx, idempotencyRequest); !proceed {
+		return
+	}
 	q := s.Q.WithTx(tx)
 	t, err := q.CreateTenant(r.Context(), db.CreateTenantParams{Slug: in.Slug, Name: in.Name})
 	if err != nil {
@@ -48,11 +55,21 @@ func (s *Server) createTenant(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, r, "audit tenant create", err)
 		return
 	}
+	responseBody, err := encodeIdempotentResponse(t)
+	if err != nil {
+		writeInternalError(w, r, "encode tenant create response", err)
+		return
+	}
+	defer clear(responseBody)
+	if err := s.completeAdminIdempotency(r, tx, idempotencyRequest, http.StatusCreated, responseBody); err != nil {
+		writeInternalError(w, r, "complete tenant create idempotency", err)
+		return
+	}
 	if err := tx.Commit(r.Context()); err != nil {
 		writeInternalError(w, r, "commit tenant create", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, t)
+	writeIdempotentResponse(w, http.StatusCreated, responseBody, false)
 }
 
 func (s *Server) listTenants(w http.ResponseWriter, r *http.Request) {
@@ -278,25 +295,55 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "definitionKey required"})
 		return
 	}
-	res, err := service.ProvisionResource(r.Context(), service.ProvisionResourceDeps{
-		Cryptor: s.Cryptor, Queries: s.Q, TxStarter: s.DB,
-		BeforeCommit: func(q *db.Queries, resource db.TenantResource) error {
-			fieldNames := make([]string, 0, len(in.Values))
-			for key := range in.Values {
-				fieldNames = append(fieldNames, key)
-			}
-			return insertAdminAuditSuccess(r, q, "resource.provisioned", "resource", resource.ID.String(),
-				"/v1/admin/tenants/{id}/resources", http.StatusCreated,
-				map[string]any{"tenant_id": tenantID.String(), "definition_key": in.DefinitionKey, "field_names": fieldNames})
-		},
-	}, service.ProvisionResourceInput{
+	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/tenants/{id}/resources", struct {
+		TenantID uuid.UUID `json:"tenant_id"`
+		Input    any       `json:"input"`
+	}{TenantID: tenantID, Input: in}, adminMutationTTL)
+	if !ok {
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource provisioning", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if proceed, _ := s.beginAdminIdempotency(w, r, tx, idempotencyRequest); !proceed {
+		return
+	}
+	q := s.Q.WithTx(tx)
+	res, err := service.ProvisionResourceInTx(r.Context(), q, s.Cryptor, service.ProvisionResourceInput{
 		DefinitionKey: in.DefinitionKey, TenantID: tenantID, Values: in.Values,
 	})
 	if err != nil {
 		writeProvisionError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, res)
+	fieldNames := make([]string, 0, len(in.Values))
+	for key := range in.Values {
+		fieldNames = append(fieldNames, key)
+	}
+	if err := insertAdminAuditSuccess(r, q, "resource.provisioned", "resource", res.ID.String(),
+		"/v1/admin/tenants/{id}/resources", http.StatusCreated,
+		map[string]any{"tenant_id": tenantID.String(), "definition_key": in.DefinitionKey, "field_names": fieldNames}); err != nil {
+		writeInternalError(w, r, "audit resource provisioning", err)
+		return
+	}
+	responseBody, err := encodeIdempotentResponse(res)
+	if err != nil {
+		writeInternalError(w, r, "encode resource provisioning response", err)
+		return
+	}
+	defer clear(responseBody)
+	if err := s.completeAdminIdempotency(r, tx, idempotencyRequest, http.StatusCreated, responseBody); err != nil {
+		writeInternalError(w, r, "complete resource provisioning idempotency", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource provisioning", err)
+		return
+	}
+	writeIdempotentResponse(w, http.StatusCreated, responseBody, false)
 }
 
 func writeProvisionError(w http.ResponseWriter, r *http.Request, err error) {
@@ -338,9 +385,8 @@ func (s *Server) createAPIClient(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	token, err := service.GenerateAPIToken()
-	if err != nil {
-		writeInternalError(w, r, "generate API client token", err)
+	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/api-clients", in, adminSecretTTL)
+	if !ok {
 		return
 	}
 	tx, err := s.DB.Begin(r.Context())
@@ -349,6 +395,14 @@ func (s *Server) createAPIClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if proceed, _ := s.beginAdminIdempotency(w, r, tx, idempotencyRequest); !proceed {
+		return
+	}
+	token, err := service.GenerateAPIToken()
+	if err != nil {
+		writeInternalError(w, r, "generate API client token", err)
+		return
+	}
 	txq := s.Q.WithTx(tx)
 	preview := service.APITokenPreview(token)
 	c, err := txq.CreateAPIClient(r.Context(), db.CreateAPIClientParams{
@@ -379,15 +433,24 @@ func (s *Server) createAPIClient(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, r, "audit API client creation", err)
 		return
 	}
+	responseBody, err := encodeIdempotentResponse(createAPIClientResponse{
+		Client: newAPIClientView(c, in.Scopes, s.Now().UTC()),
+		Token:  token,
+	})
+	if err != nil {
+		writeInternalError(w, r, "encode API client response", err)
+		return
+	}
+	defer clear(responseBody)
+	if err := s.completeAdminIdempotency(r, tx, idempotencyRequest, http.StatusCreated, responseBody); err != nil {
+		writeInternalError(w, r, "complete API client idempotency", err)
+		return
+	}
 	if err := tx.Commit(r.Context()); err != nil {
 		writeInternalError(w, r, "commit API client creation", err)
 		return
 	}
-	w.Header().Set("Cache-Control", "private, no-store")
-	writeJSON(w, http.StatusCreated, createAPIClientResponse{
-		Client: newAPIClientView(c, in.Scopes, s.Now().UTC()),
-		Token:  token,
-	}) // token shown once
+	writeIdempotentResponse(w, http.StatusCreated, responseBody, true)
 }
 
 func (s *Server) listAPIClients(w http.ResponseWriter, r *http.Request) {

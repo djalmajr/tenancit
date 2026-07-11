@@ -1,0 +1,1 @@
+function i(n,c){var e;const r=JSON.stringify(c);if(((e=n.current)==null?void 0:e.fingerprint)===r)return n.current.key;const t=crypto.randomUUID();return n.current={fingerprint:r,key:t},t}export{i as s};

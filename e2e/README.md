@@ -1,7 +1,7 @@
 # Catálogo E2E automatizado
 
-O catálogo executável preserva correspondência entre os 19 flows
-de `e2e/flows`, as specs e seus 143 passos numerados. Cada passo Markdown é
+O catálogo executável preserva correspondência entre os 20 flows
+de `e2e/flows`, as specs e seus 147 passos numerados. Cada passo Markdown é
 um `test.step` produzido por `flowStep(flowId, número, título, ação + assert)`;
 não há consolidações de passos.
 
@@ -10,6 +10,7 @@ não há consolidações de passos.
 | `admin-auth-overview` | `admin-auth-overview.e2e.test.ts` | `[admin-auth-overview#N] título` | `pr-critical` | 1–11 |
 | `admin-form-validation-and-errors` | `admin-form-validation-and-errors.e2e.test.ts` | `[admin-form-validation-and-errors#N] título` | `full` | 1–8 |
 | `admin-invalid-token-recovery` | `admin-invalid-token-recovery.e2e.test.ts` | `[admin-invalid-token-recovery#N] título` | `pr-critical` | 1–5 |
+| `admin-idempotent-retry` | `admin-idempotent-retry.e2e.test.ts` | `[admin-idempotent-retry#N] título` | `pr-critical` | 1–4 |
 | `admin-to-consumer-golden-path` | `admin-to-consumer-golden-path.e2e.test.ts` | `[admin-to-consumer-golden-path#N] título` | `pr-critical` | 1–11 |
 | `api-client-token-lifecycle` | `api-client-token-lifecycle.e2e.test.ts` | `[api-client-token-lifecycle#N] título` | `pr-critical` | 1–8 |
 | `api-client-governance` | `api-client-operational-governance.e2e.test.ts` | `[api-client-governance#N] título` | `full` | 1–5 |
@@ -69,4 +70,4 @@ O checker compara frontmatter e passos Markdown, chamadas literais de
 `flowStep` nas specs e a matriz acima. Ele também protege a política de
 artefatos e rejeita matchers que recebem tokens crus. Falha para flow/passo
 ausente, duplicado, fora do intervalo, spec divergente ou drift dos totais
-19/143.
+20/147.

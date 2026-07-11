@@ -71,6 +71,10 @@ if psql "$backup_url" -v ON_ERROR_STOP=1 -c "INSERT INTO tenants(slug,name) VALU
 fi
 [ "$(psql "$jobs_url" -Atqc 'SELECT count(*) FROM webhook_deliveries')" = 0 ]
 [ "$(psql "$jobs_url" -Atqc "SELECT partitions_created >= 1 FROM maintain_admin_audit_partitions(clock_timestamp(),365,1)")" = t ]
+psql "$jobs_url" -v ON_ERROR_STOP=1 -c 'DELETE FROM admin_idempotency_records WHERE false' >/dev/null
+if psql "$runtime_url" -v ON_ERROR_STOP=1 -c 'DELETE FROM admin_idempotency_records WHERE false' >/dev/null 2>&1; then
+  echo "runtime role deleted idempotency records" >&2; exit 1
+fi
 if psql "$runtime_url" -v ON_ERROR_STOP=1 -c "SELECT * FROM maintain_admin_audit_partitions(clock_timestamp(),365,1)" >/dev/null 2>&1; then
   echo "runtime role executed privileged audit maintenance" >&2; exit 1
 fi

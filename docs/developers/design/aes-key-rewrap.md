@@ -248,7 +248,9 @@ A chave antiga só pode ser removida quando:
 3. o serviço e o smoke de resolução passarem com a nova configuração;
 4. a janela de observação terminar sem falhas de decrypt;
 5. backups que ainda dependem da chave antiga tiverem política explícita de
-   retenção ou expiração.
+   retenção ou expiração;
+6. exports de auditoria e envelopes de idempotência cifrados na versão antiga
+   tiverem expirado e o cleanup confirmado (máximo contratual atual: 24 h).
 
 ## Estrutura implementada
 

@@ -1,9 +1,10 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `e905765` mais auditoria/exportação validada nesta sessão
-- **Entrega Git anterior:** `e905765` está verde na CI; a fatia corrente de
-  auditoria governada está pronta para commit após a revisão final do diff.
+- **Base observada:** `24a84a8` mais idempotência administrativa validada nesta sessão
+- **Entrega Git anterior:** auditoria governada está publicada em `24a84a8` e
+  verde na CI (`29166713313`);
+  a fatia corrente de idempotência aguarda commit.
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -42,6 +43,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   também entram na trilha. Export CSV/JSONL é limitado, cifrado, expira em 24 h
   e é consumido uma vez; `tenancit-audit-jobs` drena a default, mantém partições
   futuras e aplica retenção sem atravessar holds.
+- Create tenant, provision resource e create/rotate API client exigem UUID
+  idempotente escopado por principal/operação. Retry idêntico reproduz a mesma
+  resposta cifrada; payload divergente falha com conflito e nenhum novo efeito.
 - API clients exigem scopes fechados, RPM e expiração; suportam edição, rotação
   one-shot, revogação terminal e hard delete apenas após revogar. Uso diário e
   `last_used_at` alimentam o console operacional sem armazenar tokens/hashes.
@@ -56,7 +60,7 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   credencial cancela requests, desmonta observers e apaga dados protegidos.
 - As seis páginas de negócio carregam por rota lazy; budgets automáticos
   protegem o entry e impedem chunks acima de 500 kB.
-- O catálogo Playwright automatiza 19/19 flows e 143/143 passos em PostgreSQL
+- O catálogo Playwright automatiza 20/20 flows e 147/147 passos em PostgreSQL
   efêmero, cobrindo produto empacotado e Vite/proxy com cleanup verificado.
   Um E2E vertical adicional entrega evento a um receiver real, recalcula HMAC e
   remove seu tenant ao terminar; outro gate usa Dex real para login/logout,
@@ -91,13 +95,13 @@ outro ambiente.
 |---|---|
 | Web lint | ESLint, zero warnings |
 | Web typecheck | `tsc --noEmit`, exit 0 |
-| Web unit | 19 arquivos / 79 testes, todos verdes |
+| Web unit | 20 arquivos / 80 testes, todos verdes |
 | Go estrito | `REQUIRE_DB_TESTS=1 go test -count=1 ./...`, incluindo testcontainers, verde |
 | Produto | Docker multi-stage com lockfile frozen, SPA + binário Go, verde |
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
 | HTTP empacotado | `/` e `/healthz` 200; headers defensivos presentes; `reveal=true` com `private, no-store` |
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
-| Catálogo E2E | 21/21 testes empacotados (19 flows + webhook + report operacional) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
+| Catálogo E2E | 22/22 testes empacotados (20 flows + webhook + report operacional) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
 | Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
 | Browser | Vite `:5180` autenticado; saúde mostra PostgreSQL/Valkey e reports de backup/restore saudáveis |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
@@ -160,8 +164,8 @@ O plano persistente e decomposto para essa sequência está em
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
 1. Publicar o marco de auditoria governada e confirmar a CI remota.
-2. Implementar idempotência administrativa; exportação governada/retenção da
-   auditoria já estão entregues localmente e aguardam política/destino reais.
+2. Consolidar console/personas; idempotência administrativa e exportação
+   governada/retenção já estão entregues localmente.
 3. Escolher o primeiro alvo e repetir o rewrap no restore real, além de validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.

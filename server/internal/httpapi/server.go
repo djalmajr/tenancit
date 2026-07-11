@@ -7,6 +7,7 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
 	"github.com/djalmajr/tenancit/server/internal/auditops"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/idempotency"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/service"
 	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
@@ -37,6 +38,7 @@ type Server struct {
 	OperationsReportCredentialVersion string
 	TelemetryMiddleware               func(http.Handler) http.Handler
 	AuditExports                      *auditops.ExportRepository
+	Idempotency                       *idempotency.Store
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
@@ -55,6 +57,7 @@ func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server
 		Settings:            appsettings.NewRepository(pool, time.Now),
 		Webhooks:            webhook.NewTargetRepository(pool, c, nil, nil, false),
 		AuditExports:        auditops.NewExportRepository(pool, c, time.Now),
+		Idempotency:         idempotency.NewStore(c, time.Now),
 		TelemetryMiddleware: telemetryMiddleware,
 	}
 }

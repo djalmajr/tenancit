@@ -434,8 +434,8 @@ export const api = {
   // tenants
   listTenants: (signal?: AbortSignal) => req<Tenant[]>("/tenants", { signal }),
   getTenant: (id: string, signal?: AbortSignal) => req<Tenant>(`/tenants/${id}`, { signal }),
-  createTenant: (body: { slug: string; name: string }) =>
-    req<Tenant>("/tenants", { method: "POST", body: JSON.stringify(body) }),
+  createTenant: (body: { slug: string; name: string }, idempotencyKey: string = crypto.randomUUID()) =>
+    req<Tenant>("/tenants", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) }),
   updateTenant: (id: string, body: { name: string; slug: string; status: string }) =>
     req<Tenant>(`/tenants/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteTenant: (id: string) => req<void>(`/tenants/${id}`, { method: "DELETE" }),
@@ -450,8 +450,8 @@ export const api = {
       `/tenants/${id}/resources${reveal ? "?reveal=true" : ""}`,
       { ...(reveal ? { cache: "no-store" as const } : {}), signal },
     ),
-  createResource: (id: string, body: { definitionKey: string; values: Record<string, string> }) =>
-    req(`/tenants/${id}/resources`, { method: "POST", body: JSON.stringify(body) }),
+  createResource: (id: string, body: { definitionKey: string; values: Record<string, string> }, idempotencyKey: string = crypto.randomUUID()) =>
+    req(`/tenants/${id}/resources`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) }),
   setResourceStatus: (id: string, resourceId: string, status: string) =>
     req(`/tenants/${id}/resources/${resourceId}/status`, {
       method: "PUT",
@@ -478,16 +478,18 @@ export const api = {
 
   // api clients
   listAPIClients: (signal?: AbortSignal) => req<ApiClient[]>("/api-clients", { signal }),
-  createAPIClient: (body: CreateAPIClientInput) =>
+  createAPIClient: (body: CreateAPIClientInput, idempotencyKey: string = crypto.randomUUID()) =>
     req<{ client: ApiClient; token: string }>("/api-clients", {
       method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(body),
     }),
   updateAPIClient: (id: string, body: CreateAPIClientInput) =>
     req<ApiClient>(`/api-clients/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  rotateAPIClient: (id: string, graceSeconds: number) =>
+  rotateAPIClient: (id: string, graceSeconds: number, idempotencyKey: string = crypto.randomUUID()) =>
     req<{ client: ApiClient; token: string }>(`/api-clients/${id}/rotate`, {
       method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({ grace_seconds: graceSeconds }),
     }),
   revokeAPIClient: (id: string) =>

@@ -32,13 +32,27 @@ mesmo envelope cifrado por janela curta, nunca criar novo sucessor.
 
 ## Tarefas
 
-- [ ] Definir endpoints, TTL, fingerprint e respostas estáveis.
-- [ ] Criar schema/cleanup e execução transacional com domínio/outbox/audit.
-- [ ] Implementar create, rotate e provision prioritários.
-- [ ] Cobrir concorrência, crash pós-commit e mismatch de payload.
-- [ ] Atualizar SDK snippets, docs e E2E de retry.
+- [x] Definir endpoints, TTL, fingerprint e respostas estáveis.
+- [x] Criar schema/cleanup e execução transacional com domínio/outbox/audit.
+- [x] Implementar create, rotate e provision prioritários.
+- [x] Cobrir concorrência, crash pós-commit e mismatch de payload.
+- [x] Atualizar SDK snippets, docs e E2E de retry.
 
 ## Verificação
 
 Testes concorrentes e fault injection provam um efeito; nenhum secret bruto é
 persistido fora do envelope/janela explicitamente aprovada.
+
+## Evidência entregue
+
+- `admin_idempotency_records` escopa UUID por `actor + operation`, vincula
+  fingerprint SHA-256 e guarda somente a resposta AES-GCM; runtime não pode
+  apagar claims e o worker privilegiado remove expirados em lotes.
+- Create tenant e provision possuem TTL de 24 h; create/rotate de API client
+  usam 10 min e devolvem exatamente o mesmo token no replay. Payload diferente
+  recebe `409 idempotency_mismatch`.
+- Claim, domínio, outbox, auditoria e envelope são confirmados juntos. Rollback
+  libera a chave; concorrência espera o owner e observa um único resultado.
+- A SPA preserva a chave enquanto o payload não muda e gera outra após edição.
+  O catálogo `admin-idempotent-retry` valida tenant, token, rotação,
+  provisionamento e mismatch no produto empacotado.

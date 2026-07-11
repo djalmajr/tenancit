@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   CheckCircle2,
   Building2, ChevronRight, Database, Eye, EyeOff, Globe, Plus, Trash2, Lock,
@@ -41,6 +41,7 @@ import { matchesTenantSlug } from "@/lib/tenant-delete";
 import {
   api, type TenantDomain, type TenantResource,
 } from "@/lib/api";
+import { stableIdempotencyKey, type IdempotencyAttempt } from "@/lib/idempotency";
 import {
   invalidateTenant,
   invalidateTenantDomains,
@@ -73,6 +74,7 @@ export default function TenantDetail() {
   const [isCreatingResource, setIsCreatingResource] = useState(false);
   const [pageError, setPageError] = useState("");
   const [resourceError, setResourceError] = useState("");
+  const resourceCreateAttempt = useRef<IdempotencyAttempt>(null);
   const [pendingDomain, setPendingDomain] = useState<TenantDomain | null>(null);
   const [pendingResource, setPendingResource] = useState<Pick<TenantResource, "id" | "name"> | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -179,12 +181,14 @@ export default function TenantDetail() {
     reveal.hide();
     try {
       // Secret-bearing values stay out of MutationCache and are erased after use.
-      await api.createResource(id, { definitionKey: picked.key, values });
+      const request = { definitionKey: picked.key, values };
+      await api.createResource(id, request, stableIdempotencyKey(resourceCreateAttempt, request));
       await invalidateTenantResources(queryClient, id);
       setResOpen(false);
       setPick("");
       setValues({});
       toast.success(t("tenantDetail.resourceAdded"));
+      resourceCreateAttempt.current = null;
     } catch (e) {
       setResourceError(apiErrorMessage(e, t));
     } finally {

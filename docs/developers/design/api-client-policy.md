@@ -269,11 +269,11 @@ humana/RBAC é tratada pelo design próprio de identidade admin.
 
 | Método e path | Contrato alvo |
 |---|---|
-| `POST /v1/admin/api-clients` | recebe `name`, `scopes`, `rpm_limit`, `expires_at`; devolve `{client, token}` uma vez |
+| `POST /v1/admin/api-clients` | exige `Idempotency-Key`, recebe `name`, `scopes`, `rpm_limit`, `expires_at`; devolve `{client, token}` e permite replay do mesmo envelope cifrado por 10 minutos |
 | `GET /v1/admin/api-clients` | lista política e sinais operacionais, nunca hash/token |
 | `PATCH /v1/admin/api-clients/{id}` | altera nome, scopes, RPM ou expiração futura de client ainda ativo; exige pelo menos um scope e não ressuscita expirado/revogado |
 | `POST /v1/admin/api-clients/{id}/revoke` | revoga imediatamente e de forma terminal |
-| `POST /v1/admin/api-clients/{id}/rotate` | cria sucessor com a política atual ou informada e devolve o novo token uma vez; revoga o anterior conforme grace period explícito |
+| `POST /v1/admin/api-clients/{id}/rotate` | exige `Idempotency-Key`, cria um sucessor e devolve o mesmo token em retries idênticos por 10 minutos; revoga o anterior conforme grace period explícito |
 | `GET /v1/admin/api-clients/{id}/usage?from=&to=` | uso agregado por dia/operação/status, com intervalo máximo e paginação/limite |
 | `DELETE /v1/admin/api-clients/{id}` | hard delete somente se já revogado; uso e auditoria permanecem |
 

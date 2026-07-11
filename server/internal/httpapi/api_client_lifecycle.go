@@ -100,9 +100,11 @@ func (s *Server) rotateAPIClient(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_rotation_grace"})
 		return
 	}
-	token, err := service.GenerateAPIToken()
-	if err != nil {
-		writeInternalError(w, r, "generate rotated API client token", err)
+	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/api-clients/{id}/rotate", struct {
+		ClientID any `json:"client_id"`
+		Input    any `json:"input"`
+	}{ClientID: id, Input: in}, adminSecretTTL)
+	if !ok {
 		return
 	}
 	tx, err := s.DB.Begin(r.Context())
@@ -111,6 +113,14 @@ func (s *Server) rotateAPIClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
+	if proceed, _ := s.beginAdminIdempotency(w, r, tx, idempotencyRequest); !proceed {
+		return
+	}
+	token, err := service.GenerateAPIToken()
+	if err != nil {
+		writeInternalError(w, r, "generate rotated API client token", err)
+		return
+	}
 	q := s.Q.WithTx(tx)
 	current, err := q.GetAPIClient(r.Context(), id)
 	if err != nil {
@@ -149,12 +159,21 @@ func (s *Server) rotateAPIClient(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, r, "list rotated API client scopes", err)
 		return
 	}
+	responseBody, err := encodeIdempotentResponse(createAPIClientResponse{Client: newAPIClientView(rotated, scopes, s.Now().UTC()), Token: token})
+	if err != nil {
+		writeInternalError(w, r, "encode rotated API client response", err)
+		return
+	}
+	defer clear(responseBody)
+	if err := s.completeAdminIdempotency(r, tx, idempotencyRequest, http.StatusCreated, responseBody); err != nil {
+		writeInternalError(w, r, "complete API client rotation idempotency", err)
+		return
+	}
 	if err := tx.Commit(r.Context()); err != nil {
 		writeInternalError(w, r, "commit API client rotation", err)
 		return
 	}
-	w.Header().Set("Cache-Control", "private, no-store")
-	writeJSON(w, http.StatusCreated, createAPIClientResponse{Client: newAPIClientView(rotated, scopes, s.Now().UTC()), Token: token})
+	writeIdempotentResponse(w, http.StatusCreated, responseBody, true)
 }
 
 func (s *Server) revokeAPIClient(w http.ResponseWriter, r *http.Request) {

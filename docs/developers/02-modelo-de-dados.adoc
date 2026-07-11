@@ -48,6 +48,11 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 | `operational_reports`
 | Evidências append-only de backup/restore/migration/rewrap, deduplicadas por
   source/idempotency key e classificadas por freshness sem metadata livre.
+
+| `admin_idempotency_records`
+| Claims de mutações críticas escopados por principal/operação/chave, com
+  fingerprint SHA-256 e resposta cifrada de TTL curto. Nunca armazena token ou
+  body de resposta em claro.
 |===
 
 ==== Invariantes
@@ -67,3 +72,6 @@ Criar um tenant resource e seus values é uma unidade atômica. O serviço
 `ProvisionResource` abre transação, valida definition/fields, insere o resource
 e grava todos os values. Se qualquer etapa falhar, nenhuma linha parcial deve
 ficar persistida.
+Para rotas idempotentes, claim, domínio, outbox, auditoria e resposta cifrada
+também pertencem à mesma transação; rollback libera o claim e commit torna o
+resultado repetível sem executar o domínio novamente.
