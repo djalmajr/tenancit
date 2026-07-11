@@ -12,6 +12,7 @@ package testsupport
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -37,7 +38,10 @@ func NewDB(t *testing.T) *pgxpool.Pool {
 		),
 	)
 	if err != nil {
-		t.Skipf("testcontainers/docker unavailable: %v", err)
+		if os.Getenv("REQUIRE_DB_TESTS") == "1" {
+			t.Fatalf("testcontainers/docker required but unavailable: %v", err)
+		}
+		t.Skipf("testcontainers/docker unavailable: %v (set REQUIRE_DB_TESTS=1 to fail instead)", err)
 	}
 	t.Cleanup(func() { _ = container.Terminate(ctx) })
 

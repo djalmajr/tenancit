@@ -9,6 +9,6 @@ describe("cn", () => {
   });
 
   it("drops falsy values and merges the rest", () => {
-    expect(cn("a", false && "b", undefined, "c")).toBe("a c");
+    expect(cn("a", false, undefined, "c")).toBe("a c");
   });
 });

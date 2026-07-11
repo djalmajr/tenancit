@@ -29,10 +29,34 @@ precisar mudar de forma incompatível, a prática recomendada é criar uma nova
 . Copiar o token exibido uma única vez.
 . Entregar o token ao serviço consumidor por secret manager ou variável de
    ambiente.
-. O consumidor chama `/v1/resolve` com `Authorization: Bearer <token>`.
+. O consumidor chama `/v1/identify` e/ou `/v1/resolve*` com
+  `Authorization: Bearer <token>`, conforme sua responsabilidade.
 
 Se o token for comprometido, o API client deve ser revogado e substituído por
 um novo.
+
+==== Integrar uma borda sem segredos
+
+. A borda extrai o hostname confiável da request recebida.
+. Ela chama `GET /v1/identify?hostname=<hostname>` com seu API client.
+. O Tenancit devolve somente `tenantSlug` e `ETag`, sem resources ou segredos.
+. A borda injeta o slug para a aplicação em um header interno confiável, como
+  `x-tenant-id`; esse valor é identidade, não autorização.
+. A aplicação chama `GET /v1/resolve?tenantId=<tenantSlug>` com seu próprio API
+  client e recebe a configuração que realmente usa.
+. Cada componente guarda o `ETag` da sua operação e o reenvia em
+  `If-None-Match`. Em um `304`, ele mantém a identidade ou configuração já
+  carregada; os ETags de identify e resolve não são intercambiáveis.
+
+Resultado esperado: a borda resolve roteamento e tenancy sem tocar em
+credenciais de infraestrutura. Apenas a aplicação consumidora recebe secrets,
+sobre TLS, e a resposta de resolve não deve ser armazenada em cache
+compartilhado (`Cache-Control: private, no-store`).
+
+Se borda e aplicação forem o mesmo componente, ele pode usar diretamente
+`GET /v1/resolve?hostname=<hostname>`; esse é um caminho alternativo suportado,
+não uma exigência do fluxo principal. Consulte <<eng-contratos-http,Contratos
+HTTP>> para payloads, headers e erros.
 
 ==== Revelar segredos no painel
 

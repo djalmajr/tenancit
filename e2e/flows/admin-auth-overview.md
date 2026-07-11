@@ -1,7 +1,7 @@
 ---
 id: admin-auth-overview
 name: Acessar painel administrativo e revisar visão geral
-reference: docs/produto/03-jornadas-operacionais.adoc#jornadas-operacionais
+reference: docs/business/03-jornadas-operacionais.adoc#jornadas-operacionais
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:

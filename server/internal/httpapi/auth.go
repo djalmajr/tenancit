@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
@@ -12,22 +13,65 @@ import (
 
 // apiKeyLookup resolves a key hash to a client; error if absent.
 type apiKeyLookup interface {
-	GetAPIClientByHash(ctx context.Context, keyHash string) (db.ApiClient, error)
+	GetAPIClientAuthByHash(ctx context.Context, keyHash string) (db.GetAPIClientAuthByHashRow, error)
+}
+
+type apiClientPrincipal struct {
+	ID       string
+	Name     string
+	Scopes   map[string]struct{}
+	RPMLimit *int32
+}
+
+type apiClientPrincipalContextKey struct{}
+
+func contextWithAPIClientPrincipal(ctx context.Context, value apiClientPrincipal) context.Context {
+	return context.WithValue(ctx, apiClientPrincipalContextKey{}, value)
+}
+
+func apiClientPrincipalFromContext(ctx context.Context) (apiClientPrincipal, bool) {
+	value, ok := ctx.Value(apiClientPrincipalContextKey{}).(apiClientPrincipal)
+	return value, ok
 }
 
 // RequireAPIKey authenticates consumer requests via Authorization: Bearer,
 // matched by hash against api_clients (RN-09). Revoked/unknown -> 401.
-func RequireAPIKey(q apiKeyLookup) func(http.Handler) http.Handler {
+func RequireAPIKey(q apiKeyLookup, now func() time.Time) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := bearerToken(r)
 			if token == "" {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing api key"})
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
 				return
 			}
-			client, err := q.GetAPIClientByHash(r.Context(), service.HashAPIKey(token))
-			if err != nil || client.Status != "active" {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid api key"})
+			client, err := q.GetAPIClientAuthByHash(r.Context(), service.HashAPIKey(token))
+			expired := client.ExpiresAt.Valid && !now().UTC().Before(client.ExpiresAt.Time)
+			if err != nil || client.Status != "active" || expired {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
+				return
+			}
+			scopes := make(map[string]struct{}, len(client.Scopes))
+			for _, scope := range client.Scopes {
+				scopes[scope] = struct{}{}
+			}
+			principal := apiClientPrincipal{
+				ID: client.ID.String(), Name: client.Name, Scopes: scopes, RPMLimit: client.RpmLimit,
+			}
+			next.ServeHTTP(w, r.WithContext(contextWithAPIClientPrincipal(r.Context(), principal)))
+		})
+	}
+}
+
+func RequireAPIClientScope(scope string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			principal, ok := apiClientPrincipalFromContext(r.Context())
+			if !ok {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
+				return
+			}
+			if _, allowed := principal.Scopes[scope]; !allowed {
+				writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient_scope"})
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -45,18 +89,21 @@ func RequireAdminToken(adminTokenHash string) func(http.Handler) http.Handler {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid admin token"})
 				return
 			}
-			next.ServeHTTP(w, r)
+			value := newPrincipal(
+				principalKindSharedAdminToken,
+				"primary",
+				sharedAdminPermissions[:]...,
+			)
+			next.ServeHTTP(w, r.WithContext(contextWithPrincipal(r.Context(), value)))
 		})
 	}
 }
 
 func bearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	if h == "" {
+	h := strings.TrimSpace(r.Header.Get("Authorization"))
+	scheme, token, ok := strings.Cut(h, " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
 		return ""
 	}
-	if after, ok := strings.CutPrefix(h, "Bearer "); ok {
-		return strings.TrimSpace(after)
-	}
-	return strings.TrimSpace(h)
+	return strings.TrimSpace(token)
 }

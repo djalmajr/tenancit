@@ -1,7 +1,7 @@
 ---
 id: tenant-resource-lifecycle
 name: Provisionar recurso do tenant e validar segredos
-reference: docs/produto/03-jornadas-operacionais.adoc#revelar-segredos-no-painel
+reference: docs/business/03-jornadas-operacionais.adoc#revelar-segredos-no-painel
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:

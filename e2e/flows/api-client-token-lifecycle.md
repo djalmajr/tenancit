@@ -1,7 +1,7 @@
 ---
 id: api-client-token-lifecycle
-name: Gerar, copiar, revogar e reativar chave de API
-reference: docs/produto/03-jornadas-operacionais.adoc#entregar-credencial-para-consumidor
+name: Gerar, copiar, revogar e remover chave de API
+reference: docs/business/03-jornadas-operacionais.adoc#entregar-credencial-para-consumidor
 persona: service-integrator
 entry: "http://localhost:5180/"
 preconditions:
@@ -24,12 +24,12 @@ Criar uma chave de serviço, copiar o token exibido uma única vez e controlar o
 4. (`api-clients`) Preencher Nome e clicar em **Gerar token** → o diálogo muda para **"Token gerado"** e mostra o token completo.
 5. (`api-clients`) Clicar em **Copiar** → o botão indica **"Copiado"**.
 6. (`api-clients`) Clicar em **Concluir** → o diálogo fecha e a chave aparece na tabela com token mascarado.
-7. (`api-clients`) Clicar em **Revogar** na chave criada → o status muda para revoked, a ação passa a reativar e a tela mostra feedback.
-8. (`api-clients`) Clicar em **Reativar** → o status volta para active e a tela mostra feedback.
+7. (`api-clients`) Clicar em **Revogar** na chave criada → o status muda para revoked, a credencial deixa de autenticar imediatamente e a ação terminal passa a ser remover.
+8. (`api-clients`) Clicar em **Remover** e confirmar → a chave revogada sai do inventário, preservando uso e auditoria.
 
 ## Resultado esperado
 
-O token completo aparece somente no momento da criação, pode ser copiado, e a chave fica gerenciável por status sem expor novamente o segredo.
+O token completo aparece somente no momento da criação, pode ser copiado e a revogação é terminal antes do hard delete controlado.
 
 ## Estado atual × design
 

@@ -1,7 +1,7 @@
 ---
 id: first-run-empty-states
 name: Primeiro acesso em sistema vazio e estados vazios das telas
-reference: docs/produto/03-jornadas-operacionais.adoc#cadastrar-um-tenant
+reference: docs/business/03-jornadas-operacionais.adoc#cadastrar-um-tenant
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:

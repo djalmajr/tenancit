@@ -1,0 +1,53 @@
+services:
+  postgres-e2e:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: "${TENANCIT_E2E_DB_PASSWORD:?TENANCIT_E2E_DB_PASSWORD is required}"
+      POSTGRES_DB: tenancit-e2e
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tenancit-e2e"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  valkey-e2e:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+    tmpfs:
+      - /data
+
+  app-e2e:
+    build: .
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+      valkey-e2e:
+        condition: service_healthy
+    environment:
+      TENANCIT_ADDR: ":8080"
+      TENANCIT_DATABASE_URL: "postgres://postgres:${TENANCIT_E2E_DB_PASSWORD}@postgres-e2e:5432/tenancit-e2e?sslmode=disable"
+      TENANCIT_ADMIN_TOKEN: "${TENANCIT_E2E_ADMIN_TOKEN:?TENANCIT_E2E_ADMIN_TOKEN is required}"
+      TENANCIT_VALKEY_URL: "redis://valkey-e2e:6379/0"
+      TENANCIT_AES_KEY: "${TENANCIT_E2E_AES_KEY:?TENANCIT_E2E_AES_KEY is required}"
+      TENANCIT_AES_KEY_VERSION: "1"
+    ports:
+      - "127.0.0.1::8080"
+
+  web-e2e:
+    build:
+      context: .
+      target: web
+    command: ["bun", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5180"]
+    depends_on:
+      - app-e2e
+    environment:
+      VITE_API_PROXY_TARGET: "http://app-e2e:8080"
+    ports:
+      - "127.0.0.1::5180"

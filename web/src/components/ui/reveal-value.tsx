@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { SECRET_MASK } from "@/lib/secret-display";
 
 // Masks a secret value until the user clicks the reveal toggle (RN-06 on the
 // admin surface). Extracted from tenant-detail for testability.
@@ -17,7 +18,7 @@ export function RevealValue({
 
   return (
     <div className="flex items-center gap-2">
-      <code className="text-xs">{shown ? value : "••••••••••••"}</code>
+      <code className="text-xs">{shown ? value : SECRET_MASK}</code>
       <button
         type="button"
         className="text-muted-foreground hover:text-foreground"

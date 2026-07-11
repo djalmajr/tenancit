@@ -11,19 +11,37 @@ services:
       retries: 30
     ports:
       - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   app:
     build: .
     depends_on:
       postgres:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
       # demo admin token. Replace in real deployments.
       TENANCIT_ADMIN_TOKEN: "tenancit_admin_dev"
+      TENANCIT_VALKEY_URL: "redis://valkey:6379/0"
       # demo key (32 bytes, base64). Replace in real deployments.
       TENANCIT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
       TENANCIT_AES_KEY_VERSION: "1"
     ports:
       - "8080:8080"
+
+volumes:
+  postgres-data:
+    name: tenancit-postgres-data

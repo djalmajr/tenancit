@@ -10,7 +10,12 @@
   zero ou mais hostnames.
 
 | Tenant domain
-| Hostname exato que resolve para um tenant. O hostname é globalmente único.
+| Hostname DNS canônico que resolve para um tenant. A entrada é normalizada para
+  lowercase e sem trailing dot; o valor canônico é globalmente único.
+
+| `tenantId`
+| Parâmetro público de resolução que, no contrato atual, recebe o `slug`
+  canônico do tenant. Não é um UUID interno nem uma credencial de autorização.
 
 | Resource definition
 | Tipo de recurso configurável, como `postgres`, `storage`, `keycloak` ou
@@ -26,9 +31,27 @@
 | Resource value
 | Valor de um campo de recurso. Campos secretos são cifrados em repouso.
 
+| Identify
+| Operação `GET /v1/identify?hostname=...` usada pela borda para converter um
+  hostname no `tenantSlug`. Retorna somente identidade, nunca resources ou
+  segredos.
+
+| Resolve
+| Operação autenticada que entrega os resources ativos de um tenant, incluindo
+  segredos descriptografados sobre TLS. Aceita `tenantId` ou hostname; deve ser
+  chamada pela aplicação que realmente usa a configuração, não pela borda de
+  identificação.
+
+| ETag
+| Validador HTTP retornado por identify e resolve. O cliente o reenvia em
+  `If-None-Match`; `304 Not Modified` indica que pode manter a identidade ou
+  configuração já carregada. Os validadores das duas operações têm escopos
+  diferentes e não devem ser misturados.
+
 | API client
-| Credencial server-to-server usada pelos consumidores da API `/v1/resolve`.
-  O token bruto é exibido apenas na criação; o banco guarda só o hash.
+| Credencial server-to-server usada pelos consumidores das APIs `/v1/identify`
+  e `/v1/resolve*`. O token bruto é exibido apenas na criação; o banco guarda só
+  o hash.
 
 | Admin token
 | Token operacional definido por `TENANCIT_ADMIN_TOKEN`, usado para acessar

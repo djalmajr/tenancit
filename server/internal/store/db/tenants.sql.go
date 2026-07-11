@@ -32,6 +32,24 @@ func (q *Queries) AddTenantDomain(ctx context.Context, arg AddTenantDomainParams
 	return i, err
 }
 
+const countTenantChildren = `-- name: CountTenantChildren :one
+SELECT
+  (SELECT count(*) FROM tenant_domains d WHERE d.tenant_id = $1)::int AS domains,
+  (SELECT count(*) FROM tenant_resources r WHERE r.tenant_id = $1)::int AS resources
+`
+
+type CountTenantChildrenRow struct {
+	Domains   int32 `json:"domains"`
+	Resources int32 `json:"resources"`
+}
+
+func (q *Queries) CountTenantChildren(ctx context.Context, targetTenantID uuid.UUID) (CountTenantChildrenRow, error) {
+	row := q.db.QueryRow(ctx, countTenantChildren, targetTenantID)
+	var i CountTenantChildrenRow
+	err := row.Scan(&i.Domains, &i.Resources)
+	return i, err
+}
+
 const createTenant = `-- name: CreateTenant :one
 INSERT INTO tenants (slug, name) VALUES ($1, $2) RETURNING id, slug, name, status, created_at, updated_at
 `
@@ -124,6 +142,29 @@ func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, err
 	return i, err
 }
 
+const getTenantDomain = `-- name: GetTenantDomain :one
+SELECT d.id, d.tenant_id, d.hostname, d.created_at FROM tenant_domains d
+WHERE d.id = $1 AND d.tenant_id = $2
+FOR UPDATE
+`
+
+type GetTenantDomainParams struct {
+	DomainID       uuid.UUID `json:"domain_id"`
+	TargetTenantID uuid.UUID `json:"target_tenant_id"`
+}
+
+func (q *Queries) GetTenantDomain(ctx context.Context, arg GetTenantDomainParams) (TenantDomain, error) {
+	row := q.db.QueryRow(ctx, getTenantDomain, arg.DomainID, arg.TargetTenantID)
+	var i TenantDomain
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Hostname,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listTenantDomains = `-- name: ListTenantDomains :many
 SELECT id, tenant_id, hostname, created_at FROM tenant_domains WHERE tenant_id = $1 ORDER BY hostname
 `
@@ -184,13 +225,23 @@ func (q *Queries) ListTenants(ctx context.Context) ([]Tenant, error) {
 	return items, nil
 }
 
-const removeTenantDomain = `-- name: RemoveTenantDomain :exec
-DELETE FROM tenant_domains WHERE id = $1
+const removeTenantDomain = `-- name: RemoveTenantDomain :execrows
+DELETE FROM tenant_domains
+WHERE id = $1
+  AND tenant_id = $2
 `
 
-func (q *Queries) RemoveTenantDomain(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, removeTenantDomain, id)
-	return err
+type RemoveTenantDomainParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) RemoveTenantDomain(ctx context.Context, arg RemoveTenantDomainParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removeTenantDomain, arg.ID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateTenant = `-- name: UpdateTenant :one

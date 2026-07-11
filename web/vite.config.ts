@@ -21,6 +21,23 @@ export default defineConfig({
     },
   },
   build: {
+    manifest: true,
     outDir: "dist",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+            return "react-vendor";
+          }
+          if (id.includes("/node_modules/@tanstack/")) return "tanstack-vendor";
+          if (id.includes("/node_modules/@base-ui/")) return "base-ui-vendor";
+          if (id.includes("/node_modules/lucide-react/")) return "icons-vendor";
+          if (id.includes("/node_modules/date-fns/")) return "date-vendor";
+          if (id.includes("/node_modules/cmdk/")) return "command-vendor";
+          return "vendor";
+        },
+      },
+    },
   },
 });

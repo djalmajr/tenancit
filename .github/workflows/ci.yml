@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
 
 jobs:
   server:
@@ -15,11 +18,12 @@ jobs:
         with:
           go-version: "1.25"
           cache-dependency-path: server/go.sum
-      - name: vet
-        working-directory: server
-        run: go vet ./...
+      - name: lint (gofmt, vet, staticcheck)
+        run: make lint-go
       - name: test (unit + integration via testcontainers)
         working-directory: server
+        env:
+          REQUIRE_DB_TESTS: "1"
         run: go test -coverprofile=coverage.out ./...
       - name: coverage summary
         working-directory: server
@@ -35,13 +39,64 @@ jobs:
           bun-version: "1.3"
       - name: install
         working-directory: web
-        run: bun install
+        run: bun install --frozen-lockfile
+      - name: lint
+        working-directory: web
+        run: bun run lint
       - name: typecheck
         working-directory: web
-        run: bunx tsc --noEmit
+        run: bun run typecheck
       - name: test
         working-directory: web
         run: bun run test
       - name: build
         working-directory: web
         run: bun run build
+
+  product:
+    name: product (embedded SPA + Go binary)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: server/go.sum
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3"
+      - name: build product
+        run: make build
+      - name: verify executable
+        run: test -x server/bin/server
+
+  e2e:
+    name: e2e (Playwright)
+    needs: [server, web, product]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3"
+      - name: install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: install Chromium
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+      - name: run PR-critical E2E tier
+        if: github.event_name == 'pull_request'
+        run: make e2e-pr
+      - name: run full isolated E2E suite
+        if: github.event_name != 'pull_request'
+        run: make e2e
+      - name: upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: output/playwright/
+          if-no-files-found: ignore
+          retention-days: 3

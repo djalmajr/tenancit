@@ -1,7 +1,7 @@
 ---
 id: consumer-specific-resource-resolution
 name: Resolver recurso específico por hostname e definition key
-reference: docs/engenharia/03-contratos-http.adoc#consumer-api
+reference: docs/developers/03-contratos-http.adoc#consumer-api
 persona: service-integrator
 entry: "http://localhost:5180/"
 preconditions:
@@ -27,7 +27,7 @@ Configurar um tenant com dois recursos e validar que um serviço consumidor cons
 4. (`tenant-detail`) Abrir a aba **Domínios** e adicionar um hostname único → o hostname aparece na tabela do tenant.
 5. (`tenant-detail`) Voltar para **Recursos**, adicionar um recurso para cada definition criada e preencher seus campos obrigatórios → os dois recursos aparecem ativos no tenant.
 6. (`api-clients`) Abrir **Chaves de API**, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
-7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/resolve/<hostname>/resources/<definitionKey-1>` com `Authorization: Bearer <token>` → a resposta retorna status 200 somente com o recurso da definition solicitada.
+7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/resolve/<hostname>/resources/<definitionKey-1>` com `Authorization: Bearer <token>` → a resposta retorna status 200 somente com o recurso da definition solicitada e `Cache-Control: private, no-store`.
 8. (`consumer-api`) Chamar `GET /v1/resolve/<hostname>/resources/<definitionKey-inexistente>` com token válido → a resposta retorna 404 com erro de resource não encontrado.
 9. (`consumer-api`) Revogar a chave pela UI em **Chaves de API** e repetir a chamada válida → a resposta retorna 401.
 
@@ -38,4 +38,4 @@ A Consumer API permite recuperar um recurso específico por hostname e definitio
 ## Estado atual × design
 
 - Este é um fluxo híbrido: a UI prepara dados e o cliente HTTP valida o endpoint server-to-server.
-- Não há tela dedicada para `/v1/resolve/{hostname}/resources/{definitionKey}`; se o endpoint não for citado na UI, isso pode virar achado de orientação para integradores.
+- Não há tela dedicada para `/v1/resolve/{hostname}/resources/{definitionKey}`; o endpoint aparece como alternativa específica na ajuda de **Chaves de API**.

@@ -1,6 +1,6 @@
 ---
 id: admin-to-consumer-golden-path
-name: Configurar tenant no admin e resolver por hostname na Consumer API
+name: Configurar tenant no admin e consumir pelo caminho seguro identify → tenantId
 reference: planning/tenancit/epics/01-tenancit/05-consumer-api-auth.md
 persona: service-integrator
 entry: "http://localhost:5180/"
@@ -18,7 +18,9 @@ design_refs:
 
 ## Objetivo do usuário
 
-Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio, resource e API client, então resolver o hostname como serviço consumidor.
+Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio,
+resource e API client; identificar o tenant na borda sem segredos e resolver a
+configuração no app pelo `tenantId` com revalidação por ETag.
 
 ## Passos (cada passo é uma AÇÃO de UI/API + o resultado esperado)
 
@@ -27,17 +29,21 @@ Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio, r
 3. (`tenants-list`) Abrir **Tenants** e criar um tenant com slug único → a aplicação navega para o detalhe do tenant.
 4. (`tenant-detail`) Abrir a aba **Domínios** e adicionar um hostname único → o hostname aparece na tabela do tenant.
 5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada e preencher `host` e `password` → o recurso fica ativo no tenant, o segredo aparece mascarado e **Prontidão para consumo** indica domínio/recurso/chave quando aplicável.
-6. (`api-clients`) Abrir **Chaves de API**, conferir o snippet de `/v1/resolve`, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
-7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/resolve?hostname=<hostname>` com `Authorization: Bearer <token>` → a resposta retorna status 200, o slug do tenant e o recurso ativo.
-8. (`consumer-api`) Repetir a chamada sem o token → a resposta retorna 401.
-9. (`consumer-api`) Chamar com um hostname desconhecido e token válido → a resposta retorna 404.
+6. (`api-clients`) Abrir **Chaves de API**, conferir os snippets ordenados de `identify` e `resolve?tenantId=`, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
+7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/identify?hostname=<hostname>` com `Authorization: Bearer <token>` → a resposta 200 contém somente `tenantSlug`, sem `resources` nem valores secretos.
+8. (`consumer-api`) Chamar `GET /v1/resolve?tenantId=<tenantSlug>` com o mesmo token → a resposta 200 retorna o recurso ativo, `ETag` e `Cache-Control: private, no-store`.
+9. (`consumer-api`) Repetir a chamada anterior com `If-None-Match: <etag>` → a resposta retorna 304 sem corpo.
+10. (`consumer-api`) Repetir `identify`/`resolve` sem o token → a resposta retorna 401.
+11. (`consumer-api`) Chamar `identify` com hostname desconhecido e token válido → a resposta retorna 404.
 
 ## Resultado esperado
 
-O caminho admin-to-consumer funciona de ponta a ponta: dados criados no painel são resolvidos pela Consumer API com API key ativa, segredo descriptografado sobre o contrato HTTP e erros corretos para ausência de token ou hostname desconhecido.
+O caminho admin-to-consumer funciona de ponta a ponta sem entregar segredos à
+borda: `identify` produz a identidade, o app resolve por `tenantId`, revalida
+com ETag e recebe erros corretos para ausência de token ou hostname desconhecido.
 
 ## Estado atual × design
 
-- Este é um fluxo híbrido: usa UI para configurar dados e cliente HTTP externo para validar `/v1/resolve`.
+- Este é um fluxo híbrido: usa UI para configurar dados e cliente HTTP externo para validar `/v1/identify` e `/v1/resolve?tenantId=`.
 - A cobertura automatizada equivalente existe em `server/internal/httpapi/integration_test.go`, mas este fluxo valida a jornada operacional completa do painel até o contrato de consumo.
 - A Consumer API não tem tela dedicada; se a persona exigir navegação puramente visual, este fluxo deve ser executado como validação assistida por terminal.

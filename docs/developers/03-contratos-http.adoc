@@ -42,7 +42,12 @@ Proteção: `Authorization: Bearer <TENANCIT_ADMIN_TOKEN>`.
 |===
 
 Segredos na listagem admin são mascarados por padrão. A query
-`?reveal=true` só deve ser usada por ação explícita de operador autenticado.
+`?reveal=true` só deve ser usada por ação explícita de operador autenticado e
+responde `Cache-Control: private, no-store`; a SPA também usa o modo fetch
+`no-store` nessa request.
+Corpos JSON administrativos são limitados a 1 MiB; payloads maiores recebem
+`413 Request Entity Too Large`. API clients nunca expõem `key_hash`; o token
+bruto aparece somente na resposta de criação e deve ser capturado naquele momento.
 
 ==== Consumer API
 
@@ -63,8 +68,9 @@ GET /v1/resolve?tenantId=<tenant-slug>
 Authorization: Bearer tnc_...
 ----
 
-Exatamente um de `hostname` ou `tenantId` é obrigatório (`400` se ambos ausentes);
-ambos resolvem o mesmo tenant e produzem o mesmo `ETag`.
+Exatamente um de `hostname` ou `tenantId` é obrigatório (`400` se ambos estiverem
+ausentes ou se forem enviados juntos); os dois caminhos, usados separadamente,
+resolvem o mesmo tenant e produzem o mesmo `ETag`.
 
 Resposta:
 
@@ -84,11 +90,16 @@ Resposta:
 }
 ----
 
-Cache / revalidação: a resposta carrega `ETag` (forte — derivado do tenant e dos
-resources ativos: ids, status, `updated_at`) e `Cache-Control: private, max-age=30`.
-O consumidor revalida com `If-None-Match: <etag>`; quando nada mudou o servidor
-responde `304 Not Modified` sem corpo e *sem redecifrar*. Qualquer alteração em
-tenant ou resource (add/remove/update/status) muda o `ETag`.
+Hostnames são DNS case-insensitive: entrada e consulta são canonicalizadas para
+ASCII minúsculo, sem espaços ou ponto final. IDNs precisam ser fornecidos em
+punycode explícito.
+
+Cache / revalidação: a resposta carrega `ETag` (forte — derivado do tenant, dos
+resources ativos e da versão de suas definitions) e `Cache-Control: private, no-store`,
+pois o corpo contém credenciais em texto claro. O consumidor pode reter o
+validador na própria aplicação e enviar `If-None-Match: <etag>`; quando nada mudou
+o servidor responde `304 Not Modified` sem corpo e *sem redecifrar*. Qualquer
+alteração em tenant, resource, valor ou field da definition muda o `ETag`.
 
 Identidade para a borda (injector que injeta `x-tenant-id` e *nunca* toca em
 credenciais): retorna só o slug do tenant, sem resources/segredos.
@@ -105,7 +116,10 @@ Authorization: Bearer tnc_...
 ----
 
 Também emite `ETag` (estável — só muda quando o tenant muda) e
-`Cache-Control: private, max-age=300`; revalida com `If-None-Match` → `304`.
+`Cache-Control: private, no-cache`; caches privados podem armazenar a resposta,
+mas devem revalidar cada uso com `If-None-Match` (resposta `304` quando o
+mapeamento não mudou). Isso evita servir a identidade anterior quando um
+hostname é removido de um tenant e atribuído a outro.
 
 Atalho por tipo:
 
@@ -129,7 +143,11 @@ Authorization: Bearer tnc_...
 | Token admin/API ausente, inválido ou revogado.
 
 | `404`
-| Hostname ou resource não encontrado no consumo.
+| Hostname/resource não encontrado no consumo, tenant inativo ou mutação
+  aninhada cujo filho não pertence ao parent informado.
+
+| `413`
+| Corpo JSON administrativo maior que 1 MiB.
 
 | `409`
 | Violação de unicidade, como hostname duplicado ou segundo resource ativo do

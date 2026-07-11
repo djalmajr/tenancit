@@ -13,7 +13,8 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 | Cliente lógico. Possui `slug`, `name` e `status`.
 
 | `tenant_domains`
-| Hostnames exatos associados a tenants. `hostname` é único globalmente.
+| Hostnames exatos associados a tenants. `hostname` é único globalmente e
+  armazenado em forma canônica ASCII minúscula, sem ponto final.
 
 | `resource_definitions`
 | Catálogo de tipos de recurso. `key` é única e estável.
@@ -35,7 +36,8 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 
 ==== Invariantes
 
-* `tenant_domains.hostname` é único.
+* `tenant_domains.hostname` é único e canônico; variantes de caixa/ponto final
+  representam o mesmo hostname.
 * `resource_definitions.key` é único.
 * `resource_fields` é único por `(resource_definition_id, key)`.
 * `tenant_resources` tem no máximo um registro ativo por `(tenant, definition)`.

@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
+  BarChart3,
   Building2,
   Eye,
   EyeOff,
@@ -13,6 +14,7 @@ import {
   Monitor,
   Moon,
   Sun,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -38,7 +40,14 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { clearAdminToken, getAdminToken, setAdminToken } from "@/lib/api";
+import {
+  ADMIN_TOKEN_CHANGE_EVENT,
+  clearAdminToken,
+  consumePendingAdminAuthMessage,
+  getAdminToken,
+  setAdminToken,
+  type AdminAuthMessage,
+} from "@/lib/api";
 import { LOCALE_OPTIONS, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -48,6 +57,8 @@ const NAV: Array<{ exact?: boolean; icon: LucideIcon; labelKey: TranslationKey; 
   { icon: Building2, labelKey: "nav.tenants", to: "/tenants" },
   { icon: Boxes, labelKey: "nav.definitions", to: "/resource-definitions" },
   { icon: KeyRound, labelKey: "nav.apiClients", to: "/api-clients" },
+  { icon: BarChart3, labelKey: "nav.usage", to: "/usage" },
+  { icon: ScrollText, labelKey: "nav.audit", to: "/audit-events" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -58,23 +69,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [hasAdminToken, setHasAdminToken] = React.useState(() => Boolean(getAdminToken()));
 
   React.useEffect(() => {
-    function requestAdminAuth(event: Event) {
-      const messageKey = event instanceof CustomEvent ? event.detail?.messageKey : undefined;
-      setAuthMessageKey(messageKey === "auth.invalidToken" ? "auth.invalidToken" : "auth.requiredAccess");
+    function showAdminAuth(messageKey: AdminAuthMessage) {
+      setAuthMessageKey(messageKey);
       setDraftAdminToken("");
       clearAdminToken();
       setHasAdminToken(false);
     }
+
+    function requestAdminAuth(event: Event) {
+      const detail: unknown = event instanceof CustomEvent ? event.detail : undefined;
+      const messageKey =
+        typeof detail === "object" && detail !== null && "messageKey" in detail
+          ? detail.messageKey
+          : undefined;
+      const pendingMessage = consumePendingAdminAuthMessage();
+      showAdminAuth(
+        messageKey === "auth.invalidToken" || messageKey === "auth.requiredAccess"
+          ? messageKey
+          : pendingMessage ?? "auth.requiredAccess",
+      );
+    }
     window.addEventListener("admin-auth-required", requestAdminAuth);
+    const pendingMessage = consumePendingAdminAuthMessage();
+    if (pendingMessage) showAdminAuth(pendingMessage);
     return () => window.removeEventListener("admin-auth-required", requestAdminAuth);
   }, []);
 
   React.useEffect(() => {
+    let remountTimer: number | undefined;
     function syncAdminTokenState() {
-      setHasAdminToken(Boolean(getAdminToken()));
+      const hasNextCredential = Boolean(getAdminToken());
+      window.clearTimeout(remountTimer);
+      // Force a committed unauthenticated boundary before observers can mount
+      // for a replacement identity. The query-cache listener cancels/clears
+      // the old identity synchronously in the same event.
+      setHasAdminToken(false);
+      if (hasNextCredential) {
+        remountTimer = window.setTimeout(() => setHasAdminToken(true), 0);
+      }
     }
-    window.addEventListener("admin-token-change", syncAdminTokenState);
-    return () => window.removeEventListener("admin-token-change", syncAdminTokenState);
+    window.addEventListener(ADMIN_TOKEN_CHANGE_EVENT, syncAdminTokenState);
+    window.addEventListener("storage", syncAdminTokenState);
+    return () => {
+      window.clearTimeout(remountTimer);
+      window.removeEventListener(ADMIN_TOKEN_CHANGE_EVENT, syncAdminTokenState);
+      window.removeEventListener("storage", syncAdminTokenState);
+    };
   }, []);
 
   const currentPageLabel = pageLabel(pathname, t);
@@ -133,11 +173,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 const label = t(item.labelKey);
                 return (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={label}>
-                      <Link aria-label={label} to={item.to}>
-                        <Icon />
-                        <span className="group-data-[state=collapsed]:hidden">{label}</span>
-                      </Link>
+                    <SidebarMenuButton
+                      isActive={active}
+                      render={<Link aria-label={label} to={item.to} />}
+                      tooltip={label}
+                    >
+                      <Icon />
+                      <span className="group-data-[state=collapsed]:hidden">{label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -164,7 +206,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-medium">{currentPageLabel}</span>
           <PreferenceControls className="ml-auto" />
         </header>
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
@@ -183,6 +225,8 @@ function AdminAccessScreen({
 }) {
   const { t } = useI18n();
   const [showToken, setShowToken] = React.useState(false);
+  const tokenInputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => tokenInputRef.current?.focus(), []);
   const disabled = !draftAdminToken.trim();
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
@@ -209,9 +253,9 @@ function AdminAccessScreen({
           <KeyRound className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoComplete="off"
-            autoFocus
             className="pl-7 pr-7"
             id="admin-token"
+            ref={tokenInputRef}
             onChange={(event) => onDraftAdminTokenChange(event.target.value)}
             type={showToken ? "text" : "password"}
             value={draftAdminToken}
@@ -269,9 +313,9 @@ function LanguageMenu({
       <DropdownMenuContent className="min-w-max">
         <DropdownMenuRadioGroup onValueChange={(value) => setLocale(value as Locale)} value={locale}>
           {LOCALE_OPTIONS.map((option) => (
-            <DropdownMenuRadioItem className="gap-2 whitespace-nowrap pr-3" key={option.value} value={option.value}>
+            <DropdownMenuRadioItem className="gap-2 whitespace-nowrap pr-8" key={option.value} value={option.value}>
               <span aria-hidden="true" className="text-lg leading-none">{option.flag}</span>
-              <span>{option.label}</span>
+              <span className="pr-1">{option.label}</span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -319,5 +363,7 @@ function pageLabel(pathname: string, t: (key: TranslationKey) => string): string
   if (pathname.startsWith("/tenants")) return t("nav.tenants");
   if (pathname.startsWith("/resource-definitions")) return t("nav.definitions");
   if (pathname.startsWith("/api-clients")) return t("nav.apiClients");
+  if (pathname.startsWith("/usage")) return t("nav.usage");
+  if (pathname.startsWith("/audit-events")) return t("nav.audit");
   return "";
 }

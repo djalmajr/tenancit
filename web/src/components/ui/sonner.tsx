@@ -1,15 +1,47 @@
-import { Toaster as SonnerToaster } from "sonner";
-import { useTheme } from "@/lib/theme";
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { useTheme } from "@/lib/theme"
 
-/** App-wide toast region. Syncs with the app's own theme (no next-themes). */
-export function Toaster() {
-  const { resolvedTheme } = useTheme();
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { resolvedTheme } = useTheme()
+
   return (
-    <SonnerToaster
+    <Sonner
       theme={resolvedTheme}
-      position="bottom-right"
-      closeButton
-      toastOptions={{ duration: 4000 }}
+      className="toaster group"
+      icons={{
+        success: (
+          <CircleCheckIcon className="size-4" />
+        ),
+        info: (
+          <InfoIcon className="size-4" />
+        ),
+        warning: (
+          <TriangleAlertIcon className="size-4" />
+        ),
+        error: (
+          <OctagonXIcon className="size-4" />
+        ),
+        loading: (
+          <Loader2Icon className="size-4 animate-spin" />
+        ),
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
+      toastOptions={{
+        classNames: {
+          toast: "cn-toast",
+        },
+      }}
+      {...props}
     />
-  );
+  )
 }
+
+export { Toaster }

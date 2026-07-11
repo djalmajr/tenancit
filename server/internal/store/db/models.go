@@ -8,14 +8,83 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AdminAuditEvent struct {
+	OccurredAt    time.Time `json:"occurred_at"`
+	ID            uuid.UUID `json:"id"`
+	SchemaVersion int16     `json:"schema_version"`
+	RequestID     string    `json:"request_id"`
+	ActorKind     string    `json:"actor_kind"`
+	ActorIssuer   *string   `json:"actor_issuer"`
+	ActorSubject  string    `json:"actor_subject"`
+	ActorLabel    *string   `json:"actor_label"`
+	Action        string    `json:"action"`
+	TargetType    string    `json:"target_type"`
+	TargetID      string    `json:"target_id"`
+	Result        string    `json:"result"`
+	HttpMethod    string    `json:"http_method"`
+	RouteTemplate string    `json:"route_template"`
+	HttpStatus    int16     `json:"http_status"`
+	ErrorCode     *string   `json:"error_code"`
+	Metadata      []byte    `json:"metadata"`
+}
+
+type AdminAuditEventsDefault struct {
+	OccurredAt    time.Time `json:"occurred_at"`
+	ID            uuid.UUID `json:"id"`
+	SchemaVersion int16     `json:"schema_version"`
+	RequestID     string    `json:"request_id"`
+	ActorKind     string    `json:"actor_kind"`
+	ActorIssuer   *string   `json:"actor_issuer"`
+	ActorSubject  string    `json:"actor_subject"`
+	ActorLabel    *string   `json:"actor_label"`
+	Action        string    `json:"action"`
+	TargetType    string    `json:"target_type"`
+	TargetID      string    `json:"target_id"`
+	Result        string    `json:"result"`
+	HttpMethod    string    `json:"http_method"`
+	RouteTemplate string    `json:"route_template"`
+	HttpStatus    int16     `json:"http_status"`
+	ErrorCode     *string   `json:"error_code"`
+	Metadata      []byte    `json:"metadata"`
+}
+
 type ApiClient struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	KeyHash   string    `json:"key_hash"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID           uuid.UUID          `json:"id"`
+	Name         string             `json:"name"`
+	KeyHash      string             `json:"key_hash"`
+	Status       string             `json:"status"`
+	CreatedAt    time.Time          `json:"created_at"`
+	TokenPreview *string            `json:"token_preview"`
+	RpmLimit     *int32             `json:"rpm_limit"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+type ApiClientPreviousToken struct {
+	ID          uuid.UUID `json:"id"`
+	ApiClientID uuid.UUID `json:"api_client_id"`
+	KeyHash     string    `json:"key_hash"`
+	ValidUntil  time.Time `json:"valid_until"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type ApiClientScope struct {
+	ApiClientID uuid.UUID `json:"api_client_id"`
+	Scope       string    `json:"scope"`
+}
+
+type ApiClientUsageDaily struct {
+	Day              pgtype.Date `json:"day"`
+	ApiClientID      uuid.UUID   `json:"api_client_id"`
+	Operation        string      `json:"operation"`
+	StatusClass      int16       `json:"status_class"`
+	RequestCount     int64       `json:"request_count"`
+	RateLimitedCount int64       `json:"rate_limited_count"`
 }
 
 type ResourceDefinition struct {

@@ -1,7 +1,7 @@
 ---
 id: definition-deactivation-provisioning
 name: Desativação de definition afeta o provisionamento no tenant
-reference: docs/produto/03-jornadas-operacionais.adoc#criar-um-novo-tipo-de-recurso
+reference: docs/business/03-jornadas-operacionais.adoc#criar-um-novo-tipo-de-recurso
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:

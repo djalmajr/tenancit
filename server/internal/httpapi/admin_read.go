@@ -16,7 +16,7 @@ func (s *Server) listTenantDomains(w http.ResponseWriter, r *http.Request) {
 	}
 	domains, err := s.Q.ListTenantDomains(r.Context(), id)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeInternalError(w, r, "list tenant domains", err)
 		return
 	}
 	if domains == nil {
@@ -44,31 +44,71 @@ func (s *Server) listTenantResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reveal := r.URL.Query().Get("reveal") == "true"
+	if reveal {
+		w.Header().Set("Cache-Control", secretResponseCacheControl)
+	}
 	ctx := r.Context()
 
-	resources, err := s.Q.ListTenantResources(ctx, id)
+	headers, err := service.LoadResourceHeaders(ctx, s.Q, id, true)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeInternalError(w, r, "list tenant resource headers", err)
 		return
 	}
-
-	out := make([]adminResource, 0, len(resources))
-	for _, res := range resources {
-		built, err := service.BuildResourceFields(ctx, service.BuildResourceFieldsDeps{
-			Cryptor: s.Cryptor, Queries: s.Q,
-		}, service.BuildResourceFieldsInput{Resource: res, Reveal: reveal})
+	built, err := service.BuildResourceFieldsBatch(ctx, s.Q, s.Cryptor, headers, reveal)
+	if err != nil {
+		writeInternalError(w, r, "assemble tenant resources", err)
+		return
+	}
+	if reveal {
+		resourceIDs := make([]string, 0, len(built))
+		secretKeys := make([]string, 0)
+		seenSecretKeys := make(map[string]struct{})
+		for _, resource := range built {
+			resourceIDs = append(resourceIDs, resource.Header.Resource.ID.String())
+			for _, field := range resource.Fields {
+				if !field.IsSecret {
+					continue
+				}
+				if _, exists := seenSecretKeys[field.Key]; exists {
+					continue
+				}
+				seenSecretKeys[field.Key] = struct{}{}
+				secretKeys = append(secretKeys, field.Key)
+			}
+		}
+		tx, err := s.DB.Begin(ctx)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			writeInternalError(w, r, "begin secret reveal audit", err)
 			return
 		}
+		defer tx.Rollback(ctx)
+		if err := insertAdminAuditSuccess(
+			r, s.Q.WithTx(tx), "secret.revealed", "tenant", id.String(),
+			"/v1/admin/tenants/{id}/resources", http.StatusOK,
+			map[string]any{
+				"resource_ids": resourceIDs, "secret_field_keys": secretKeys,
+				"resource_count": len(resourceIDs), "secret_field_count": len(secretKeys),
+			},
+		); err != nil {
+			writeInternalError(w, r, "audit secret reveal", err)
+			return
+		}
+		if err := tx.Commit(ctx); err != nil {
+			writeInternalError(w, r, "commit secret reveal audit", err)
+			return
+		}
+	}
 
+	out := make([]adminResource, 0, len(built))
+	for _, resource := range built {
+		header := resource.Header
 		ar := adminResource{
-			ID:            res.ID.String(),
-			DefinitionKey: built.Definition.Key,
-			DefinitionID:  built.Definition.ID.String(),
-			Name:          built.Definition.Name,
-			Status:        res.Status,
-			Fields:        built.Fields,
+			ID:            header.Resource.ID.String(),
+			DefinitionKey: header.DefinitionKey,
+			DefinitionID:  header.Resource.ResourceDefinitionID.String(),
+			Name:          header.DefinitionName,
+			Status:        header.Resource.Status,
+			Fields:        resource.Fields,
 		}
 		out = append(out, ar)
 	}
@@ -90,12 +130,16 @@ func (s *Server) getDefinition(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	def, err := s.Q.GetDefinition(ctx, id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		if isNotFound(err) {
+			writeNotFound(w)
+			return
+		}
+		writeInternalError(w, r, "get resource definition", err)
 		return
 	}
 	fields, err := s.Q.ListFields(ctx, def.ID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeInternalError(w, r, "list resource definition fields", err)
 		return
 	}
 	if fields == nil {

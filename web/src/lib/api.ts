@@ -1,11 +1,25 @@
 // Thin client for the admin API. Same-origin (SPA served by the Go binary).
 const BASE = "/v1/admin";
-const ADMIN_TOKEN_KEY = "tenancitAdminToken";
+export const ADMIN_TOKEN_KEY = "tenancitAdminToken";
+export const ADMIN_TOKEN_CHANGE_EVENT = "admin-token-change";
 const ADMIN_AUTH_REQUIRED_EVENT = "admin-auth-required";
+export const REQUEST_TIMEOUT_MS = 10_000;
+export type AdminAuthMessage = "auth.invalidToken" | "auth.requiredAccess";
+
+let pendingAdminAuthMessage: AdminAuthMessage | undefined;
+
+// A 401 can arrive before AppShell's effect subscribes (child query effects
+// mount before the parent effect). Retain the event payload so the late
+// subscriber can replay it instead of silently falling back to generic copy.
+export function consumePendingAdminAuthMessage(): AdminAuthMessage | undefined {
+  const message = pendingAdminAuthMessage;
+  pendingAdminAuthMessage = undefined;
+  return message;
+}
 
 export function clearAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
-  window.dispatchEvent(new Event("admin-token-change"));
+  window.dispatchEvent(new Event(ADMIN_TOKEN_CHANGE_EVENT));
 }
 
 export function getAdminToken(): string {
@@ -13,11 +27,13 @@ export function getAdminToken(): string {
 }
 
 export function setAdminToken(token: string) {
+  pendingAdminAuthMessage = undefined;
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
-  window.dispatchEvent(new Event("admin-token-change"));
+  window.dispatchEvent(new Event(ADMIN_TOKEN_CHANGE_EVENT));
 }
 
-function notifyAdminAuthRequired(messageKey = "auth.requiredAccess") {
+function notifyAdminAuthRequired(messageKey: AdminAuthMessage = "auth.requiredAccess") {
+  pendingAdminAuthMessage = messageKey;
   window.dispatchEvent(new CustomEvent(ADMIN_AUTH_REQUIRED_EVENT, { detail: { messageKey } }));
 }
 
@@ -34,31 +50,61 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs = REQUEST_TIMEOUT_MS) {
+    super(`request timed out after ${timeoutMs}ms`);
+    this.name = "ApiTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAdminToken();
-  const res = await fetch(BASE + path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...init,
-  });
-  if (res.status === 401) {
-    notifyAdminAuthRequired("auth.invalidToken");
-    throw new ApiError(401);
-  }
-  if (!res.ok) {
-    let serverMessage = "";
-    try {
-      const body = (await res.json()) as { error?: unknown };
-      if (typeof body?.error === "string") serverMessage = body.error;
-    } catch {
-      // non-JSON error body; leave serverMessage empty
+  const controller = new AbortController();
+  const upstreamSignal = init?.signal;
+  let timedOut = false;
+  const timeoutID = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort(upstreamSignal?.reason);
+  if (upstreamSignal?.aborted) abortFromCaller();
+  else upstreamSignal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  try {
+    const res = await fetch(BASE + path, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...init,
+      signal: controller.signal,
+    });
+    if (res.status === 401) {
+      notifyAdminAuthRequired("auth.invalidToken");
+      throw new ApiError(401);
     }
-    throw new ApiError(res.status, serverMessage);
+    if (!res.ok) {
+      let serverMessage = "";
+      try {
+        const body = (await res.json()) as { error?: unknown };
+        if (typeof body?.error === "string") serverMessage = body.error;
+      } catch {
+        // non-JSON error body; leave serverMessage empty
+      }
+      throw new ApiError(res.status, serverMessage);
+    }
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  } catch (error) {
+    if (timedOut) throw new ApiTimeoutError();
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutID);
+    upstreamSignal?.removeEventListener("abort", abortFromCaller);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 export interface Tenant {
@@ -123,8 +169,55 @@ export interface ApiClient {
   id: string;
   name: string;
   key_preview?: string;
+  scopes: string[];
+  rpm_limit?: number;
+  expires_at?: string;
+  last_used_at?: string;
+  revoked_at?: string;
+  legacy_unbounded: boolean;
   status: string;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateAPIClientInput {
+  name: string;
+  scopes: Array<"tenant:identify" | "resource:resolve">;
+  rpm_limit: number;
+  expires_at: string;
+}
+
+export interface APIClientUsageRecord {
+  day: string;
+  api_client_id: string;
+  operation: "identify" | "resolve";
+  status_class: number;
+  request_count: number;
+  rate_limited_count: number;
+  client_name?: string;
+}
+
+export interface AdminAuditEvent {
+  occurred_at: string;
+  id: string;
+  request_id: string;
+  actor_kind: string;
+  actor_subject: string;
+  actor_label?: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  result: "success" | "denied" | "error";
+  http_method: string;
+  route_template: string;
+  http_status: number;
+  error_code?: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface AdminAuditPage {
+  events: AdminAuditEvent[];
+  next_cursor?: string;
 }
 
 export interface OverviewTenant {
@@ -148,22 +241,27 @@ export interface Overview {
 }
 
 export const api = {
-  overview: () => req<Overview>("/overview"),
+  overview: (signal?: AbortSignal) => req<Overview>("/overview", { signal }),
 
   // tenants
-  listTenants: () => req<Tenant[]>("/tenants"),
-  getTenant: (id: string) => req<Tenant>(`/tenants/${id}`),
+  listTenants: (signal?: AbortSignal) => req<Tenant[]>("/tenants", { signal }),
+  getTenant: (id: string, signal?: AbortSignal) => req<Tenant>(`/tenants/${id}`, { signal }),
   createTenant: (body: { slug: string; name: string }) =>
     req<Tenant>("/tenants", { method: "POST", body: JSON.stringify(body) }),
   updateTenant: (id: string, body: { name: string; slug: string; status: string }) =>
     req<Tenant>(`/tenants/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  listDomains: (id: string) => req<TenantDomain[]>(`/tenants/${id}/domains`),
+  deleteTenant: (id: string) => req<void>(`/tenants/${id}`, { method: "DELETE" }),
+  listDomains: (id: string, signal?: AbortSignal) =>
+    req<TenantDomain[]>(`/tenants/${id}/domains`, { signal }),
   addDomain: (id: string, hostname: string) =>
     req(`/tenants/${id}/domains`, { method: "POST", body: JSON.stringify({ hostname }) }),
   removeDomain: (id: string, domainId: string) =>
     req(`/tenants/${id}/domains/${domainId}`, { method: "DELETE" }),
-  listTenantResources: (id: string, reveal = false) =>
-    req<TenantResource[]>(`/tenants/${id}/resources${reveal ? "?reveal=true" : ""}`),
+  listTenantResources: (id: string, reveal = false, signal?: AbortSignal) =>
+    req<TenantResource[]>(
+      `/tenants/${id}/resources${reveal ? "?reveal=true" : ""}`,
+      { ...(reveal ? { cache: "no-store" as const } : {}), signal },
+    ),
   createResource: (id: string, body: { definitionKey: string; values: Record<string, string> }) =>
     req(`/tenants/${id}/resources`, { method: "POST", body: JSON.stringify(body) }),
   setResourceStatus: (id: string, resourceId: string, status: string) =>
@@ -175,8 +273,10 @@ export const api = {
     req(`/tenants/${id}/resources/${resourceId}`, { method: "DELETE" }),
 
   // definitions
-  listDefinitions: () => req<Definition[]>("/resource-definitions"),
-  getDefinition: (id: string) => req<DefinitionDetail>(`/resource-definitions/${id}`),
+  listDefinitions: (signal?: AbortSignal) =>
+    req<Definition[]>("/resource-definitions", { signal }),
+  getDefinition: (id: string, signal?: AbortSignal) =>
+    req<DefinitionDetail>(`/resource-definitions/${id}`, { signal }),
   createDefinition: (body: { key: string; name: string; description?: string; icon?: string }) =>
     req<Definition>("/resource-definitions", { method: "POST", body: JSON.stringify(body) }),
   setDefinitionStatus: (id: string, status: string) =>
@@ -189,12 +289,34 @@ export const api = {
     req(`/resource-definitions/${id}/fields/${fieldId}`, { method: "DELETE" }),
 
   // api clients
-  listAPIClients: () => req<ApiClient[]>("/api-clients"),
-  createAPIClient: (name: string) =>
+  listAPIClients: (signal?: AbortSignal) => req<ApiClient[]>("/api-clients", { signal }),
+  createAPIClient: (body: CreateAPIClientInput) =>
     req<{ client: ApiClient; token: string }>("/api-clients", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     }),
-  setAPIClientStatus: (id: string, status: string) =>
-    req(`/api-clients/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+  updateAPIClient: (id: string, body: CreateAPIClientInput) =>
+    req<ApiClient>(`/api-clients/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  rotateAPIClient: (id: string, graceSeconds: number) =>
+    req<{ client: ApiClient; token: string }>(`/api-clients/${id}/rotate`, {
+      method: "POST",
+      body: JSON.stringify({ grace_seconds: graceSeconds }),
+    }),
+  revokeAPIClient: (id: string) =>
+    req<ApiClient>(`/api-clients/${id}/revoke`, { method: "POST" }),
+  deleteAPIClient: (id: string) => req<void>(`/api-clients/${id}`, { method: "DELETE" }),
+  getAPIClientUsage: (id: string, from?: string, to?: string) => {
+    const query = new URLSearchParams();
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    return req<APIClientUsageRecord[]>(`/api-clients/${id}/usage?${query}`);
+  },
+  listAPIClientUsage: (from?: string, to?: string, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (from) query.set("from", from);
+    if (to) query.set("to", to);
+    return req<APIClientUsageRecord[]>(`/api-client-usage?${query}`, { signal });
+  },
+  listAuditEvents: (query: URLSearchParams, signal?: AbortSignal) =>
+    req<AdminAuditPage>(`/audit-events?${query}`, { signal }),
 };

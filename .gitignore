@@ -4,6 +4,13 @@
 /web/node_modules/
 node_modules/
 *.log
+*.dump
+/backups/
+/output/playwright/
+/benchmarks/scale/results/*/
+.env
+.env.*
+!.env.example
 
 # operator-local (já no gitignore global, reforçado aqui)
 .ai-memory.toml

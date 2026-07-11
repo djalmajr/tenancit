@@ -8,10 +8,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
       TENANCIT_ADMIN_TOKEN: "tenancit_admin_dev"
+      TENANCIT_VALKEY_URL: "redis://valkey:6379/0"
       TENANCIT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
       TENANCIT_AES_KEY_VERSION: "1"
     ports:

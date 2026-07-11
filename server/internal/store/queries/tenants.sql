@@ -18,11 +18,23 @@ DELETE FROM tenants WHERE id = $1;
 -- name: AddTenantDomain :one
 INSERT INTO tenant_domains (tenant_id, hostname) VALUES ($1, $2) RETURNING *;
 
--- name: RemoveTenantDomain :exec
-DELETE FROM tenant_domains WHERE id = $1;
+-- name: RemoveTenantDomain :execrows
+DELETE FROM tenant_domains
+WHERE id = sqlc.arg(id)
+  AND tenant_id = sqlc.arg(tenant_id);
 
 -- name: ListTenantDomains :many
 SELECT * FROM tenant_domains WHERE tenant_id = $1 ORDER BY hostname;
+
+-- name: GetTenantDomain :one
+SELECT d.* FROM tenant_domains d
+WHERE d.id = sqlc.arg(domain_id) AND d.tenant_id = sqlc.arg(target_tenant_id)
+FOR UPDATE;
+
+-- name: CountTenantChildren :one
+SELECT
+  (SELECT count(*) FROM tenant_domains d WHERE d.tenant_id = sqlc.arg(target_tenant_id))::int AS domains,
+  (SELECT count(*) FROM tenant_resources r WHERE r.tenant_id = sqlc.arg(target_tenant_id))::int AS resources;
 
 -- name: GetTenantByHostname :one
 SELECT t.* FROM tenants t

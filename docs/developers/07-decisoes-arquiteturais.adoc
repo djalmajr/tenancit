@@ -1,7 +1,7 @@
 [#eng-decisoes-arquiteturais]
 === Decisões arquiteturais
 
-As decisões estruturais ficam em link:../adr/README.md[`docs/adr/`]. Leia os
+As decisões estruturais ficam em link:adr/README.md[`docs/adr/`]. Leia os
 ADRs quando for alterar stack, modelo de dados, autenticação, criptografia ou
 fronteiras de serviço.
 
@@ -9,19 +9,32 @@ fronteiras de serviço.
 |===
 | # | Decisão | Status
 
-| link:../adr/0001-servico-autonomo-go-sqlc-spa-embutida.md[0001]
+| link:adr/0001-servico-autonomo-go-sqlc-spa-embutida.md[0001]
 | Serviço autônomo em Go, sqlc e SPA embutida
 | Aceito
 
-| link:../adr/0002-modelo-dinamico-definition-resource-values.md[0002]
+| link:adr/0002-modelo-dinamico-definition-resource-values.md[0002]
 | Modelo dinâmico com definitions, resources e values
 | Aceito
 
-| link:../adr/0003-secrets-server-side-aes-gcm.md[0003]
+| link:adr/0003-secrets-server-side-aes-gcm.md[0003]
 | Secrets cifrados com AES-GCM e decrypt server-side
 | Aceito
 
-| link:../adr/0004-admin-token-e-api-clients.md[0004]
+| link:adr/0004-admin-token-e-api-clients.md[0004]
 | Separação entre admin token e API clients de consumo
 | Aceito
+
+| link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[0005]
+| Identidade humana administrativa com OIDC, sessões e RBAC
+| Proposto
 |===
+
+==== Designs propostos
+
+Os documentos abaixo detalham follow-ups cuja implementação ainda exige uma
+decisão explícita. Concluir o design não equivale a entregar a feature.
+
+* link:developers/design/admin-audit-log.md[Auditoria append-only de ações administrativas]
+* link:developers/design/api-client-policy.md[Governança e rate limiting de API clients]
+* link:developers/design/aes-key-rewrap.md[Rewrap em lotes de chaves AES]

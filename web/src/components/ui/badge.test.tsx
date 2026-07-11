@@ -14,7 +14,7 @@ describe("Badge", () => {
       </>,
     );
     expect(screen.getByText("def").className).toContain("bg-primary");
-    expect(screen.getByText("sec").className).toContain("bg-muted");
+    expect(screen.getByText("sec").className).toContain("bg-secondary");
     expect(screen.getByText("des").className).toContain("bg-destructive");
   });
 });

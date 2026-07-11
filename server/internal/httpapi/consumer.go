@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/djalmajr/tenancit/server/internal/service"
@@ -8,15 +9,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// resolveMaxAge is the Cache-Control max-age (seconds) advertised on /v1/resolve.
-// Short by design: clients revalidate cheaply via the ETag (304) rather than
-// holding stale config; tenant/resource edits flip the ETag immediately.
-const resolveMaxAge = "private, max-age=30"
+// Resolve payloads contain cleartext credentials. Validators may be retained
+// by application code, but the HTTP response body must never be stored.
+const secretResponseCacheControl = "private, no-store"
 
-// identifyMaxAge is the Cache-Control for /v1/identify. The hostname -> tenant
-// mapping is stable, so the edge can cache the identity longer and revalidate
-// cheaply via the ETag.
-const identifyMaxAge = "private, max-age=300"
+// identifyCacheControl lets a private cache retain the identity only for cheap
+// conditional revalidation. Hostnames can be reassigned between tenants, so a
+// freshness window could serve the previous tenant without contacting us.
+const identifyCacheControl = "private, no-cache"
 
 // identifyResponse is the edge-facing payload: tenant identity only, no secrets.
 type identifyResponse struct {
@@ -34,12 +34,16 @@ func (s *Server) handleIdentify(w http.ResponseWriter, r *http.Request) {
 	}
 	tenant, err := s.Resolver.TenantByHostname(r.Context(), hostname)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+		if tenantUnavailable(err) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+			return
+		}
+		writeInternalError(w, r, "identify tenant", err)
 		return
 	}
 	etag := service.IdentityETag(tenant)
 	w.Header().Set("ETag", etag)
-	w.Header().Set("Cache-Control", identifyMaxAge)
+	w.Header().Set("Cache-Control", identifyCacheControl)
 	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -61,6 +65,9 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		err    error
 	)
 	switch {
+	case tenantID != "" && hostname != "":
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "provide only one of hostname or tenantId"})
+		return
 	case tenantID != "":
 		tenant, err = s.Resolver.TenantBySlug(ctx, tenantID)
 	case hostname != "":
@@ -70,17 +77,21 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+		if tenantUnavailable(err) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+			return
+		}
+		writeInternalError(w, r, "load tenant for resolve", err)
 		return
 	}
 
 	etag, resources, err := s.Resolver.Version(ctx, tenant)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeInternalError(w, r, "version resolved tenant", err)
 		return
 	}
 	w.Header().Set("ETag", etag)
-	w.Header().Set("Cache-Control", resolveMaxAge)
+	w.Header().Set("Cache-Control", secretResponseCacheControl)
 	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -88,7 +99,7 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 
 	res, err := s.Resolver.ResolveTenant(ctx, tenant, resources)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeInternalError(w, r, "resolve tenant resources", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -99,12 +110,21 @@ func (s *Server) handleResolveOne(w http.ResponseWriter, r *http.Request) {
 	defKey := chi.URLParam(r, "definitionKey")
 	res, found, err := s.Resolver.ByHostnameAndDefinition(r.Context(), hostname, defKey)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+		if tenantUnavailable(err) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+			return
+		}
+		writeInternalError(w, r, "resolve tenant resource", err)
 		return
 	}
 	if !found {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
+	w.Header().Set("Cache-Control", secretResponseCacheControl)
 	writeJSON(w, http.StatusOK, res)
+}
+
+func tenantUnavailable(err error) bool {
+	return isNotFound(err) || errors.Is(err, service.ErrTenantUnavailable)
 }

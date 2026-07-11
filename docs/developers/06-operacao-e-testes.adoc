@@ -21,26 +21,31 @@
 
 | `TENANCIT_AES_KEY_VERSION`
 | Versão da chave atual. Opcional; use explicitamente em produção.
+
+| `TENANCIT_AES_KEY_V<n>`
+| Chave adicional do keyring para decriptar versões históricas ou staged em
+  cutover. Não muda a versão usada para novos writes.
 |===
 
 ==== Gates locais
 
 [source,bash]
 ----
+make test
 make test-go
+make test-go-strict
 make test-web
 ----
 
 `make test-go` roda `go vet ./...` e `go test ./...`. Os testes HTTP/store usam
-testcontainers e pulam se Docker não estiver disponível. `make test-web` roda
-`bunx tsc --noEmit`.
+testcontainers e pulam se Docker não estiver disponível. `make test-go-strict`
+(também disponível como `make test-db`) define `REQUIRE_DB_TESTS=1`: se o Docker
+não puder iniciar o PostgreSQL efêmero, o gate falha em vez de pular a cobertura.
 
-Para rodar a suíte web com Vitest:
-
-[source,bash]
-----
-cd web && bun run test
-----
+`make test-web` roda ESLint (incluindo as regras de hooks), o typecheck TypeScript
+e a suíte Vitest. `make test` é o gate local padrão e combina Go, lint, typecheck
+e testes web. Na CI, use o modo estrito para que indisponibilidade do Docker seja
+visível como falha.
 
 ==== Healthcheck
 
@@ -63,3 +68,7 @@ Resposta esperada:
 * Não reutilize a chave AES de demo do compose.
 * Exponha `/v1/resolve` apenas por TLS.
 * Trate `?reveal=true` como operação sensível.
+* Valide health, fronteiras de autenticação, ETag e cleanup com
+  `make smoke` após deploys.
+* Use os procedimentos versionados em link:runbooks/README.md[`docs/runbooks/`]
+  para bootstrap, backup/restore e resposta pós-deploy.

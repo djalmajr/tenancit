@@ -1,7 +1,7 @@
 ---
 id: resource-definition-management
 name: Criar e manter resource definition
-reference: docs/produto/03-jornadas-operacionais.adoc#criar-um-novo-tipo-de-recurso
+reference: docs/business/03-jornadas-operacionais.adoc#criar-um-novo-tipo-de-recurso
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:

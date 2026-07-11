@@ -13,14 +13,42 @@ Há duas fronteiras independentes:
 | `TENANCIT_ADMIN_TOKEN`
 | Operação humana/admin e bootstrap de API clients.
 
+| `/v1/identify`
+| Token de `api_clients`
+| Identidade para edge/injector: retorna apenas `tenantSlug`, sem resources ou
+  segredos.
+
 | `/v1/resolve*`
 | Token de `api_clients`
-| Consumo server-to-server por aplicações.
+| Configuração server-to-server para a aplicação que usa os resources; pode
+  retornar segredos descriptografados sobre TLS.
 |===
 
 `TENANCIT_ADMIN_TOKEN` não é persistido no banco. O servidor guarda em memória apenas
 o hash SHA-256 para comparação. API clients são persistidos em `api_clients`
 com hash SHA-256; o token bruto é exibido uma única vez.
+
+Esse token compartilhado continua sendo o mecanismo *atual*. A evolução proposta
+em link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[ADR 0005]
+adota OIDC, sessões server-side, CSRF e RBAC e preserva o token somente como
+break-glass; ela ainda não está implementada.
+
+Identify e resolve exigem autenticação mesmo tendo responsabilidades distintas.
+O `tenantSlug` propagado como `x-tenant-id` é identidade, não uma credencial: a
+aplicação deve aceitar esse header apenas de uma borda confiável e ainda usar
+seu API client para resolver recursos. Tokens não devem ser propagados junto
+com a request do usuário nem registrados em logs.
+
+==== Cache e revalidação
+
+`/v1/identify` não acessa secrets e pode devolver
+`Cache-Control: private, no-cache`; seu `ETag` permite revalidar o mapeamento
+hostname -> tenant com `If-None-Match`. `/v1/resolve*` devolve
+`Cache-Control: private, no-store`, porque seu corpo pode conter credenciais, e
+usa outro `ETag` para revalidar a configuração. Um `304` evita novo payload e
+novo decrypt, mas não autoriza cache compartilhado nem torna os ETags das duas
+operações intercambiáveis. Detalhes normativos estão em
+<<eng-contratos-http,Contratos HTTP>>.
 
 ==== Segredos de resources
 
@@ -37,11 +65,16 @@ Campos marcados como `is_secret` são cifrados com AES-256-GCM. Variáveis:
 | Versão atual da chave. Default lógico: `1`.
 
 | `TENANCIT_AES_KEY_V<n>`
-| Chaves antigas opcionais para decrypt durante rotação futura.
+| Entradas adicionais do keyring para decrypt durante rotação. Podem ser
+  staged antes do cutover e incluem versões anteriores ou futuras à corrente.
 |===
 
 O schema já guarda `key_version` em `tenant_resource_values`. A rotação
 operacional automática ainda não faz parte do escopo atual.
+
+O fluxo identify termina antes da montagem e do decrypt de resources. Somente
+resolve e o reveal admin explícito atravessam a fronteira em que um secret passa
+a existir em claro fora do armazenamento cifrado.
 
 ==== Reveal no admin
 
@@ -55,3 +88,11 @@ estiver em uso.
 O serviço assume TLS na borda ou no caminho interno confiável. Como consumers
 recebem secrets descriptografados, deploys reais não devem expor `/v1/resolve`
 por HTTP sem TLS fora de ambientes locais controlados.
+
+==== Defesas da resposta HTTP
+
+O servidor aplica CSP same-origin, `frame-ancestors 'none'`,
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, `Permissions-Policy` restritiva e HSTS. O build
+da SPA não exige `unsafe-eval`; `unsafe-inline` permanece limitado a styles.
+HSTS só produz a proteção pretendida quando o serviço é publicado por HTTPS.

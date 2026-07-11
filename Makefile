@@ -1,12 +1,13 @@
-.PHONY: build build-web embed build-server test test-go test-web test-db sqlc \
+.PHONY: build build-web embed build-server lint lint-go test test-go test-go-strict test-web test-db \
+        e2e-catalog e2e-smoke e2e-pr e2e e2e-stability benchmark-scale sqlc \
         dev-server dev-web dev-compose dev-compose-up dev-compose-down tidy clean \
-        pg-test-up pg-test-down docker docker-up docker-down
+        docker docker-up docker-down docker-reset smoke
 
 ## build: web SPA -> embed into server -> Go binary
 build: build-web embed build-server
 
 build-web:
-	cd web && bun install && bun run build
+	cd web && bun install --frozen-lockfile && bun run build
 
 ## embed: copy the built SPA into the Go embed location
 embed:
@@ -16,31 +17,57 @@ embed:
 build-server:
 	cd server && go build -o bin/server ./cmd/server
 
-## test: unit tests (Go + web typecheck). Use test-db for DB-backed tests.
+## test: Go checks + web typecheck and unit tests. DB tests skip if Docker is unavailable.
 test: test-go test-web
 
-test-go:
-	cd server && go vet ./... && go test ./...
+lint: lint-go
+	cd web && bun run lint
+
+lint-go:
+	sh ./scripts/lint-go.sh
+
+test-go: lint-go
+	cd server && go test ./...
+
+## test-go-strict: require Docker-backed integration tests instead of allowing skips.
+test-go-strict: lint-go
+	cd server && REQUIRE_DB_TESTS=1 go test ./...
 
 test-web:
-	cd web && bunx tsc --noEmit
+	cd web && bun run lint && bun run typecheck && bun run test
 
-## test-db: Go tests against an ephemeral Postgres
-test-db: pg-test-up
-	cd server && TEST_DATABASE_URL="postgres://postgres:test@localhost:55432/tenancit_test?sslmode=disable" go test ./...
-	$(MAKE) pg-test-down
+## test-db: compatibility alias for the canonical strict testcontainers gate.
+test-db: test-go-strict
 
-pg-test-up:
-	docker rm -f tenancit-pg-test >/dev/null 2>&1 || true
-	docker run -d --name tenancit-pg-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=tenancit_test -p 55432:5432 postgres:16-alpine >/dev/null
-	@for i in $$(seq 1 30); do docker exec tenancit-pg-test pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
+e2e-catalog:
+	bun ./scripts/check-e2e-catalog.ts
 
-pg-test-down:
-	docker rm -f tenancit-pg-test >/dev/null 2>&1 || true
+## e2e-smoke: auth and all deep links in packaged + Vite/proxy modes.
+e2e-smoke: e2e-catalog
+	sh ./scripts/e2e.sh bootstrap.e2e.test.ts route-smoke.e2e.test.ts
+
+## e2e-pr: PR-critical catalog tier, plus Vite route smoke.
+e2e-pr: e2e-catalog
+	sh ./scripts/e2e.sh --grep @pr-critical
+
+## e2e: full catalog in packaged mode, plus Vite route smoke.
+e2e: e2e-catalog
+	sh ./scripts/e2e.sh
+
+## e2e-stability: full suite three times on fresh stacks, always without retry.
+e2e-stability: e2e-catalog
+	@for run in 1 2 3; do \
+		echo "E2E stability run $$run/3"; \
+		TENANCIT_E2E_RETRIES=0 sh ./scripts/e2e.sh || exit $$?; \
+	done
+
+## benchmark-scale: isolated 100/500/1000/5000 capacity curve and pagination gate.
+benchmark-scale:
+	sh ./scripts/benchmark-scale.sh
 
 ## sqlc: regenerate type-safe DB code (pinned version, runs outside the module)
 sqlc:
-	cd server && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
+	cd server && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
 
 dev-server:
 	cd server && go run ./cmd/server
@@ -67,7 +94,15 @@ docker-up:
 	docker compose up --build -d
 
 docker-down:
+	docker compose down
+
+## docker-reset: explicitly destroy local containers AND persistent volumes.
+docker-reset:
+	@test "$(CONFIRM)" = "destroy-local-data" || (echo 'Refusing: use CONFIRM=destroy-local-data' >&2; exit 1)
 	docker compose down -v
+
+smoke:
+	sh ./scripts/post-deploy-smoke.sh
 
 clean:
 	rm -rf server/bin web/dist server/internal/spa/dist

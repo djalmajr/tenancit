@@ -1,7 +1,7 @@
 ---
 id: admin-form-validation-and-errors
 name: Validação de formulários e erros de unicidade no painel admin
-reference: docs/engenharia/03-contratos-http.adoc#erros-esperados
+reference: docs/developers/03-contratos-http.adoc#erros-esperados
 persona: platform-operator
 entry: "http://localhost:5180/"
 preconditions:
@@ -36,5 +36,5 @@ Todo caminho inválido produz um erro visível e em contexto (no próprio diálo
 ## Estado atual × design
 
 - A SPA propaga erros via `setError(String(e))`, exibindo o texto cru do backend (ex.: `409: ...`). Avaliar se a mensagem é legível o suficiente para o operador — texto excessivamente técnico é um achado de usabilidade.
-- O contrato HTTP define 400 (payload/obrigatório), 401 (token), 404 (consumo) e 409 (unicidade: hostname duplicado e segundo resource ativo do mesmo tipo) em `docs/engenharia/03-contratos-http.adoc`.
+- O contrato HTTP define 400 (payload/obrigatório), 401 (token), 404 (consumo) e 409 (unicidade: hostname duplicado e segundo resource ativo do mesmo tipo) em `docs/developers/03-contratos-http.adoc`.
 - A regra de "1 recurso ativo por definition" é prevenida na UI ao filtrar definitions já ativas no tenant; este fluxo cobre o lado de erro/validação dos formulários admin.

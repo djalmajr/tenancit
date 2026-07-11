@@ -13,9 +13,21 @@ import (
 )
 
 const addField = `-- name: AddField :one
-INSERT INTO resource_fields
-  (resource_definition_id, key, label, hint, data_type, required, is_secret, sort_order)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, resource_definition_id, key, label, hint, data_type, required, is_secret, sort_order
+WITH inserted AS (
+    INSERT INTO resource_fields
+      (resource_definition_id, key, label, hint, data_type, required, is_secret, sort_order)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id, resource_definition_id, key, label, hint, data_type, required, is_secret, sort_order
+), touched AS (
+    UPDATE resource_definitions rd
+    SET updated_at = clock_timestamp()
+    FROM inserted i
+    WHERE rd.id = i.resource_definition_id
+    RETURNING rd.id
+)
+SELECT i.id, i.resource_definition_id, i.key, i.label, i.hint, i.data_type, i.required, i.is_secret, i.sort_order
+FROM inserted i
+JOIN touched t ON t.id = i.resource_definition_id
 `
 
 type AddFieldParams struct {
@@ -29,7 +41,19 @@ type AddFieldParams struct {
 	SortOrder            int32     `json:"sort_order"`
 }
 
-func (q *Queries) AddField(ctx context.Context, arg AddFieldParams) (ResourceField, error) {
+type AddFieldRow struct {
+	ID                   uuid.UUID `json:"id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+	Key                  string    `json:"key"`
+	Label                string    `json:"label"`
+	Hint                 string    `json:"hint"`
+	DataType             string    `json:"data_type"`
+	Required             bool      `json:"required"`
+	IsSecret             bool      `json:"is_secret"`
+	SortOrder            int32     `json:"sort_order"`
+}
+
+func (q *Queries) AddField(ctx context.Context, arg AddFieldParams) (AddFieldRow, error) {
 	row := q.db.QueryRow(ctx, addField,
 		arg.ResourceDefinitionID,
 		arg.Key,
@@ -40,7 +64,7 @@ func (q *Queries) AddField(ctx context.Context, arg AddFieldParams) (ResourceFie
 		arg.IsSecret,
 		arg.SortOrder,
 	)
-	var i ResourceField
+	var i AddFieldRow
 	err := row.Scan(
 		&i.ID,
 		&i.ResourceDefinitionID,
@@ -124,6 +148,34 @@ func (q *Queries) GetDefinitionByKey(ctx context.Context, key string) (ResourceD
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getResourceField = `-- name: GetResourceField :one
+SELECT id, resource_definition_id, key, label, hint, data_type, required, is_secret, sort_order FROM resource_fields
+WHERE id = $1 AND resource_definition_id = $2
+FOR UPDATE
+`
+
+type GetResourceFieldParams struct {
+	FieldID              uuid.UUID `json:"field_id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+}
+
+func (q *Queries) GetResourceField(ctx context.Context, arg GetResourceFieldParams) (ResourceField, error) {
+	row := q.db.QueryRow(ctx, getResourceField, arg.FieldID, arg.ResourceDefinitionID)
+	var i ResourceField
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceDefinitionID,
+		&i.Key,
+		&i.Label,
+		&i.Hint,
+		&i.DataType,
+		&i.Required,
+		&i.IsSecret,
+		&i.SortOrder,
 	)
 	return i, err
 }
@@ -250,13 +302,34 @@ func (q *Queries) ListFields(ctx context.Context, resourceDefinitionID uuid.UUID
 	return items, nil
 }
 
-const removeField = `-- name: RemoveField :exec
-DELETE FROM resource_fields WHERE id = $1
+const removeField = `-- name: RemoveField :one
+WITH deleted AS (
+    DELETE FROM resource_fields rf
+    WHERE rf.id = $1
+      AND rf.resource_definition_id = $2
+    RETURNING rf.resource_definition_id
+), touched AS (
+    UPDATE resource_definitions rd
+    SET updated_at = clock_timestamp()
+    FROM deleted d
+    WHERE rd.id = d.resource_definition_id
+    RETURNING rd.id
+)
+SELECT count(*)::bigint
+FROM deleted d
+LEFT JOIN touched t ON t.id = d.resource_definition_id
 `
 
-func (q *Queries) RemoveField(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, removeField, id)
-	return err
+type RemoveFieldParams struct {
+	FieldID              uuid.UUID `json:"field_id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+}
+
+func (q *Queries) RemoveField(ctx context.Context, arg RemoveFieldParams) (int64, error) {
+	row := q.db.QueryRow(ctx, removeField, arg.FieldID, arg.ResourceDefinitionID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const setDefinitionStatus = `-- name: SetDefinitionStatus :one

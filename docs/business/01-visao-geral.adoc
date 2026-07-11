@@ -7,9 +7,11 @@ consumidores precisam descobrir essa configuração de forma determinística,
 segura e simples.
 
 Em vez de cada aplicação manter sua própria tabela de conexões, buckets,
-realms e chaves de integração, o Tenancit centraliza esse
-catálogo. Um consumidor informa o hostname público do tenant e recebe os
-recursos ativos daquele tenant por uma API server-to-server autenticada.
+realms e chaves de integração, o Tenancit centraliza esse catálogo. Na borda,
+um componente pode converter o hostname público apenas na identidade do tenant,
+sem acessar recursos ou segredos. A aplicação usa essa identidade para resolver
+os recursos ativos por uma API server-to-server autenticada. Serviços que não
+possuem essa separação também podem resolver diretamente pelo hostname.
 
 ==== O que o serviço entrega
 
@@ -17,24 +19,45 @@ recursos ativos daquele tenant por uma API server-to-server autenticada.
 * Catálogo dinâmico de tipos de recurso por `resource_definition`.
 * Provisionamento de recursos por tenant, validado contra a definition.
 * Criptografia de campos secretos em repouso.
-* Resolução server-to-server de `hostname -> tenant -> recursos`.
+* Identificação segura para a borda: `hostname -> tenantSlug`, sem recursos ou
+  segredos.
+* Resolução server-to-server de recursos por `tenantId` (o slug do tenant) ou,
+  como alternativa, diretamente por hostname.
+* Revalidação condicional com `ETag` e `If-None-Match`, respondendo `304` quando
+  a identidade ou configuração vigente não mudou.
 * Painel admin embutido no binário Go.
 * API clients com token exibido uma única vez e hash persistido no banco.
 
-==== Exemplo de uso
+==== Exemplo de uso: borda sem segredos
 
-Um BFF multi-tenant recebe uma request em `cliente.example.com`. Antes de abrir
-conexões ou chamar serviços de apoio, ele consulta:
+Uma borda recebe uma request em `cliente.example.com` e identifica o tenant sem
+carregar configuração sensível:
 
 [source,http]
 ----
-GET /v1/resolve?hostname=cliente.example.com
+GET /v1/identify?hostname=cliente.example.com
 Authorization: Bearer tnc_...
 ----
 
-A resposta contém o slug do tenant e os recursos ativos configurados para ele.
-Campos secretos são descriptografados no servidor e retornados ao consumidor
-autenticado sobre TLS.
+A resposta `{ "tenantSlug": "cliente" }` pode ser propagada para a aplicação em
+um header confiável como `x-tenant-id`. A aplicação então resolve a própria
+configuração usando esse slug:
+
+[source,http]
+----
+GET /v1/resolve?tenantId=cliente
+Authorization: Bearer tnc_...
+If-None-Match: "etag-recebido-anteriormente"
+----
+
+A resposta contém o slug do tenant, os recursos ativos e um `ETag`. Se a
+configuração não mudou, uma revalidação posterior retorna `304 Not Modified`.
+Campos secretos só são descriptografados no fluxo de resolve e retornados ao
+consumidor autenticado sobre TLS; a borda que chama identify nunca os recebe.
+
+Quando não há um componente de borda separado, o mesmo contrato de resolve
+aceita `?hostname=cliente.example.com`. Os formatos, headers e erros normativos
+estão em <<eng-contratos-http,Contratos HTTP>>.
 
 ==== Princípios de produto
 
@@ -46,3 +69,6 @@ autenticado sobre TLS.
   aparecem mascarados até uma ação explícita de reveal.
 * *Consumidor simples.* Serviços consumidores não conhecem criptografia nem
   schema interno; eles recebem um contrato JSON pronto para uso.
+* *Borda sem segredos.* Identificar o tenant e resolver sua configuração são
+  responsabilidades separadas; a borda propaga identidade, não credenciais de
+  infraestrutura.

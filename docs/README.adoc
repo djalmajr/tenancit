@@ -22,11 +22,11 @@ Esta documentação segue duas trilhas:
 |===
 | Trilha | Para quem / o que cobre
 
-| <<_produto,Parte I — Produto>>
+| <<_business,Parte I — Business>>
 | Visão funcional do serviço: problema atendido, conceitos, jornadas
   operacionais e escopo atual.
 
-| <<_engenharia,Parte II — Engenharia>>
+| <<_developers,Parte II — Developers>>
 | Arquitetura, modelo de dados, contratos HTTP, segurança, ambiente local,
   testes, operação e decisões arquiteturais.
 |===
@@ -38,10 +38,12 @@ Fontes de verdade, em ordem de precedência: *o código* (última palavra) →
 `project = tenancit`, contexto e histórico entre sessões). Quando algo
 divergir, o código vence; atualize o documento e registre a correção.
 
-O material em `planning/tenancit/` preserva o histórico de
-execução do épico. Esta pasta `/docs` é o manual de leitura contínua do projeto.
+O material em `plans/` preserva o backlog executável e o histórico desta rodada.
+Esta pasta `/docs` é o manual de leitura contínua do projeto.
+O snapshot de execução, gates e dependências externas está em
+link:HANDOFF.md[`docs/HANDOFF.md`].
 ====
 
-include::produto/_index.adoc[]
+include::business/_index.adoc[]
 
-include::engenharia/_index.adoc[]
+include::developers/_index.adoc[]

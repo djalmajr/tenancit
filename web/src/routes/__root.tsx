@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/lib/theme";
 
 export const Route = createRootRoute({ component: RootLayout });
 
-function RootLayout() {
+export function RootLayout() {
   return (
     <I18nProvider>
       <ThemeProvider>

@@ -7,10 +7,11 @@
 * PostgreSQL como única dependência persistente.
 * Migrations via goose e consultas type-safe via sqlc.
 * Criptografia AES-256-GCM com `key_version`.
-* Resolução por hostname exato.
+* Resolução por hostname canônico (case-insensitive, sem trailing dot).
 * API key server-to-server para consumo.
 * Token dedicado para admin.
 * Dockerfile e `docker-compose.yml` para execução local/containerizada.
+* Headers HTTP defensivos na SPA e na API.
 
 ==== Fora do escopo atual
 
@@ -20,23 +21,76 @@
 * Multi-região ou cache distribuído.
 * Versionamento coexistente de definitions.
 
-==== Próximos incrementos recomendados
+==== Trajetória recomendada
 
-[cols="1,3",options="header"]
+Objetivo: sair do bootstrap seguro de instância única para uma operação
+multioperador auditável e com credenciais governadas, sem enfraquecer a
+fronteira de secrets.
+
+[cols="1,2,3,2,2,1",options="header"]
 |===
-| Prioridade | Incremento
+| Prioridade | Iniciativa | Resultado esperado | Dependências | Sinal de progresso | Estado
 
 | P1
-| Login humano do painel admin, mantendo `TENANCIT_ADMIN_TOKEN` como bootstrap ou
+| Login humano do painel admin
+| OIDC, sessão server-side, CSRF e RBAC; `TENANCIT_ADMIN_TOKEN` apenas como
   break-glass.
+| Aprovar link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[ADR 0005]
+  e definir IdP/claims.
+| SPA sem token admin em `localStorage`; testes negativos OIDC/CSRF/RBAC verdes.
+| Design proposto
 
 | P1
-| Auditoria de ações admin: quem alterou, quando e qual recurso foi afetado.
+| Auditoria de ações admin
+| Ator, ação, alvo, resultado e `request_id` consultáveis sem registrar secrets.
+| Aprovar o link:developers/design/admin-audit-log.md[design] do
+  link:../plans/021-admin-audit-log-spike.md[plano 021]; integrar principal.
+| Todas as mutações e reveals geram evento append-only; testes de redação verdes.
+| Spike concluído
 
 | P2
-| Query enriquecida para listar tenant resources em uma única ida ao banco,
-  mantendo a montagem canônica no pacote de serviço.
+| Governança de API clients
+| Scopes, expiração, rate limit e uso observável com compatibilidade explícita.
+| Aprovar link:developers/design/api-client-policy.md[política]; escolher
+  limiter compartilhado antes de múltiplas réplicas.
+| Tokens fora de política são negados; `last_used_at` e métricas são úteis sem
+  alta cardinalidade.
+| Design proposto
 
 | P2
-| Fluxo guiado de rotação de chave AES usando `key_version`.
+| Job guiado de rewrap AES
+| Recriptografia retomável permite retirar versões antigas com backup e rollback.
+| Implementar o link:developers/design/aes-key-rewrap.md[design] do
+  link:../plans/022-aes-key-rewrap-spike.md[plano 022] e ensaiar o runbook.
+| Dry-run, concorrência, retomada, restore e smoke passam em banco representativo.
+| Spike concluído
+
+| P2
+| Primeiro deploy operacional validado
+| Imagem, TLS, secrets, backup/restore e smoke comprovados no alvo real.
+| Definir host/plataforma, ingress, DNS, IdP e secret manager.
+| link:runbooks/container-deploy.md[Runbook de deploy] muda de `PLANO` para
+  `VALIDADO` com evidências sanitizadas.
+| Dependência externa
 |===
+
+Sequência recomendada: aprovar identidade + auditoria em paralelo; introduzir o
+principal/audit primitives; entregar OIDC/RBAC e auditoria por cortes; aplicar a
+política de API clients antes de escalar réplicas; implementar rewrap após o
+backup/restore estar validado no alvo.
+
+Não são compromissos desta trajetória: multi-região, storage WORM/SIEM, HSM,
+cache distribuído genérico ou allowlist de CIDR antes de a topologia de proxies
+ser definida e testada.
+
+==== Incrementos técnicos concluídos
+
+* Montagem enriquecida de tenant resources sem N+1: headers e fields/values são
+  carregados em queries batch, mantendo máscara/decriptação no pacote `service`.
+* ETag cobre mutações de status, fields e values sem decriptar para responder 304.
+* Fluxo de borda sem secrets, hard delete explícito e snippets de integração
+  estão documentados e cobertos por testes.
+* TanStack Query iniciou pela tela de API clients; o gate web agora inclui regras
+  ESLint de hooks, typecheck e Vitest.
+* Bootstrap, smoke e backup/restore locais têm runbooks validados; deploy real
+  permanece dependente da escolha do alvo.

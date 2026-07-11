@@ -14,7 +14,8 @@ para o painel.
 * `web/dist` é copiado para `server/internal/spa/dist` e servido pelo Go via
   `embed.FS`.
 * `/v1/admin/*` é protegido por `TENANCIT_ADMIN_TOKEN`.
-* `/v1/resolve*` é protegido por API clients (`Authorization: Bearer`).
+* `/v1/identify` e `/v1/resolve*` são protegidos por API clients
+  (`Authorization: Bearer`).
 * Segredos ficam cifrados no banco e só são descriptografados server-side.
 
 [source]
@@ -34,24 +35,41 @@ tenancit/
 
 ==== Fluxo de consumo
 
-[mermaid]
+[source,mermaid]
 ----
 sequenceDiagram
-  participant C as Serviço consumidor
-  participant RTS as Tenancit
+  participant E as Edge / injector
+  participant A as Aplicação consumidora
+  participant T as Tenancit
   participant PG as PostgreSQL
 
-  C->>RTS: GET /v1/resolve?hostname=tenant.example.com
-  Note over C,RTS: Authorization: Bearer tnc_...
-  RTS->>PG: hostname -> tenant
-  RTS->>PG: recursos ativos + fields + values
-  RTS->>RTS: decrypt de secrets
-  RTS-->>C: tenantSlug + resources
+  E->>T: GET /v1/identify?hostname=tenant.example.com
+  Note over E,T: Bearer API client + If-None-Match opcional
+  T->>PG: hostname -> tenant ativo
+  T-->>E: tenantSlug + ETag (ou 304)
+  E->>A: x-tenant-id: tenantSlug
+  A->>T: GET /v1/resolve?tenantId=tenant-slug
+  Note over A,T: Bearer API client + If-None-Match opcional
+  T->>PG: tenant + recursos ativos + fields + values
+  T->>T: decrypt de secrets
+  T-->>A: tenantSlug + resources + ETag (ou 304)
 ----
+
+Nesse contrato, `tenantId` recebe o slug canônico devolvido como `tenantSlug`.
+O `ETag` de identify representa a identidade do tenant; o de resolve representa
+a configuração vigente. Cada chamador revalida o próprio estado e, diante de
+`304 Not Modified`, mantém o valor já carregado sem novo payload. Os dois
+validadores não são intercambiáveis.
+
+Para integrações em que edge e aplicação são o mesmo componente, permanece
+suportado `GET /v1/resolve?hostname=tenant.example.com`. Esse caminho alternativo
+faz identificação e resolução completa em uma chamada e, portanto, entrega os
+secrets ao chamador autenticado. A fonte normativa de payloads, cache e erros é
+<<eng-contratos-http,Contratos HTTP>>.
 
 ==== Fluxo admin
 
-[mermaid]
+[source,mermaid]
 ----
 flowchart LR
   admin["Operador"] --> spa["SPA admin"]
@@ -72,7 +90,8 @@ flowchart LR
 
 | `service`
 | Regras de negócio: provisionamento transacional, encode/decode, montagem de
-  resources e resolver de consumo.
+  resources e resolver de consumo. Listagens de resources carregam headers e
+  fields/values em duas queries batch constantes, sem queries por resource.
 
 | `store`
 | SQL explícito, migrations goose e código sqlc gerado.

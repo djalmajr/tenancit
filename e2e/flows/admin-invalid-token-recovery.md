@@ -19,8 +19,8 @@ Entender que o token informado é inválido, corrigir o valor e recuperar o aces
 ## Passos (cada passo é uma AÇÃO de UI + o resultado esperado)
 
 1. (`auth`) Acessar o painel sem token administrativo salvo → a tela dedicada **"Acesso administrativo"** aparece com campo **Token** e botão **Entrar**.
-2. (`auth`) Preencher **Token** com `rt_admin_invalido` e clicar em **Entrar** → a aplicação tenta autenticar, rejeita o token e retorna para a tela de acesso sem renderizar o painel.
-3. (`auth`) Observar a mensagem abaixo do título → a tela informa que é necessário token administrativo para acessar o painel.
+2. (`auth`) Preencher **Token** com `tnc_admin_invalido` e clicar em **Entrar** → a aplicação tenta autenticar, rejeita o token e retorna para a tela de acesso sem renderizar o painel.
+3. (`auth`) Observar a mensagem abaixo do título → a tela informa **"Token inválido ou expirado. Informe um token administrativo válido."**.
 4. (`auth`) Preencher **Token** com `tenancit_admin_dev` e clicar em **Entrar** → a visão geral carrega com KPIs reais e sidebar visível.
 5. (`overview`) Clicar em **Sair** → o acesso é removido e a tela de **Acesso administrativo** volta a bloquear o painel.
 

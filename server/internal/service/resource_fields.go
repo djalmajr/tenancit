@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
@@ -17,62 +18,120 @@ type ResourceFieldValue struct {
 	Value    string `json:"value"`
 }
 
-type ResourceFieldQuerier interface {
-	GetDefinition(ctx context.Context, id uuid.UUID) (db.ResourceDefinition, error)
-	ListFields(ctx context.Context, resourceDefinitionID uuid.UUID) ([]db.ResourceField, error)
-	ListResourceValues(ctx context.Context, tenantResourceID uuid.UUID) ([]db.TenantResourceValue, error)
+type ResourceHeader struct {
+	Resource            db.TenantResource
+	DefinitionKey       string
+	DefinitionName      string
+	DefinitionUpdatedAt time.Time
 }
 
-type BuildResourceFieldsDeps struct {
-	Cryptor *crypto.Cryptor
-	Queries ResourceFieldQuerier
+type BuiltResourceFields struct {
+	Header ResourceHeader
+	Fields []ResourceFieldValue
 }
 
-type BuildResourceFieldsInput struct {
-	Resource db.TenantResource
-	Reveal   bool
+type ResourceBatchQuerier interface {
+	ListResourceFieldValuesByResourceIDs(ctx context.Context, resourceIds []uuid.UUID) ([]db.ListResourceFieldValuesByResourceIDsRow, error)
 }
 
-type BuildResourceFieldsResult struct {
-	Definition db.ResourceDefinition
-	Fields     []ResourceFieldValue
+type ResourceHeaderQuerier interface {
+	ListResourceHeadersByTenant(ctx context.Context, arg db.ListResourceHeadersByTenantParams) ([]db.ListResourceHeadersByTenantRow, error)
 }
 
-func BuildResourceFields(ctx context.Context, deps BuildResourceFieldsDeps, in BuildResourceFieldsInput) (BuildResourceFieldsResult, error) {
-	def, err := deps.Queries.GetDefinition(ctx, in.Resource.ResourceDefinitionID)
+func LoadResourceHeaders(
+	ctx context.Context,
+	q ResourceHeaderQuerier,
+	tenantID uuid.UUID,
+	includeInactive bool,
+) ([]ResourceHeader, error) {
+	rows, err := q.ListResourceHeadersByTenant(ctx, db.ListResourceHeadersByTenantParams{
+		TenantID: tenantID, IncludeInactive: includeInactive,
+	})
 	if err != nil {
-		return BuildResourceFieldsResult{}, err
+		return nil, err
 	}
-	fields, err := deps.Queries.ListFields(ctx, def.ID)
-	if err != nil {
-		return BuildResourceFieldsResult{}, err
+	headers := make([]ResourceHeader, 0, len(rows))
+	for _, row := range rows {
+		headers = append(headers, resourceHeaderFromListRow(row))
 	}
-	values, err := deps.Queries.ListResourceValues(ctx, in.Resource.ID)
-	if err != nil {
-		return BuildResourceFieldsResult{}, err
+	return headers, nil
+}
+
+func BuildResourceFieldsBatch(
+	ctx context.Context,
+	q ResourceBatchQuerier,
+	cryptor *crypto.Cryptor,
+	headers []ResourceHeader,
+	reveal bool,
+) ([]BuiltResourceFields, error) {
+	out := make([]BuiltResourceFields, len(headers))
+	ids := make([]uuid.UUID, len(headers))
+	indexByID := make(map[uuid.UUID]int, len(headers))
+	for i, header := range headers {
+		out[i] = BuiltResourceFields{Header: header, Fields: []ResourceFieldValue{}}
+		ids[i] = header.Resource.ID
+		indexByID[header.Resource.ID] = i
 	}
-	valueByField := make(map[uuid.UUID]db.TenantResourceValue, len(values))
-	for _, v := range values {
-		valueByField[v.ResourceFieldID] = v
+	if len(ids) == 0 {
+		return out, nil
 	}
 
-	out := BuildResourceFieldsResult{Definition: def, Fields: make([]ResourceFieldValue, 0, len(fields))}
-	for _, f := range fields {
-		fv := ResourceFieldValue{
-			DataType: f.DataType,
-			IsSecret: f.IsSecret,
-			Key:      f.Key,
-			Label:    f.Label,
-			Required: f.Required,
+	rows, err := q.ListResourceFieldValuesByResourceIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		index, ok := indexByID[row.TenantResourceID]
+		if !ok {
+			continue
 		}
-		if v, ok := valueByField[f.ID]; ok {
-			shown, err := presentValue(deps.Cryptor, f.IsSecret, v, in.Reveal)
+		fv := ResourceFieldValue{
+			DataType: row.DataType,
+			IsSecret: row.IsSecret,
+			Key:      row.FieldKey,
+			Label:    row.FieldLabel,
+			Required: row.Required,
+		}
+		if row.HasValue {
+			value := db.TenantResourceValue{
+				TenantResourceID: row.TenantResourceID,
+				ResourceFieldID:  row.ResourceFieldID,
+				ValuePlain:       row.ValuePlain,
+				ValueCipher:      row.ValueCipher,
+				Nonce:            row.Nonce,
+				KeyVersion:       row.KeyVersion,
+			}
+			shown, err := presentValue(cryptor, row.IsSecret, value, reveal)
 			if err != nil {
-				return BuildResourceFieldsResult{}, err
+				return nil, err
 			}
 			fv.Value = shown
 		}
-		out.Fields = append(out.Fields, fv)
+		out[index].Fields = append(out[index].Fields, fv)
 	}
 	return out, nil
+}
+
+func resourceHeaderFromListRow(row db.ListResourceHeadersByTenantRow) ResourceHeader {
+	return ResourceHeader{
+		Resource: db.TenantResource{
+			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
+			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		},
+		DefinitionKey:       row.DefinitionKey,
+		DefinitionName:      row.DefinitionName,
+		DefinitionUpdatedAt: row.DefinitionUpdatedAt,
+	}
+}
+
+func resourceHeaderFromGetRow(row db.GetResourceHeaderRow) ResourceHeader {
+	return ResourceHeader{
+		Resource: db.TenantResource{
+			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
+			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		},
+		DefinitionKey:       row.DefinitionKey,
+		DefinitionName:      row.DefinitionName,
+		DefinitionUpdatedAt: row.DefinitionUpdatedAt,
+	}
 }

@@ -17,12 +17,11 @@ import (
 // ResolveQuerier is the read surface needed to resolve a tenant's config.
 type ResolveQuerier interface {
 	GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg db.GetActiveResourceByTenantAndDefinitionKeyParams) (db.TenantResource, error)
+	GetResourceHeader(ctx context.Context, id uuid.UUID) (db.GetResourceHeaderRow, error)
 	GetTenantByHostname(ctx context.Context, hostname string) (db.Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (db.Tenant, error)
-	GetDefinition(ctx context.Context, id uuid.UUID) (db.ResourceDefinition, error)
-	ListFields(ctx context.Context, resourceDefinitionID uuid.UUID) ([]db.ResourceField, error)
-	ListActiveResourcesByTenant(ctx context.Context, tenantID uuid.UUID) ([]db.TenantResource, error)
-	ListResourceValues(ctx context.Context, tenantResourceID uuid.UUID) ([]db.TenantResourceValue, error)
+	ListResourceFieldValuesByResourceIDs(ctx context.Context, resourceIds []uuid.UUID) ([]db.ListResourceFieldValuesByResourceIDsRow, error)
+	ListResourceHeadersByTenant(ctx context.Context, arg db.ListResourceHeadersByTenantParams) ([]db.ListResourceHeadersByTenantRow, error)
 }
 
 // ResolvedResource is one resource (definition + decrypted values) for a tenant.
@@ -37,6 +36,11 @@ type ResolvedTenant struct {
 	Resources  []ResolvedResource `json:"resources"`
 }
 
+// ErrTenantUnavailable intentionally merges suspended and missing consumer
+// identities at the HTTP boundary. Admin queries continue to expose inactive
+// tenants so operators can reactivate them.
+var ErrTenantUnavailable = errors.New("tenant unavailable for consumer resolution")
+
 // Resolver turns a hostname into active resources with cleartext values
 // (RN-02 exact hostname, RN-05 decrypt server-side).
 type Resolver struct {
@@ -50,34 +54,56 @@ func NewResolver(q ResolveQuerier, c *crypto.Cryptor) *Resolver {
 
 // TenantByHostname looks up the tenant owning a hostname (RN-02 exact match).
 func (r *Resolver) TenantByHostname(ctx context.Context, hostname string) (db.Tenant, error) {
-	return r.q.GetTenantByHostname(ctx, hostname)
+	hostname = CanonicalHostname(hostname)
+	if hostname == "" {
+		return db.Tenant{}, pgx.ErrNoRows
+	}
+	tenant, err := r.q.GetTenantByHostname(ctx, hostname)
+	if err != nil {
+		return db.Tenant{}, err
+	}
+	if tenant.Status != "active" {
+		return db.Tenant{}, ErrTenantUnavailable
+	}
+	return tenant, nil
 }
 
 // TenantBySlug looks up a tenant by its canonical slug (the x-tenant-id identity).
 func (r *Resolver) TenantBySlug(ctx context.Context, slug string) (db.Tenant, error) {
-	return r.q.GetTenantBySlug(ctx, slug)
+	tenant, err := r.q.GetTenantBySlug(ctx, slug)
+	if err != nil {
+		return db.Tenant{}, err
+	}
+	if tenant.Status != "active" {
+		return db.Tenant{}, ErrTenantUnavailable
+	}
+	return tenant, nil
 }
 
 // Version returns a strong ETag for the tenant's resolved config plus the active
 // resources used to compute it. It does NOT decrypt anything, so callers can
 // answer conditional GETs (If-None-Match -> 304) cheaply, and pass the returned
 // resources to ResolveTenant to avoid a second query on a cache miss.
-func (r *Resolver) Version(ctx context.Context, tenant db.Tenant) (string, []db.TenantResource, error) {
-	resources, err := r.q.ListActiveResourcesByTenant(ctx, tenant.ID)
+func (r *Resolver) Version(ctx context.Context, tenant db.Tenant) (string, []ResourceHeader, error) {
+	headers, err := LoadResourceHeaders(ctx, r.q, tenant.ID, false)
 	if err != nil {
 		return "", nil, err
 	}
-	return computeETag(tenant, resources), resources, nil
+	return computeETag(tenant, headers), headers, nil
 }
 
 // ResolveTenant decrypts and assembles the consumer payload for already-loaded
 // active resources.
-func (r *Resolver) ResolveTenant(ctx context.Context, tenant db.Tenant, resources []db.TenantResource) (ResolvedTenant, error) {
+func (r *Resolver) ResolveTenant(ctx context.Context, tenant db.Tenant, headers []ResourceHeader) (ResolvedTenant, error) {
+	built, err := BuildResourceFieldsBatch(ctx, r.q, r.c, headers, true)
+	if err != nil {
+		return ResolvedTenant{}, err
+	}
 	out := ResolvedTenant{TenantSlug: tenant.Slug}
-	for _, res := range resources {
-		rr, err := r.resolveResource(ctx, res)
-		if err != nil {
-			return ResolvedTenant{}, err
+	for _, resource := range built {
+		rr := ResolvedResource{DefinitionKey: resource.Header.DefinitionKey, Values: map[string]string{}}
+		for _, field := range resource.Fields {
+			rr.Values[field.Key] = field.Value
 		}
 		out.Resources = append(out.Resources, rr)
 	}
@@ -90,11 +116,11 @@ func (r *Resolver) ByHostname(ctx context.Context, hostname string) (ResolvedTen
 	if err != nil {
 		return ResolvedTenant{}, fmt.Errorf("resolve hostname %q: %w", hostname, err)
 	}
-	resources, err := r.q.ListActiveResourcesByTenant(ctx, tenant.ID)
+	headers, err := LoadResourceHeaders(ctx, r.q, tenant.ID, false)
 	if err != nil {
 		return ResolvedTenant{}, err
 	}
-	return r.ResolveTenant(ctx, tenant, resources)
+	return r.ResolveTenant(ctx, tenant, headers)
 }
 
 // IdentityETag is a strong ETag for the hostname -> tenant identity mapping.
@@ -111,21 +137,26 @@ func IdentityETag(t db.Tenant) string {
 // resources' identities + timestamps + statuses. Any add/remove/update/status
 // change of a resource, or a tenant update, changes the tag. Order-independent
 // (resources are sorted by id), so query ordering does not affect the result.
-func computeETag(t db.Tenant, resources []db.TenantResource) string {
-	sorted := make([]db.TenantResource, len(resources))
-	copy(sorted, resources)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].ID.String() < sorted[j].ID.String() })
+func computeETag(t db.Tenant, headers []ResourceHeader) string {
+	sorted := make([]ResourceHeader, len(headers))
+	copy(sorted, headers)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Resource.ID.String() < sorted[j].Resource.ID.String()
+	})
 	h := sha256.New()
-	fmt.Fprintf(h, "t:%s:%d:%d\n", t.ID, t.UpdatedAt.UnixNano(), len(sorted))
-	for _, res := range sorted {
-		fmt.Fprintf(h, "r:%s:%s:%d\n", res.ID, res.Status, res.UpdatedAt.UnixNano())
+	fmt.Fprintf(h, "t:%s:%s:%d:%d\n", t.ID, t.Slug, t.UpdatedAt.UnixNano(), len(sorted))
+	for _, header := range sorted {
+		res := header.Resource
+		fmt.Fprintf(h, "r:%s:%s:%d:d:%s:%s:%d\n",
+			res.ID, res.Status, res.UpdatedAt.UnixNano(), res.ResourceDefinitionID,
+			header.DefinitionKey, header.DefinitionUpdatedAt.UnixNano())
 	}
 	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
 }
 
 // ByHostnameAndDefinition returns a single resource by definition key.
 func (r *Resolver) ByHostnameAndDefinition(ctx context.Context, hostname, defKey string) (ResolvedResource, bool, error) {
-	tenant, err := r.q.GetTenantByHostname(ctx, hostname)
+	tenant, err := r.TenantByHostname(ctx, hostname)
 	if err != nil {
 		return ResolvedResource{}, false, err
 	}
@@ -138,20 +169,17 @@ func (r *Resolver) ByHostnameAndDefinition(ctx context.Context, hostname, defKey
 	if err != nil {
 		return ResolvedResource{}, false, err
 	}
-	rr, err := r.resolveResource(ctx, res)
-	return rr, true, err
-}
-
-func (r *Resolver) resolveResource(ctx context.Context, res db.TenantResource) (ResolvedResource, error) {
-	built, err := BuildResourceFields(ctx, BuildResourceFieldsDeps{
-		Cryptor: r.c, Queries: r.q,
-	}, BuildResourceFieldsInput{Resource: res, Reveal: true})
+	headerRow, err := r.q.GetResourceHeader(ctx, res.ID)
 	if err != nil {
-		return ResolvedResource{}, err
+		return ResolvedResource{}, false, err
 	}
-	rr := ResolvedResource{DefinitionKey: built.Definition.Key, Values: map[string]string{}}
-	for _, f := range built.Fields {
-		rr.Values[f.Key] = f.Value
+	built, err := BuildResourceFieldsBatch(ctx, r.q, r.c, []ResourceHeader{resourceHeaderFromGetRow(headerRow)}, true)
+	if err != nil {
+		return ResolvedResource{}, false, err
 	}
-	return rr, nil
+	rr := ResolvedResource{DefinitionKey: headerRow.DefinitionKey, Values: map[string]string{}}
+	for _, field := range built[0].Fields {
+		rr.Values[field.Key] = field.Value
+	}
+	return rr, true, nil
 }

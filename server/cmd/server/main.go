@@ -12,8 +12,11 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/httpapi"
+	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/spa"
 	"github.com/djalmajr/tenancit/server/internal/store"
+	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/usage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -43,7 +46,8 @@ func run() error {
 		return err
 	}
 
-	ctx := context.Background()
+	ctx, cancelRuntime := context.WithCancel(context.Background())
+	defer cancelRuntime()
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return err
@@ -56,11 +60,32 @@ func run() error {
 	}
 
 	srv := httpapi.NewServer(pool, cryptor, adminToken)
-	httpServer := &http.Server{
-		Addr:              addr,
-		Handler:           srv.Routes(staticHandler),
-		ReadHeaderTimeout: 5 * time.Second,
+	limiterMode := envOr("TENANCIT_RATE_LIMIT_MODE", "valkey")
+	if limiterMode == "memory" {
+		slog.Warn("using single-instance in-memory rate limiter")
+		srv.SetRateLimiter(ratelimit.NewMemory(time.Now))
+	} else {
+		valkeyURL := os.Getenv("TENANCIT_VALKEY_URL")
+		if valkeyURL == "" {
+			return errors.New("TENANCIT_VALKEY_URL is required unless TENANCIT_RATE_LIMIT_MODE=memory")
+		}
+		valkeyLimiter, err := ratelimit.NewValkey(valkeyURL)
+		if err != nil {
+			return err
+		}
+		defer valkeyLimiter.Close()
+		pingCtx, cancelPing := context.WithTimeout(ctx, 2*time.Second)
+		defer cancelPing()
+		if err := valkeyLimiter.Ping(pingCtx); err != nil {
+			return errors.Join(ratelimit.ErrUnavailable, err)
+		}
+		srv.SetRateLimiter(valkeyLimiter)
 	}
+	usageCollector := usage.NewCollector(db.New(pool), 4096, 10*time.Second)
+	srv.SetUsageRecorder(usageCollector)
+	go usageCollector.Run(ctx)
+	go usage.RunRetention(ctx, db.New(pool), time.Now, 24*time.Hour)
+	httpServer := newHTTPServer(addr, srv.Routes(staticHandler))
 
 	go func() {
 		slog.Info("server listening", "addr", addr)
@@ -76,7 +101,20 @@ func run() error {
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return httpServer.Shutdown(shutCtx)
+	err = httpServer.Shutdown(shutCtx)
+	cancelRuntime()
+	return err
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 }
 
 func envOr(k, def string) string {

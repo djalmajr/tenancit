@@ -1,20 +1,30 @@
 package httpapi
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Admin routes require the dedicated TENANCIT_ADMIN_TOKEN boundary.
 // Mutation captured: removing RequireAdminToken from /v1/admin makes this 200.
 func TestAdmin_RequiresAdminToken(t *testing.T) {
-	_, h := newTestServer(t)
+	srv, h := newTestServer(t)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/v1/admin/overview", nil))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("got %d, want 401 without admin token", rec.Code)
+	}
+	var count int
+	if err := srv.DB.QueryRow(context.Background(), `
+		SELECT count(*) FROM admin_audit_events
+		WHERE action = 'admin.request_denied' AND actor_kind = 'unauthenticated' AND http_status = 401
+	`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("denied audit count = %d, err=%v", count, err)
 	}
 }
 
@@ -74,7 +84,7 @@ func TestCreateResource_InactiveDefinition_400(t *testing.T) {
 // Mutation captured: making presentValue ignore the reveal flag (always cleartext)
 // fails the masked assertion; always-mask fails the reveal assertion.
 func TestListTenantResources_MaskAndReveal(t *testing.T) {
-	_, h := newTestServer(t)
+	srv, h := newTestServer(t)
 	seedDefinition(t, h, "pg")
 	tid := seedTenant(t, h, "acme", "app.acme.com")
 	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources",
@@ -95,10 +105,24 @@ func TestListTenantResources_MaskAndReveal(t *testing.T) {
 
 	// ?reveal=true → cleartext
 	revealed := do(t, h, "GET", "/v1/admin/tenants/"+tid+"/resources?reveal=true", nil)
+	if got := revealed.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("reveal Cache-Control = %q, want private, no-store", got)
+	}
 	var rs []resourceView
 	mustJSON(t, revealed, &rs)
 	if pw := findField(rs, "password"); pw != "topsecret" {
 		t.Fatalf("reveal should decrypt password, got %q", pw)
+	}
+	var auditMetadata string
+	if err := srv.DB.QueryRow(context.Background(), `
+		SELECT metadata::text FROM admin_audit_events
+		WHERE action = 'secret.revealed' AND target_id = $1
+		ORDER BY occurred_at DESC LIMIT 1
+	`, tid).Scan(&auditMetadata); err != nil {
+		t.Fatalf("query reveal audit: %v", err)
+	}
+	if strings.Contains(auditMetadata, "topsecret") {
+		t.Fatalf("reveal audit leaked secret: %s", auditMetadata)
 	}
 }
 
@@ -265,4 +289,242 @@ func TestUpdateTenant_Persists(t *testing.T) {
 	if got.Name != "Acme Renamed" || got.Slug != "acme2" || got.Status != "inactive" {
 		t.Fatalf("update not persisted: %+v", got)
 	}
+}
+
+func TestUpdateTenant_RejectsInvalidStatus(t *testing.T) {
+	_, h := newTestServer(t)
+	tenantID := seedTenant(t, h, "acme", "")
+
+	rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID,
+		map[string]string{"name": "Acme", "slug": "acme", "status": "paused"})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid status = %d, want 400 (%s)", rec.Code, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), "status must be active|inactive") {
+		t.Fatalf("unexpected invalid-status body: %s", rec.Body)
+	}
+}
+
+func TestAdmin_APIClientResponsesOmitKeyHash(t *testing.T) {
+	_, h := newTestServer(t)
+
+	created := do(t, h, http.MethodPost, "/v1/admin/api-clients", apiClientCreateBody("edge"))
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create client: %d %s", created.Code, created.Body)
+	}
+	if got := created.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("create client Cache-Control = %q, want private, no-store", got)
+	}
+	var createBody struct {
+		Client map[string]any `json:"client"`
+		Token  string         `json:"token"`
+	}
+	mustJSON(t, created, &createBody)
+	if !strings.HasPrefix(createBody.Token, "tnc_") {
+		t.Fatalf("one-time token missing or malformed")
+	}
+	assertNoKeyHash(t, createBody.Client)
+	clientID, _ := createBody.Client["id"].(string)
+	if clientID == "" {
+		t.Fatalf("client id missing: %s", created.Body)
+	}
+
+	listed := do(t, h, http.MethodGet, "/v1/admin/api-clients", nil)
+	var clients []map[string]any
+	mustJSON(t, listed, &clients)
+	if len(clients) != 1 {
+		t.Fatalf("list clients = %d, want 1", len(clients))
+	}
+	assertNoKeyHash(t, clients[0])
+
+	updated := do(t, h, http.MethodPost, "/v1/admin/api-clients/"+clientID+"/revoke", nil)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("revoke client: %d %s", updated.Code, updated.Body)
+	}
+	var updateBody map[string]any
+	mustJSON(t, updated, &updateBody)
+	assertNoKeyHash(t, updateBody)
+}
+
+func TestCreateAPIClient_RequiresPolicy(t *testing.T) {
+	_, h := newTestServer(t)
+	tests := []struct {
+		name string
+		body map[string]any
+		want string
+	}{
+		{name: "scope", body: map[string]any{"name": "bad", "rpm_limit": 300, "expires_at": time.Now().Add(24 * time.Hour)}, want: "invalid_scope"},
+		{name: "rpm", body: map[string]any{"name": "bad", "scopes": []string{"tenant:identify"}, "expires_at": time.Now().Add(24 * time.Hour)}, want: "invalid_rpm"},
+		{name: "expiration", body: map[string]any{"name": "bad", "scopes": []string{"tenant:identify"}, "rpm_limit": 300}, want: "invalid_expiration"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := do(t, h, http.MethodPost, "/v1/admin/api-clients", tt.body)
+			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tt.want) {
+				t.Fatalf("response = %d %s, want 400 %s", rec.Code, rec.Body, tt.want)
+			}
+		})
+	}
+}
+
+func assertNoKeyHash(t *testing.T, client map[string]any) {
+	t.Helper()
+	if _, exists := client["key_hash"]; exists {
+		t.Fatalf("API client response exposed key_hash: %v", client)
+	}
+	for _, key := range []string{"id", "name", "status", "created_at"} {
+		if _, exists := client[key]; !exists {
+			t.Fatalf("API client response missing %q: %v", key, client)
+		}
+	}
+}
+
+func TestAdmin_OversizedJSONBodyReturns413(t *testing.T) {
+	_, h := newTestServer(t)
+	rec := do(t, h, http.MethodPost, "/v1/admin/tenants", map[string]string{
+		"slug": "oversized",
+		"name": strings.Repeat("x", (1<<20)+1),
+	})
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized body = %d, want 413 (response bytes=%d)", rec.Code, rec.Body.Len())
+	}
+	if rec.Body.String() != "{\"error\":\"request body too large\"}\n" {
+		t.Fatalf("unexpected oversized-body response: %s", rec.Body)
+	}
+}
+
+func TestAdmin_InternalErrorsAreOpaque(t *testing.T) {
+	srv, h := newTestServer(t)
+	srv.DB.Close()
+
+	rec := do(t, h, http.MethodGet, "/v1/admin/tenants", nil)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("closed DB = %d, want 500 (%s)", rec.Code, rec.Body)
+	}
+	if rec.Body.String() != "{\"error\":\"internal error\"}\n" {
+		t.Fatalf("internal error leaked implementation details: %s", rec.Body)
+	}
+}
+
+func TestSetResourceStatus_MissingResourceReturns404(t *testing.T) {
+	_, h := newTestServer(t)
+	tenantID := seedTenant(t, h, "acme", "")
+	rec := do(t, h, http.MethodPut,
+		"/v1/admin/tenants/"+tenantID+"/resources/00000000-0000-4000-8000-000000000001/status",
+		map[string]string{"status": "inactive"})
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("missing resource status = %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+}
+
+func TestNestedDomainMutationRequiresMatchingTenant(t *testing.T) {
+	_, h := newTestServer(t)
+	tenantA := seedTenant(t, h, "a", "a.example.com")
+	tenantB := seedTenant(t, h, "b", "")
+	var domains []struct {
+		ID string `json:"id"`
+	}
+	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantA+"/domains", nil), &domains)
+	if len(domains) != 1 {
+		t.Fatalf("domains = %d, want 1", len(domains))
+	}
+
+	rec := do(t, h, http.MethodDelete, "/v1/admin/tenants/"+tenantB+"/domains/"+domains[0].ID, nil)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("cross-tenant domain delete = %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+	var after []json.RawMessage
+	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantA+"/domains", nil), &after)
+	if len(after) != 1 {
+		t.Fatalf("cross-tenant delete removed domain; remaining=%d", len(after))
+	}
+}
+
+func TestNestedResourceMutationsRequireMatchingTenant(t *testing.T) {
+	_, h := newTestServer(t)
+	seedDefinition(t, h, "pg-parent")
+	tenantA := seedTenant(t, h, "a", "")
+	tenantB := seedTenant(t, h, "b", "")
+	created := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantA+"/resources", map[string]any{
+		"definitionKey": "pg-parent",
+		"values":        map[string]string{"host": "db", "password": "secret"},
+	})
+	resourceID := idOf(t, created)
+
+	statusRec := do(t, h, http.MethodPut,
+		"/v1/admin/tenants/"+tenantB+"/resources/"+resourceID+"/status",
+		map[string]string{"status": "inactive"})
+	if statusRec.Code != http.StatusNotFound {
+		t.Errorf("cross-tenant status = %d, want 404 (%s)", statusRec.Code, statusRec.Body)
+	}
+	deleteRec := do(t, h, http.MethodDelete,
+		"/v1/admin/tenants/"+tenantB+"/resources/"+resourceID, nil)
+	if deleteRec.Code != http.StatusNotFound {
+		t.Errorf("cross-tenant delete = %d, want 404 (%s)", deleteRec.Code, deleteRec.Body)
+	}
+	var remaining []json.RawMessage
+	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantA+"/resources", nil), &remaining)
+	if len(remaining) != 1 {
+		t.Fatalf("cross-tenant mutation removed resource; remaining=%d", len(remaining))
+	}
+}
+
+func TestNestedFieldDeleteRequiresMatchingDefinition(t *testing.T) {
+	_, h := newTestServer(t)
+	definitionA := seedDefinition(t, h, "def-a")
+	definitionB := seedDefinition(t, h, "def-b")
+	fieldID := definitionFieldID(t, h, definitionA, "password")
+
+	rec := do(t, h, http.MethodDelete,
+		"/v1/admin/resource-definitions/"+definitionB+"/fields/"+fieldID, nil)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("cross-definition field delete = %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+	if got := definitionFieldID(t, h, definitionA, "password"); got != fieldID {
+		t.Fatalf("cross-definition delete removed field: got %q, want %q", got, fieldID)
+	}
+}
+
+func TestDeleteField_InUseReturnsStable409(t *testing.T) {
+	_, h := newTestServer(t)
+	definitionID := seedDefinition(t, h, "pg-in-use")
+	tenantID := seedTenant(t, h, "acme", "")
+	if rec := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantID+"/resources", map[string]any{
+		"definitionKey": "pg-in-use",
+		"values":        map[string]string{"host": "db", "password": "secret"},
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create resource: %d %s", rec.Code, rec.Body)
+	}
+	fieldID := definitionFieldID(t, h, definitionID, "password")
+
+	rec := do(t, h, http.MethodDelete,
+		"/v1/admin/resource-definitions/"+definitionID+"/fields/"+fieldID, nil)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("delete in-use field = %d, want 409 (%s)", rec.Code, rec.Body)
+	}
+	if rec.Body.String() != "{\"error\":\"field is in use by tenant resources\"}\n" {
+		t.Fatalf("unexpected in-use response: %s", rec.Body)
+	}
+}
+
+func definitionFieldID(t *testing.T, h http.Handler, definitionID, key string) string {
+	t.Helper()
+	var detail struct {
+		Fields []struct {
+			ID  string `json:"id"`
+			Key string `json:"key"`
+		} `json:"fields"`
+	}
+	rec := do(t, h, http.MethodGet, "/v1/admin/resource-definitions/"+definitionID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get definition: %d %s", rec.Code, rec.Body)
+	}
+	mustJSON(t, rec, &detail)
+	for _, field := range detail.Fields {
+		if field.Key == key {
+			return field.ID
+		}
+	}
+	t.Fatalf("field %q not found in definition %s", key, definitionID)
+	return ""
 }

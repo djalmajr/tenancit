@@ -7,8 +7,10 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countAPIClients = `-- name: CountAPIClients :one
@@ -41,16 +43,26 @@ func (q *Queries) CountDefinitionsSummary(ctx context.Context) (CountDefinitions
 }
 
 const createAPIClient = `-- name: CreateAPIClient :one
-INSERT INTO api_clients (name, key_hash) VALUES ($1, $2) RETURNING id, name, key_hash, status, created_at
+INSERT INTO api_clients (name, key_hash, token_preview, rpm_limit, expires_at)
+VALUES ($1, $2, $3, $4, $5) RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at
 `
 
 type CreateAPIClientParams struct {
-	Name    string `json:"name"`
-	KeyHash string `json:"key_hash"`
+	Name         string             `json:"name"`
+	KeyHash      string             `json:"key_hash"`
+	TokenPreview *string            `json:"token_preview"`
+	RpmLimit     *int32             `json:"rpm_limit"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (ApiClient, error) {
-	row := q.db.QueryRow(ctx, createAPIClient, arg.Name, arg.KeyHash)
+	row := q.db.QueryRow(ctx, createAPIClient,
+		arg.Name,
+		arg.KeyHash,
+		arg.TokenPreview,
+		arg.RpmLimit,
+		arg.ExpiresAt,
+	)
 	var i ApiClient
 	err := row.Scan(
 		&i.ID,
@@ -58,6 +70,12 @@ func (q *Queries) CreateAPIClient(ctx context.Context, arg CreateAPIClientParams
 		&i.KeyHash,
 		&i.Status,
 		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -86,17 +104,123 @@ func (q *Queries) CreateTenantResource(ctx context.Context, arg CreateTenantReso
 	return i, err
 }
 
-const deleteTenantResource = `-- name: DeleteTenantResource :exec
-DELETE FROM tenant_resources WHERE id = $1
+const deleteAPIClient = `-- name: DeleteAPIClient :execrows
+DELETE FROM api_clients WHERE id = $1 AND status = 'revoked'
 `
 
-func (q *Queries) DeleteTenantResource(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteTenantResource, id)
-	return err
+func (q *Queries) DeleteAPIClient(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAPIClient, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredAPIClientUsage = `-- name: DeleteExpiredAPIClientUsage :execrows
+DELETE FROM api_client_usage_daily WHERE day < $1
+`
+
+func (q *Queries) DeleteExpiredAPIClientUsage(ctx context.Context, cutoffDay pgtype.Date) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredAPIClientUsage, cutoffDay)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTenantResource = `-- name: DeleteTenantResource :execrows
+DELETE FROM tenant_resources
+WHERE id = $1
+  AND tenant_id = $2
+`
+
+type DeleteTenantResourceParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) DeleteTenantResource(ctx context.Context, arg DeleteTenantResourceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTenantResource, arg.ID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getAPIClient = `-- name: GetAPIClient :one
+SELECT id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at FROM api_clients WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetAPIClient(ctx context.Context, id uuid.UUID) (ApiClient, error) {
+	row := q.db.QueryRow(ctx, getAPIClient, id)
+	var i ApiClient
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.KeyHash,
+		&i.Status,
+		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAPIClientAuthByHash = `-- name: GetAPIClientAuthByHash :one
+SELECT c.id, c.name, c.key_hash, c.status, c.created_at, c.token_preview, c.rpm_limit, c.expires_at, c.last_used_at, c.revoked_at, c.updated_at, coalesce(array_agg(s.scope ORDER BY s.scope) FILTER (WHERE s.scope IS NOT NULL), '{}')::text[] AS scopes
+FROM api_clients c
+LEFT JOIN api_client_scopes s ON s.api_client_id = c.id
+WHERE c.key_hash = $1
+   OR EXISTS (
+     SELECT 1 FROM api_client_previous_tokens previous
+     WHERE previous.api_client_id = c.id
+       AND previous.key_hash = $1
+       AND previous.valid_until > clock_timestamp()
+   )
+GROUP BY c.id
+`
+
+type GetAPIClientAuthByHashRow struct {
+	ID           uuid.UUID          `json:"id"`
+	Name         string             `json:"name"`
+	KeyHash      string             `json:"key_hash"`
+	Status       string             `json:"status"`
+	CreatedAt    time.Time          `json:"created_at"`
+	TokenPreview *string            `json:"token_preview"`
+	RpmLimit     *int32             `json:"rpm_limit"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+	Scopes       []string           `json:"scopes"`
+}
+
+func (q *Queries) GetAPIClientAuthByHash(ctx context.Context, keyHash string) (GetAPIClientAuthByHashRow, error) {
+	row := q.db.QueryRow(ctx, getAPIClientAuthByHash, keyHash)
+	var i GetAPIClientAuthByHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.KeyHash,
+		&i.Status,
+		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
+		&i.Scopes,
+	)
+	return i, err
 }
 
 const getAPIClientByHash = `-- name: GetAPIClientByHash :one
-SELECT id, name, key_hash, status, created_at FROM api_clients WHERE key_hash = $1
+SELECT id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at FROM api_clients WHERE key_hash = $1
 `
 
 func (q *Queries) GetAPIClientByHash(ctx context.Context, keyHash string) (ApiClient, error) {
@@ -108,6 +232,12 @@ func (q *Queries) GetAPIClientByHash(ctx context.Context, keyHash string) (ApiCl
 		&i.KeyHash,
 		&i.Status,
 		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -140,8 +270,274 @@ func (q *Queries) GetActiveResourceByTenantAndDefinitionKey(ctx context.Context,
 	return i, err
 }
 
+const getResourceHeader = `-- name: GetResourceHeader :one
+SELECT tr.id,
+       tr.tenant_id,
+       tr.resource_definition_id,
+       tr.status,
+       tr.created_at,
+       tr.updated_at,
+       rd.key AS definition_key,
+       rd.name AS definition_name,
+       rd.updated_at AS definition_updated_at
+FROM tenant_resources tr
+JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+WHERE tr.id = $1
+`
+
+type GetResourceHeaderRow struct {
+	ID                   uuid.UUID `json:"id"`
+	TenantID             uuid.UUID `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+	Status               string    `json:"status"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	DefinitionKey        string    `json:"definition_key"`
+	DefinitionName       string    `json:"definition_name"`
+	DefinitionUpdatedAt  time.Time `json:"definition_updated_at"`
+}
+
+func (q *Queries) GetResourceHeader(ctx context.Context, id uuid.UUID) (GetResourceHeaderRow, error) {
+	row := q.db.QueryRow(ctx, getResourceHeader, id)
+	var i GetResourceHeaderRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ResourceDefinitionID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefinitionKey,
+		&i.DefinitionName,
+		&i.DefinitionUpdatedAt,
+	)
+	return i, err
+}
+
+const getTenantResource = `-- name: GetTenantResource :one
+SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at FROM tenant_resources
+WHERE id = $1 AND tenant_id = $2
+FOR UPDATE
+`
+
+type GetTenantResourceParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) GetTenantResource(ctx context.Context, arg GetTenantResourceParams) (TenantResource, error) {
+	row := q.db.QueryRow(ctx, getTenantResource, arg.ID, arg.TenantID)
+	var i TenantResource
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ResourceDefinitionID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const insertAdminAuditEvent = `-- name: InsertAdminAuditEvent :one
+INSERT INTO admin_audit_events (
+  request_id, actor_kind, actor_issuer, actor_subject, actor_label,
+  action, target_type, target_id, result, http_method, route_template,
+  http_status, error_code, metadata
+) VALUES (
+  $1, $2, $3,
+  $4, $5, $6,
+  $7, $8, $9,
+  $10, $11, $12,
+  $13, $14
+)
+RETURNING occurred_at, id, schema_version, request_id, actor_kind, actor_issuer, actor_subject, actor_label, action, target_type, target_id, result, http_method, route_template, http_status, error_code, metadata
+`
+
+type InsertAdminAuditEventParams struct {
+	RequestID     string  `json:"request_id"`
+	ActorKind     string  `json:"actor_kind"`
+	ActorIssuer   *string `json:"actor_issuer"`
+	ActorSubject  string  `json:"actor_subject"`
+	ActorLabel    *string `json:"actor_label"`
+	Action        string  `json:"action"`
+	TargetType    string  `json:"target_type"`
+	TargetID      string  `json:"target_id"`
+	Result        string  `json:"result"`
+	HttpMethod    string  `json:"http_method"`
+	RouteTemplate string  `json:"route_template"`
+	HttpStatus    int16   `json:"http_status"`
+	ErrorCode     *string `json:"error_code"`
+	Metadata      []byte  `json:"metadata"`
+}
+
+func (q *Queries) InsertAdminAuditEvent(ctx context.Context, arg InsertAdminAuditEventParams) (AdminAuditEvent, error) {
+	row := q.db.QueryRow(ctx, insertAdminAuditEvent,
+		arg.RequestID,
+		arg.ActorKind,
+		arg.ActorIssuer,
+		arg.ActorSubject,
+		arg.ActorLabel,
+		arg.Action,
+		arg.TargetType,
+		arg.TargetID,
+		arg.Result,
+		arg.HttpMethod,
+		arg.RouteTemplate,
+		arg.HttpStatus,
+		arg.ErrorCode,
+		arg.Metadata,
+	)
+	var i AdminAuditEvent
+	err := row.Scan(
+		&i.OccurredAt,
+		&i.ID,
+		&i.SchemaVersion,
+		&i.RequestID,
+		&i.ActorKind,
+		&i.ActorIssuer,
+		&i.ActorSubject,
+		&i.ActorLabel,
+		&i.Action,
+		&i.TargetType,
+		&i.TargetID,
+		&i.Result,
+		&i.HttpMethod,
+		&i.RouteTemplate,
+		&i.HttpStatus,
+		&i.ErrorCode,
+		&i.Metadata,
+	)
+	return i, err
+}
+
+const listAPIClientScopes = `-- name: ListAPIClientScopes :many
+SELECT scope FROM api_client_scopes WHERE api_client_id = $1 ORDER BY scope
+`
+
+func (q *Queries) ListAPIClientScopes(ctx context.Context, apiClientID uuid.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAPIClientScopes, apiClientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var scope string
+		if err := rows.Scan(&scope); err != nil {
+			return nil, err
+		}
+		items = append(items, scope)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAPIClientUsage = `-- name: ListAPIClientUsage :many
+SELECT day, api_client_id, operation, status_class, request_count, rate_limited_count FROM api_client_usage_daily
+WHERE api_client_id = $1
+  AND day >= $2
+  AND day <= $3
+ORDER BY day DESC, operation, status_class
+LIMIT $4
+`
+
+type ListAPIClientUsageParams struct {
+	ApiClientID uuid.UUID   `json:"api_client_id"`
+	FromDay     pgtype.Date `json:"from_day"`
+	ToDay       pgtype.Date `json:"to_day"`
+	PageLimit   int32       `json:"page_limit"`
+}
+
+func (q *Queries) ListAPIClientUsage(ctx context.Context, arg ListAPIClientUsageParams) ([]ApiClientUsageDaily, error) {
+	rows, err := q.db.Query(ctx, listAPIClientUsage,
+		arg.ApiClientID,
+		arg.FromDay,
+		arg.ToDay,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ApiClientUsageDaily
+	for rows.Next() {
+		var i ApiClientUsageDaily
+		if err := rows.Scan(
+			&i.Day,
+			&i.ApiClientID,
+			&i.Operation,
+			&i.StatusClass,
+			&i.RequestCount,
+			&i.RateLimitedCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAPIClientUsageOverview = `-- name: ListAPIClientUsageOverview :many
+SELECT u.day, u.api_client_id, u.operation, u.status_class, u.request_count, u.rate_limited_count, coalesce(c.name, u.api_client_id::text)::text AS client_name
+FROM api_client_usage_daily u
+LEFT JOIN api_clients c ON c.id = u.api_client_id
+WHERE u.day >= $1 AND u.day <= $2
+ORDER BY u.day DESC, client_name, u.operation, u.status_class
+LIMIT $3
+`
+
+type ListAPIClientUsageOverviewParams struct {
+	FromDay   pgtype.Date `json:"from_day"`
+	ToDay     pgtype.Date `json:"to_day"`
+	PageLimit int32       `json:"page_limit"`
+}
+
+type ListAPIClientUsageOverviewRow struct {
+	Day              pgtype.Date `json:"day"`
+	ApiClientID      uuid.UUID   `json:"api_client_id"`
+	Operation        string      `json:"operation"`
+	StatusClass      int16       `json:"status_class"`
+	RequestCount     int64       `json:"request_count"`
+	RateLimitedCount int64       `json:"rate_limited_count"`
+	ClientName       string      `json:"client_name"`
+}
+
+func (q *Queries) ListAPIClientUsageOverview(ctx context.Context, arg ListAPIClientUsageOverviewParams) ([]ListAPIClientUsageOverviewRow, error) {
+	rows, err := q.db.Query(ctx, listAPIClientUsageOverview, arg.FromDay, arg.ToDay, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAPIClientUsageOverviewRow
+	for rows.Next() {
+		var i ListAPIClientUsageOverviewRow
+		if err := rows.Scan(
+			&i.Day,
+			&i.ApiClientID,
+			&i.Operation,
+			&i.StatusClass,
+			&i.RequestCount,
+			&i.RateLimitedCount,
+			&i.ClientName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAPIClients = `-- name: ListAPIClients :many
-SELECT id, name, key_hash, status, created_at FROM api_clients ORDER BY created_at DESC
+SELECT id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at FROM api_clients ORDER BY created_at DESC
 `
 
 func (q *Queries) ListAPIClients(ctx context.Context) ([]ApiClient, error) {
@@ -159,6 +555,12 @@ func (q *Queries) ListAPIClients(ctx context.Context) ([]ApiClient, error) {
 			&i.KeyHash,
 			&i.Status,
 			&i.CreatedAt,
+			&i.TokenPreview,
+			&i.RpmLimit,
+			&i.ExpiresAt,
+			&i.LastUsedAt,
+			&i.RevokedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -190,6 +592,93 @@ func (q *Queries) ListActiveResourcesByTenant(ctx context.Context, tenantID uuid
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdminAuditEvents = `-- name: ListAdminAuditEvents :many
+SELECT occurred_at, id, schema_version, request_id, actor_kind, actor_issuer, actor_subject, actor_label, action, target_type, target_id, result, http_method, route_template, http_status, error_code, metadata FROM admin_audit_events
+WHERE occurred_at >= $1
+  AND occurred_at < $2
+  AND ($3::text = '' OR actor_kind = $3)
+  AND ($4::text = '' OR actor_subject = $4)
+  AND ($5::text = '' OR action = $5)
+  AND ($6::text = '' OR target_type = $6)
+  AND ($7::text = '' OR target_id = $7)
+  AND ($8::text = '' OR request_id = $8)
+  AND ($9::text = '' OR result = $9)
+  AND (
+    NOT $10::boolean
+    OR (occurred_at, id) < ($11, $12::uuid)
+  )
+ORDER BY occurred_at DESC, id DESC
+LIMIT $13
+`
+
+type ListAdminAuditEventsParams struct {
+	FromTime     time.Time `json:"from_time"`
+	ToTime       time.Time `json:"to_time"`
+	ActorKind    string    `json:"actor_kind"`
+	ActorSubject string    `json:"actor_subject"`
+	Action       string    `json:"action"`
+	TargetType   string    `json:"target_type"`
+	TargetID     string    `json:"target_id"`
+	RequestID    string    `json:"request_id"`
+	Result       string    `json:"result"`
+	HasCursor    bool      `json:"has_cursor"`
+	CursorTime   time.Time `json:"cursor_time"`
+	CursorID     uuid.UUID `json:"cursor_id"`
+	PageLimit    int32     `json:"page_limit"`
+}
+
+func (q *Queries) ListAdminAuditEvents(ctx context.Context, arg ListAdminAuditEventsParams) ([]AdminAuditEvent, error) {
+	rows, err := q.db.Query(ctx, listAdminAuditEvents,
+		arg.FromTime,
+		arg.ToTime,
+		arg.ActorKind,
+		arg.ActorSubject,
+		arg.Action,
+		arg.TargetType,
+		arg.TargetID,
+		arg.RequestID,
+		arg.Result,
+		arg.HasCursor,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AdminAuditEvent
+	for rows.Next() {
+		var i AdminAuditEvent
+		if err := rows.Scan(
+			&i.OccurredAt,
+			&i.ID,
+			&i.SchemaVersion,
+			&i.RequestID,
+			&i.ActorKind,
+			&i.ActorIssuer,
+			&i.ActorSubject,
+			&i.ActorLabel,
+			&i.Action,
+			&i.TargetType,
+			&i.TargetID,
+			&i.Result,
+			&i.HttpMethod,
+			&i.RouteTemplate,
+			&i.HttpStatus,
+			&i.ErrorCode,
+			&i.Metadata,
 		); err != nil {
 			return nil, err
 		}
@@ -243,6 +732,140 @@ func (q *Queries) ListOverviewTenantCards(ctx context.Context) ([]ListOverviewTe
 			&i.PrimaryHost,
 			&i.DomainCount,
 			&i.ResourceCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceFieldValuesByResourceIDs = `-- name: ListResourceFieldValuesByResourceIDs :many
+SELECT tr.id AS tenant_resource_id,
+       rf.id AS resource_field_id,
+       rf.key AS field_key,
+       rf.label AS field_label,
+       rf.data_type,
+       rf.required,
+       rf.is_secret,
+       (trv.id IS NOT NULL)::boolean AS has_value,
+       trv.value_plain,
+       trv.value_cipher,
+       trv.nonce,
+       trv.key_version
+FROM tenant_resources tr
+JOIN resource_fields rf ON rf.resource_definition_id = tr.resource_definition_id
+LEFT JOIN tenant_resource_values trv
+  ON trv.tenant_resource_id = tr.id
+ AND trv.resource_field_id = rf.id
+WHERE tr.id = ANY($1::uuid[])
+ORDER BY tr.id, rf.sort_order, rf.key
+`
+
+type ListResourceFieldValuesByResourceIDsRow struct {
+	TenantResourceID uuid.UUID `json:"tenant_resource_id"`
+	ResourceFieldID  uuid.UUID `json:"resource_field_id"`
+	FieldKey         string    `json:"field_key"`
+	FieldLabel       string    `json:"field_label"`
+	DataType         string    `json:"data_type"`
+	Required         bool      `json:"required"`
+	IsSecret         bool      `json:"is_secret"`
+	HasValue         bool      `json:"has_value"`
+	ValuePlain       *string   `json:"value_plain"`
+	ValueCipher      []byte    `json:"value_cipher"`
+	Nonce            []byte    `json:"nonce"`
+	KeyVersion       *int32    `json:"key_version"`
+}
+
+func (q *Queries) ListResourceFieldValuesByResourceIDs(ctx context.Context, resourceIds []uuid.UUID) ([]ListResourceFieldValuesByResourceIDsRow, error) {
+	rows, err := q.db.Query(ctx, listResourceFieldValuesByResourceIDs, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListResourceFieldValuesByResourceIDsRow
+	for rows.Next() {
+		var i ListResourceFieldValuesByResourceIDsRow
+		if err := rows.Scan(
+			&i.TenantResourceID,
+			&i.ResourceFieldID,
+			&i.FieldKey,
+			&i.FieldLabel,
+			&i.DataType,
+			&i.Required,
+			&i.IsSecret,
+			&i.HasValue,
+			&i.ValuePlain,
+			&i.ValueCipher,
+			&i.Nonce,
+			&i.KeyVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceHeadersByTenant = `-- name: ListResourceHeadersByTenant :many
+SELECT tr.id,
+       tr.tenant_id,
+       tr.resource_definition_id,
+       tr.status,
+       tr.created_at,
+       tr.updated_at,
+       rd.key AS definition_key,
+       rd.name AS definition_name,
+       rd.updated_at AS definition_updated_at
+FROM tenant_resources tr
+JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+WHERE tr.tenant_id = $1
+  AND ($2::boolean OR tr.status = 'active')
+ORDER BY tr.created_at, tr.id
+`
+
+type ListResourceHeadersByTenantParams struct {
+	TenantID        uuid.UUID `json:"tenant_id"`
+	IncludeInactive bool      `json:"include_inactive"`
+}
+
+type ListResourceHeadersByTenantRow struct {
+	ID                   uuid.UUID `json:"id"`
+	TenantID             uuid.UUID `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+	Status               string    `json:"status"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	DefinitionKey        string    `json:"definition_key"`
+	DefinitionName       string    `json:"definition_name"`
+	DefinitionUpdatedAt  time.Time `json:"definition_updated_at"`
+}
+
+func (q *Queries) ListResourceHeadersByTenant(ctx context.Context, arg ListResourceHeadersByTenantParams) ([]ListResourceHeadersByTenantRow, error) {
+	rows, err := q.db.Query(ctx, listResourceHeadersByTenant, arg.TenantID, arg.IncludeInactive)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListResourceHeadersByTenantRow
+	for rows.Next() {
+		var i ListResourceHeadersByTenantRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ResourceDefinitionID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DefinitionKey,
+			&i.DefinitionName,
+			&i.DefinitionUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -317,8 +940,81 @@ func (q *Queries) ListTenantResources(ctx context.Context, tenantID uuid.UUID) (
 	return items, nil
 }
 
+const replaceAPIClientScopes = `-- name: ReplaceAPIClientScopes :exec
+WITH deleted AS (
+  DELETE FROM api_client_scopes WHERE api_client_id = $1
+  RETURNING 1
+)
+INSERT INTO api_client_scopes (api_client_id, scope)
+SELECT $1, unnest($2::text[])
+FROM (SELECT count(*) FROM deleted) AS deletion_barrier
+`
+
+type ReplaceAPIClientScopesParams struct {
+	ApiClientID uuid.UUID `json:"api_client_id"`
+	Scopes      []string  `json:"scopes"`
+}
+
+func (q *Queries) ReplaceAPIClientScopes(ctx context.Context, arg ReplaceAPIClientScopesParams) error {
+	_, err := q.db.Exec(ctx, replaceAPIClientScopes, arg.ApiClientID, arg.Scopes)
+	return err
+}
+
+const rotateAPIClientToken = `-- name: RotateAPIClientToken :one
+UPDATE api_clients
+SET key_hash = $1, token_preview = $2,
+    updated_at = clock_timestamp()
+WHERE id = $3 AND status = 'active'
+RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at
+`
+
+type RotateAPIClientTokenParams struct {
+	KeyHash      string    `json:"key_hash"`
+	TokenPreview *string   `json:"token_preview"`
+	ID           uuid.UUID `json:"id"`
+}
+
+func (q *Queries) RotateAPIClientToken(ctx context.Context, arg RotateAPIClientTokenParams) (ApiClient, error) {
+	row := q.db.QueryRow(ctx, rotateAPIClientToken, arg.KeyHash, arg.TokenPreview, arg.ID)
+	var i ApiClient
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.KeyHash,
+		&i.Status,
+		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const savePreviousAPIClientToken = `-- name: SavePreviousAPIClientToken :exec
+INSERT INTO api_client_previous_tokens (api_client_id, key_hash, valid_until)
+VALUES ($1, $2, $3)
+`
+
+type SavePreviousAPIClientTokenParams struct {
+	ApiClientID uuid.UUID `json:"api_client_id"`
+	KeyHash     string    `json:"key_hash"`
+	ValidUntil  time.Time `json:"valid_until"`
+}
+
+func (q *Queries) SavePreviousAPIClientToken(ctx context.Context, arg SavePreviousAPIClientTokenParams) error {
+	_, err := q.db.Exec(ctx, savePreviousAPIClientToken, arg.ApiClientID, arg.KeyHash, arg.ValidUntil)
+	return err
+}
+
 const setAPIClientStatus = `-- name: SetAPIClientStatus :one
-UPDATE api_clients SET status = $2 WHERE id = $1 RETURNING id, name, key_hash, status, created_at
+UPDATE api_clients
+SET status = $2,
+    revoked_at = CASE WHEN $2 = 'revoked' THEN clock_timestamp() ELSE NULL END,
+    updated_at = clock_timestamp()
+WHERE id = $1 RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at
 `
 
 type SetAPIClientStatusParams struct {
@@ -335,22 +1031,31 @@ func (q *Queries) SetAPIClientStatus(ctx context.Context, arg SetAPIClientStatus
 		&i.KeyHash,
 		&i.Status,
 		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const setTenantResourceStatus = `-- name: SetTenantResourceStatus :one
-UPDATE tenant_resources SET status = $2, updated_at = now()
-WHERE id = $1 RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at
+UPDATE tenant_resources SET status = $1, updated_at = now()
+WHERE id = $2
+  AND tenant_id = $3
+RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at
 `
 
 type SetTenantResourceStatusParams struct {
-	ID     uuid.UUID `json:"id"`
-	Status string    `json:"status"`
+	Status   string    `json:"status"`
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
 }
 
 func (q *Queries) SetTenantResourceStatus(ctx context.Context, arg SetTenantResourceStatusParams) (TenantResource, error) {
-	row := q.db.QueryRow(ctx, setTenantResourceStatus, arg.ID, arg.Status)
+	row := q.db.QueryRow(ctx, setTenantResourceStatus, arg.Status, arg.ID, arg.TenantID)
 	var i TenantResource
 	err := row.Scan(
 		&i.ID,
@@ -363,16 +1068,114 @@ func (q *Queries) SetTenantResourceStatus(ctx context.Context, arg SetTenantReso
 	return i, err
 }
 
+const touchAPIClientLastUsed = `-- name: TouchAPIClientLastUsed :exec
+UPDATE api_clients
+SET last_used_at = GREATEST(coalesce(last_used_at, $1::timestamptz), $1::timestamptz)
+WHERE id = $2
+  AND (last_used_at IS NULL OR last_used_at < $1::timestamptz - interval '1 minute')
+`
+
+type TouchAPIClientLastUsedParams struct {
+	UsedAt      time.Time `json:"used_at"`
+	ApiClientID uuid.UUID `json:"api_client_id"`
+}
+
+func (q *Queries) TouchAPIClientLastUsed(ctx context.Context, arg TouchAPIClientLastUsedParams) error {
+	_, err := q.db.Exec(ctx, touchAPIClientLastUsed, arg.UsedAt, arg.ApiClientID)
+	return err
+}
+
+const updateAPIClientPolicy = `-- name: UpdateAPIClientPolicy :one
+UPDATE api_clients
+SET name = $1, rpm_limit = $2,
+    expires_at = $3, updated_at = clock_timestamp()
+WHERE id = $4 AND status = 'active'
+RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expires_at, last_used_at, revoked_at, updated_at
+`
+
+type UpdateAPIClientPolicyParams struct {
+	Name      string             `json:"name"`
+	RpmLimit  *int32             `json:"rpm_limit"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	ID        uuid.UUID          `json:"id"`
+}
+
+func (q *Queries) UpdateAPIClientPolicy(ctx context.Context, arg UpdateAPIClientPolicyParams) (ApiClient, error) {
+	row := q.db.QueryRow(ctx, updateAPIClientPolicy,
+		arg.Name,
+		arg.RpmLimit,
+		arg.ExpiresAt,
+		arg.ID,
+	)
+	var i ApiClient
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.KeyHash,
+		&i.Status,
+		&i.CreatedAt,
+		&i.TokenPreview,
+		&i.RpmLimit,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertAPIClientUsageDaily = `-- name: UpsertAPIClientUsageDaily :exec
+INSERT INTO api_client_usage_daily (
+  day, api_client_id, operation, status_class, request_count, rate_limited_count
+) VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (day, api_client_id, operation, status_class)
+DO UPDATE SET
+  request_count = api_client_usage_daily.request_count + EXCLUDED.request_count,
+  rate_limited_count = api_client_usage_daily.rate_limited_count + EXCLUDED.rate_limited_count
+`
+
+type UpsertAPIClientUsageDailyParams struct {
+	Day              pgtype.Date `json:"day"`
+	ApiClientID      uuid.UUID   `json:"api_client_id"`
+	Operation        string      `json:"operation"`
+	StatusClass      int16       `json:"status_class"`
+	RequestCount     int64       `json:"request_count"`
+	RateLimitedCount int64       `json:"rate_limited_count"`
+}
+
+func (q *Queries) UpsertAPIClientUsageDaily(ctx context.Context, arg UpsertAPIClientUsageDailyParams) error {
+	_, err := q.db.Exec(ctx, upsertAPIClientUsageDaily,
+		arg.Day,
+		arg.ApiClientID,
+		arg.Operation,
+		arg.StatusClass,
+		arg.RequestCount,
+		arg.RateLimitedCount,
+	)
+	return err
+}
+
 const upsertResourceValue = `-- name: UpsertResourceValue :one
-INSERT INTO tenant_resource_values
-  (tenant_resource_id, resource_field_id, value_plain, value_cipher, nonce, key_version)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (tenant_resource_id, resource_field_id)
-DO UPDATE SET value_plain = EXCLUDED.value_plain,
-              value_cipher = EXCLUDED.value_cipher,
-              nonce = EXCLUDED.nonce,
-              key_version = EXCLUDED.key_version
-RETURNING id, tenant_resource_id, resource_field_id, value_plain, value_cipher, nonce, key_version
+WITH upserted AS (
+    INSERT INTO tenant_resource_values
+      (tenant_resource_id, resource_field_id, value_plain, value_cipher, nonce, key_version)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (tenant_resource_id, resource_field_id)
+    DO UPDATE SET value_plain = EXCLUDED.value_plain,
+                  value_cipher = EXCLUDED.value_cipher,
+                  nonce = EXCLUDED.nonce,
+                  key_version = EXCLUDED.key_version
+    RETURNING id, tenant_resource_id, resource_field_id, value_plain, value_cipher, nonce, key_version
+), touched AS (
+    UPDATE tenant_resources tr
+    SET updated_at = clock_timestamp()
+    FROM upserted u
+    WHERE tr.id = u.tenant_resource_id
+    RETURNING tr.id
+)
+SELECT u.id, u.tenant_resource_id, u.resource_field_id, u.value_plain, u.value_cipher, u.nonce, u.key_version
+FROM upserted u
+JOIN touched t ON t.id = u.tenant_resource_id
 `
 
 type UpsertResourceValueParams struct {
@@ -384,7 +1187,17 @@ type UpsertResourceValueParams struct {
 	KeyVersion       *int32    `json:"key_version"`
 }
 
-func (q *Queries) UpsertResourceValue(ctx context.Context, arg UpsertResourceValueParams) (TenantResourceValue, error) {
+type UpsertResourceValueRow struct {
+	ID               uuid.UUID `json:"id"`
+	TenantResourceID uuid.UUID `json:"tenant_resource_id"`
+	ResourceFieldID  uuid.UUID `json:"resource_field_id"`
+	ValuePlain       *string   `json:"value_plain"`
+	ValueCipher      []byte    `json:"value_cipher"`
+	Nonce            []byte    `json:"nonce"`
+	KeyVersion       *int32    `json:"key_version"`
+}
+
+func (q *Queries) UpsertResourceValue(ctx context.Context, arg UpsertResourceValueParams) (UpsertResourceValueRow, error) {
 	row := q.db.QueryRow(ctx, upsertResourceValue,
 		arg.TenantResourceID,
 		arg.ResourceFieldID,
@@ -393,7 +1206,7 @@ func (q *Queries) UpsertResourceValue(ctx context.Context, arg UpsertResourceVal
 		arg.Nonce,
 		arg.KeyVersion,
 	)
-	var i TenantResourceValue
+	var i UpsertResourceValueRow
 	err := row.Scan(
 		&i.ID,
 		&i.TenantResourceID,

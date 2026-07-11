@@ -1,10 +1,8 @@
-# syntax=docker/dockerfile:1
-
 # --- Stage 1: build the SPA ---
 FROM oven/bun:1.3-alpine AS web
 WORKDIR /web
 COPY web/package.json web/bun.lock* ./
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 

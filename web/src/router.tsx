@@ -6,6 +6,9 @@ import { Route as tenantDetailRoute } from "./routes/tenant-detail";
 import { Route as definitionsRoute } from "./routes/definitions";
 import { Route as definitionDetailRoute } from "./routes/definition-detail";
 import { Route as apiClientsRoute } from "./routes/api-clients";
+import { Route as usageRoute } from "./routes/usage";
+import { Route as auditEventsRoute } from "./routes/audit-events";
+import { RoutePending } from "./components/route-pending";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -14,9 +17,16 @@ const routeTree = rootRoute.addChildren([
   definitionsRoute,
   definitionDetailRoute,
   apiClientsRoute,
+  usageRoute,
+  auditEventsRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  defaultPendingComponent: RoutePending,
+  defaultPendingMs: 0,
+  defaultPendingMinMs: 150,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

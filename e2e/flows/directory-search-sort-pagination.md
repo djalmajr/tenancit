@@ -25,7 +25,7 @@ Localizar rapidamente um registro específico em listas grandes usando busca, or
 4. (`tenants-list`) Alterar **linhas por página** → a quantidade de linhas exibidas muda conforme selecionado.
 5. (`tenants-list`) Clicar no cabeçalho **Nome** para ordenar asc, desc e resetar; repetir em **Slug** e **Status** → a ordenação tri-state funciona por coluna.
 6. (`tenants-list`) Digitar um termo na **busca** (nome, slug ou status) → a lista filtra pelos campos correspondentes; limpar a busca → a lista volta ao conjunto completo.
-7. (`api-clients`) Abrir **Chaves de API** → a tabela já vem ordenada por data de criação (desc); ordenar por **Nome**, **Criado em** e **Status**, paginar e buscar por nome/preview/status → todos os controles funcionam de forma equivalente.
+7. (`api-clients`) Abrir **Chaves de API** → a tabela já vem ordenada por data de criação (desc); ordenar por **Nome**, **Criado em** e **Status**, paginar e buscar por nome/data/status → todos os controles funcionam de forma equivalente.
 
 ## Resultado esperado
 
@@ -34,5 +34,5 @@ As tabelas suportam busca multi-campo, ordenação tri-state por coluna e pagina
 ## Estado atual × design
 
 - As tabelas usam `web/src/components/data-table/data-table.tsx` + `web/src/hooks/use-data-table.ts`.
-- Tenants vem ordenada por **Nome** asc por padrão; API Clients por **Criado em** desc; API Clients lista apenas chaves **ativas**.
-- A busca usa `globalFilterFn` específico de cada tela (nome/slug/status em tenants; nome/preview/status/data em chaves).
+- Tenants vem ordenada por **Nome** asc por padrão; API Clients por **Criado em** desc; a tabela de API Clients mantém chaves **ativas e revogadas** para permitir auditoria e reativação.
+- A busca usa `globalFilterFn` específico de cada tela (nome/slug/status em tenants; nome/status/data em chaves). A API não devolve `key_preview`; por isso o fallback visual mascarado `tnc_••••••••` não é apresentado como filtro pesquisável.

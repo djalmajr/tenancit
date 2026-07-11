@@ -22,7 +22,7 @@ export function DataTableColumnHeader<TData, TValue>({
   label,
   labels,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  const align = (column.columnDef.meta as { align?: "center" | "left" | "right" } | undefined)?.align;
+  const align = column.columnDef.meta?.align;
   const alignmentClass =
     align === "right"
       ? "ml-auto justify-end text-right"

@@ -10,6 +10,8 @@ import {
 
 export function ConfirmDialog({
   cancelLabel,
+  children,
+  confirmDisabled = false,
   confirmLabel,
   description,
   onConfirm,
@@ -18,6 +20,8 @@ export function ConfirmDialog({
   title,
 }: {
   cancelLabel: string;
+  children?: React.ReactNode;
+  confirmDisabled?: boolean;
   confirmLabel: string;
   description: string;
   onConfirm: () => void;
@@ -32,11 +36,12 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children}
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} variant="outline">
             {cancelLabel}
           </Button>
-          <Button onClick={onConfirm} variant="destructive">
+          <Button disabled={confirmDisabled} onClick={onConfirm} variant="destructive">
             {confirmLabel}
           </Button>
         </DialogFooter>
