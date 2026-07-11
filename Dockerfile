@@ -16,10 +16,12 @@ RUN go mod download
 # embed the built SPA
 COPY --from=web /web/dist ./internal/spa/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate
 
 # --- Stage 3: minimal runtime ---
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=server /out/server /server
+COPY --from=server /out/migrate /migrate
 EXPOSE 8080
 ENV TENANCIT_ADDR=:8080
-ENTRYPOINT ["/server"]
+CMD ["/server"]

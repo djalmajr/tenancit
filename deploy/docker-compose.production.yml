@@ -1,0 +1,40 @@
+services:
+  migrate:
+    image: "${TENANCIT_IMAGE:?set immutable image repository}@${TENANCIT_IMAGE_DIGEST:?set sha256 digest}"
+    command: ["/migrate"]
+    environment:
+      TENANCIT_DATABASE_URL: "${TENANCIT_MIGRATION_DATABASE_URL:?set owner/migration DSN}"
+    restart: "no"
+
+  app:
+    image: "${TENANCIT_IMAGE:?set immutable image repository}@${TENANCIT_IMAGE_DIGEST:?set sha256 digest}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      TENANCIT_ADDR: ":8080"
+      TENANCIT_DATABASE_URL: "${TENANCIT_RUNTIME_DATABASE_URL:?set runtime DSN}"
+      TENANCIT_ADMIN_AUTH_MODE: "oidc"
+      TENANCIT_DEV_MODE: "false"
+      TENANCIT_ADMIN_ORIGIN: "${TENANCIT_ADMIN_ORIGIN:?set HTTPS admin origin}"
+      TENANCIT_OIDC_ISSUER: "${TENANCIT_OIDC_ISSUER:?set HTTPS OIDC issuer}"
+      TENANCIT_OIDC_CLIENT_ID: "${TENANCIT_OIDC_CLIENT_ID:?set OIDC client id}"
+      TENANCIT_OIDC_CLIENT_SECRET: "${TENANCIT_OIDC_CLIENT_SECRET:?inject from secret manager}"
+      TENANCIT_OIDC_ROLE_CLAIM: "${TENANCIT_OIDC_ROLE_CLAIM:?set role claim}"
+      TENANCIT_OIDC_ROLE_MAPPINGS: "${TENANCIT_OIDC_ROLE_MAPPINGS:?set role mappings JSON}"
+      TENANCIT_VALKEY_URL: "${TENANCIT_VALKEY_URL:?set TLS/authenticated Valkey URL}"
+      TENANCIT_AES_KEY: "${TENANCIT_AES_KEY:?inject from secret manager}"
+      TENANCIT_AES_KEY_VERSION: "${TENANCIT_AES_KEY_VERSION:?set current AES version}"
+      TENANCIT_OPERATIONS_REPORT_TOKEN: "${TENANCIT_OPERATIONS_REPORT_TOKEN:?inject from secret manager}"
+      TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION: "${TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION:?set reporter credential version}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTLP HTTPS endpoint}"
+      OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-tenancit}"
+    expose:
+      - "8080"
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+networks:
+  default:
+    name: "${TENANCIT_NETWORK:?set pre-created ingress network}"
+    external: true

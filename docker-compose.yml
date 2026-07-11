@@ -23,11 +23,23 @@ services:
       timeout: 3s
       retries: 30
 
+  migrate:
+    build: .
+    command: ["/migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
+    restart: "no"
+
   app:
     build: .
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       valkey:
         condition: service_healthy
     environment:

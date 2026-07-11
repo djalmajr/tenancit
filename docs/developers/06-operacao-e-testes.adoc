@@ -13,6 +13,11 @@
 | `TENANCIT_DATABASE_URL`
 | DSN PostgreSQL. Obrigatória.
 
+| `TENANCIT_MIGRATION_DATABASE_URL`, `TENANCIT_RUNTIME_DATABASE_URL`
+| DSNs distintos usados pela automação de deploy. O primeiro pertence ao
+  owner/migration one-shot; o segundo atende HTTP sem DDL. O processo HTTP
+  continua recebendo apenas `TENANCIT_DATABASE_URL` com o valor runtime.
+
 | `TENANCIT_ADMIN_AUTH_MODE`
 | `oidc` ou `legacy_shared_token`; obrigatório e validado no boot.
 
@@ -52,6 +57,9 @@ make test-go
 make test-go-strict
 make test-web
 make e2e-oidc
+make lint-deploy
+make test-continuity
+TENANCIT_ROLE_TEST_ADMIN_URL='postgres://...' make test-postgres-roles
 ----
 
 `make test-go` roda `go vet ./...` e `go test ./...`. Os testes HTTP/store usam
@@ -65,6 +73,10 @@ e testes web. Na CI, use o modo estrito para que indisponibilidade do Docker sej
 visível como falha.
 `make e2e-oidc` sobe PostgreSQL, Valkey e Dex descartáveis e prova login OIDC,
 sessão opaca, CSRF, logout/revogação e break-glass least-privilege sem retries.
+`make test-continuity` sobe duas réplicas descartáveis e prova limiter global,
+revogação cross-replica e failover. `make lint-deploy` valida os scripts e seus
+contratos fail-loud sem acessar produção. `make test-postgres-roles` cria banco
+e logins descartáveis, adota um schema preexistente e prova as permissões reais.
 
 ==== Healthcheck
 
@@ -100,6 +112,9 @@ reports está em link:observability.md[Observabilidade e política de redaction]
 * Exponha `/v1/resolve` apenas por TLS.
 * Trate `?reveal=true` como operação sensível.
 * Valide health, fronteiras de autenticação, ETag e cleanup com
-  `make smoke` após deploys.
+  `make smoke` no modo legado local. Em produção OIDC, use exclusivamente
+  `post-deploy-production-smoke.sh`, que não executa mutações administrativas.
 * Use os procedimentos versionados em link:runbooks/README.md[`docs/runbooks/`]
   para bootstrap, backup/restore e resposta pós-deploy.
+* Execute migrations somente pelo binário `/migrate`; o processo `/server` não
+  possui nem importa essa autoridade.

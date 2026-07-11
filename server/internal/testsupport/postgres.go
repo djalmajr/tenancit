@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/djalmajr/tenancit/server/internal/store"
+	"github.com/djalmajr/tenancit/server/internal/migration"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -58,7 +58,7 @@ func NewDB(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("connection string: %v", err)
 	}
 
-	if err := store.Migrate(dsn); err != nil {
+	if err := migration.Up(dsn); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func newIsolatedDatabase(t *testing.T, ctx context.Context, baseDSN string) *pgx
 	if err != nil {
 		t.Fatalf("parse shared test postgres pool config: %v", err)
 	}
-	if err := store.Migrate(testDSN); err != nil {
+	if err := migration.Up(testDSN); err != nil {
 		t.Fatalf("migrate isolated test database: %v", err)
 	}
 

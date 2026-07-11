@@ -1,7 +1,7 @@
-.PHONY: build build-web embed build-server lint lint-go test test-go test-go-strict test-web test-db \
+.PHONY: build build-web embed build-server lint lint-go lint-deploy test test-go test-go-strict test-web test-db \
         e2e-catalog e2e-smoke e2e-pr e2e e2e-oidc e2e-stability benchmark-scale sqlc \
         dev-server dev-web dev-compose dev-compose-up dev-compose-down tidy clean \
-        docker docker-up docker-down docker-reset smoke
+        docker docker-up docker-down docker-reset smoke deploy-preflight test-continuity test-postgres-roles
 
 ## build: web SPA -> embed into server -> Go binary
 build: build-web embed build-server
@@ -15,13 +15,22 @@ embed:
 	cp -r web/dist server/internal/spa/dist
 
 build-server:
-	cd server && go build -o bin/server ./cmd/server
+	cd server && go build -o bin/server ./cmd/server && go build -o bin/migrate ./cmd/migrate
 
 ## test: Go checks + web typecheck and unit tests. DB tests skip if Docker is unavailable.
 test: test-go test-web
 
-lint: lint-go
+lint: lint-go lint-deploy
 	cd web && bun run lint
+
+lint-deploy:
+	sh -n scripts/deploy-preflight.sh scripts/deploy-release.sh scripts/deploy-rollback.sh \
+		deploy/postgres/configure-roles.sh scripts/test-deploy-scripts.sh \
+		scripts/report-operation.sh scripts/postgres-backup.sh scripts/postgres-restore-drill.sh \
+		scripts/test-multi-replica-continuity.sh scripts/test-postgres-roles.sh \
+		scripts/post-deploy-production-smoke.sh scripts/test-production-smoke.sh
+	sh ./scripts/test-deploy-scripts.sh
+	sh ./scripts/test-production-smoke.sh
 
 lint-go:
 	sh ./scripts/lint-go.sh
@@ -108,6 +117,15 @@ docker-reset:
 
 smoke:
 	sh ./scripts/post-deploy-smoke.sh
+
+deploy-preflight:
+	sh ./scripts/deploy-preflight.sh
+
+test-continuity:
+	sh ./scripts/test-multi-replica-continuity.sh
+
+test-postgres-roles: build-server
+	sh ./scripts/test-postgres-roles.sh
 
 clean:
 	rm -rf server/bin web/dist server/internal/spa/dist

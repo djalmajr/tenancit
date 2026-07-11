@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `075628f` mais observabilidade/saúde validada nesta sessão
-- **Entrega Git anterior:** `075628f` está em `main` e a CI `29160156873` ficou verde; push da fatia corrente vem após os gates
+- **Base observada:** `bf10246` mais deploy/continuidade validado nesta sessão
+- **Entrega Git anterior:** `bf10246` está em `main`; push da fatia corrente vem após os gates
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -57,6 +57,10 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   remove seu tenant ao terminar; outro gate usa Dex real para login/logout,
   sessão, CSRF e break-glass.
 - A imagem final aplica CSP/HSTS/nosniff/frame-deny/referrer/permissions headers.
+- Migrations saíram do boot HTTP: `/migrate` possui owner/DDL e `/server` não
+  importa o pacote de migration. Grupos PostgreSQL separam runtime, jobs e
+  backup; deploy genérico usa digest, preflight, expand/contract e rollback sem
+  trocar DSN/schema.
 - Compose preserva PostgreSQL em volume nomeado; reset destrutivo exige
   confirmação explícita; smoke, bootstrap e backup/restore locais têm runbooks.
 
@@ -87,9 +91,10 @@ outro ambiente.
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
 | Catálogo E2E | 20/20 testes empacotados (18 flows + webhook + report operacional) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
 | Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
-| Browser | Vite `:5180` validado em login, dashboard, API clients, token one-shot, snippets e hard delete; console final sem erros |
+| Browser | Vite `:5180` autenticado; saúde mostra PostgreSQL/Valkey e reports de backup/restore saudáveis |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
-| Backup/restore | dump custom restaurado em banco isolado e conferido |
+| Backup/restore | dump custom, 22 tabelas e tenant preservados; reports healthy |
+| Continuidade | duas réplicas: limiter global, revogação cross-replica e failover, verde |
 | Documentação | `asciidoctor -o /dev/null docs/README.adoc`, verde |
 
 Comandos canônicos:
@@ -104,6 +109,9 @@ make e2e-stability
 make benchmark-scale
 docker compose config
 make smoke
+make lint-deploy
+make test-continuity
+TENANCIT_ROLE_TEST_ADMIN_URL='postgres://...' make test-postgres-roles
 ```
 
 O smoke exige credenciais locais válidas conforme
@@ -125,11 +133,11 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
 ## Decisões externas ainda necessárias
 
 1. **Ativação de identidade:** IdP, issuer/audience, claims/grupos, roles e origin de produção.
-2. **Topologia:** alvo de deploy, ingress/TLS, DNS, secret manager, quantidade de
-   réplicas e trusted proxies. CIDR não deve ser habilitado antes desse desenho.
-3. **Auditoria:** retenção organizacional e separação dos roles PostgreSQL de
-   runtime/migration no alvo de produção.
-5. **Rewrap:** implementação do CLI/job, tamanho de lote e ensaio integral em um
+2. **Topologia:** alvo de deploy, ingress/TLS, DNS, secret manager e trusted
+   proxies. Duas réplicas estão provadas localmente; CIDR permanece desligado.
+3. **Auditoria:** retenção organizacional e materialização dos logins PostgreSQL
+   já separados por contrato no alvo de produção.
+4. **Rewrap:** implementação do CLI/job, tamanho de lote e ensaio integral em um
    restore representativo antes de qualquer rotação real.
 
 Essas dependências impedem afirmar que o deploy/IdP real ou a rotação AES estão
@@ -142,14 +150,12 @@ O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
-1. Publicar o marco de observabilidade/saúde e confirmar a CI remota.
-2. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
-   primeiro alvo.
+1. Publicar o marco de deploy/continuidade e confirmar a CI remota.
+2. Implementar e ensaiar o job de rewrap sobre um restore representativo.
 3. Escolher o primeiro alvo e validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
 4. Implementar idempotência administrativa e exportação governada de auditoria.
-5. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
 
 ## Limites conscientes desta rodada
 
@@ -158,8 +164,9 @@ baseado também na análise das novidades do reference implementation em 2026-07
   operacional declarado que justifique mudar o contrato agora.
 - O benchmark deve ser repetido com `TENANCIT_SCALE_OBSERVED_VOLUME` igual à
   cardinalidade real ou prevista antes de abrir o epic de paginação.
-- O runbook de deploy continua `PLANO` até existir um alvo. Não foram copiadas
-  credenciais, CIDRs, host networking ou automações específicas do reference implementation.
+- A automação de deploy está validada localmente, mas o runbook não afirma
+  produção ativa até existir um alvo. Não foram copiadas credenciais, CIDRs,
+  host networking ou automações específicas do reference implementation.
 - A fixture Dex prova identidade humana; a atribuição real depende de ativar um
   IdP corporativo com mappings revisados. O modo legado continua explicitamente
   técnico e nunca é apresentado como pessoa.

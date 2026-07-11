@@ -10,5 +10,9 @@ if [ -n "$unformatted" ]; then
 fi
 
 cd "$root_dir/server"
+if go list -deps ./cmd/server | grep -qx 'github.com/djalmajr/tenancit/server/internal/migration'; then
+  echo "HTTP runtime must not import the migration package" >&2
+  exit 1
+fi
 go vet ./...
 go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...

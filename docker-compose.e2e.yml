@@ -31,6 +31,16 @@ services:
     ports:
       - "127.0.0.1::9090"
 
+  migrate-e2e:
+    build: .
+    command: ["/migrate"]
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+    environment:
+      TENANCIT_DATABASE_URL: "postgres://postgres:${TENANCIT_E2E_DB_PASSWORD}@postgres-e2e:5432/tenancit-e2e?sslmode=disable"
+    restart: "no"
+
   app-e2e:
     build: .
     depends_on:
@@ -40,6 +50,8 @@ services:
         condition: service_healthy
       webhook-receiver-e2e:
         condition: service_started
+      migrate-e2e:
+        condition: service_completed_successfully
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:${TENANCIT_E2E_DB_PASSWORD}@postgres-e2e:5432/tenancit-e2e?sslmode=disable"

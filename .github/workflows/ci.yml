@@ -41,6 +41,10 @@ jobs:
           REQUIRE_DB_TESTS: "1"
           TENANCIT_TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/postgres?sslmode=disable
         run: go test -coverprofile=coverage.out ./...
+      - name: test PostgreSQL deployment roles
+        env:
+          TENANCIT_ROLE_TEST_ADMIN_URL: postgres://postgres:test@127.0.0.1:5432/postgres?sslmode=disable
+        run: make test-postgres-roles
       - name: coverage summary
         working-directory: server
         run: go tool cover -func=coverage.out | tail -1
@@ -87,7 +91,9 @@ jobs:
       - name: build product
         run: make build
       - name: verify executable
-        run: test -x server/bin/server
+        run: test -x server/bin/server && test -x server/bin/migrate
+      - name: verify deployment contracts
+        run: make lint-deploy
 
   e2e:
     name: e2e (Playwright)

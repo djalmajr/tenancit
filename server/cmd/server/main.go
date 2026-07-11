@@ -17,7 +17,6 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/httpapi"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/spa"
-	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/djalmajr/tenancit/server/internal/usage"
@@ -44,9 +43,6 @@ func run() error {
 		return err
 	}
 
-	if err := store.Migrate(dsn); err != nil {
-		return err
-	}
 	cryptor, err := crypto.FromEnv()
 	if err != nil {
 		return err

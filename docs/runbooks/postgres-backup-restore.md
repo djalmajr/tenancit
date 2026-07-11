@@ -1,7 +1,8 @@
 # Backup e restore PostgreSQL
 
-**Status:** VALIDADO em 2026-07-09 com dump custom, restore em
-`tenancit_restore_check`, verificação de dado sentinela e remoção do banco isolado.
+**Status:** VALIDADO em 2026-07-11 com dump custom, restore em banco isolado,
+22 tabelas e tenant sentinela preservados, reports autenticados de backup e
+restore e remoção do banco isolado.
 
 O Compose usa o volume nomeado `tenancit-postgres-data`. `docker compose down`
 preserva esse volume; `down -v` e `make docker-reset` o removem.
@@ -9,7 +10,24 @@ preserva esse volume; `down -v` e `make docker-reset` o removem.
 Execute todos os snippets a partir da raiz do checkout; eles usam `pwd -P` para
 impedir que dumps sejam gravados dentro do repositório.
 
-## Backup
+## Backup automatizado
+
+Use um login membro de `tenancit_backup`, sem privilégios de escrita:
+
+```bash
+export TENANCIT_BACKUP_DATABASE_URL='postgres://backup:...@db/tenancit'
+export TENANCIT_BACKUP_DIR='/mnt/backup-off-host/tenancit'
+export TENANCIT_BACKUP_SOURCE='postgres-primary'
+export TENANCIT_OPERATIONS_BASE_URL='https://tenancit.example'
+export TENANCIT_OPERATIONS_REPORT_TOKEN='...'
+./scripts/postgres-backup.sh
+```
+
+O script exige diretório absoluto fora do checkout, usa umask `077`, gera dump
+custom, valida a lista, calcula SHA-256 e só então publica o report. O valor do
+DSN e o caminho do dump não entram no report.
+
+## Backup manual equivalente
 
 ```bash
 set -euo pipefail
@@ -40,7 +58,25 @@ container, sem exigir cliente PostgreSQL no host. Guarde o dump criptografado
 fora do host. Ele contém ciphertext e metadados; as chaves
 `TENANCIT_AES_KEY*` ficam no secret manager e precisam de backup separado.
 
-## Ensaio de restore isolado
+## Ensaio de restore isolado automatizado
+
+Crie previamente um banco vazio e descartável, nunca o banco ativo:
+
+```bash
+export TENANCIT_BACKUP_FILE='/mnt/backup-off-host/tenancit/tenancit-....dump'
+export TENANCIT_RESTORE_DATABASE_URL='postgres://restore-owner:...@db/tenancit_restore_drill'
+export TENANCIT_RESTORE_SOURCE='quarterly-drill'
+export TENANCIT_OPERATIONS_BASE_URL='https://tenancit.example'
+export TENANCIT_OPERATIONS_REPORT_TOKEN='...'
+./scripts/postgres-restore-drill.sh
+```
+
+O alvo precisa estar vazio. O script valida o dump, restaura sem owner/grants,
+confere tabelas e tenants e publica report com contagens, sem dados de domínio.
+Criação e remoção do banco permanecem sob responsabilidade do orquestrador para
+evitar que o script possua autoridade destrutiva implícita.
+
+## Ensaio manual equivalente
 
 Use um banco novo, sem sobrescrever o atual:
 

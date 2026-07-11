@@ -27,6 +27,7 @@ quando a arquitetura mudar, crie um ADR novo que supersede o anterior.
 | [0004](./0004-admin-token-e-api-clients.md) | Separação entre admin token e API clients de consumo | Aceito |
 | [0005](./0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Identidade humana administrativa com OIDC, sessões e RBAC | Aceito; em implementação |
 | [0006](./0006-valkey-rate-limit-global.md) | Valkey para rate limit global de API clients | Aceito |
+| [0007](./0007-roles-postgresql-e-expand-contract.md) | Roles PostgreSQL e deploy expand/contract | Aceito |
 
 ## Template
 

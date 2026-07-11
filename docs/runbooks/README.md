@@ -8,13 +8,13 @@ executado de ponta a ponta no ambiente indicado.
 | --- | --- | --- |
 | [Bootstrap local](local-bootstrap.md) | VALIDADO | Docker Desktop local, 2026-07-09 |
 | [Smoke pós-deploy](post-deploy-smoke.md) | VALIDADO | Compose dev local, 2026-07-09 |
-| [Backup e restore PostgreSQL](postgres-backup-restore.md) | VALIDADO | Compose local, 2026-07-09 |
+| [Backup e restore PostgreSQL](postgres-backup-restore.md) | VALIDADO | Compose local + reports, 2026-07-11 |
 | [Valkey e rate limit](valkey-rate-limit.md) | VALIDADO | Compose local e teste multi-instância, 2026-07-10 |
 | [Migração de API clients](api-client-governance-migration.md) | VALIDADO | PostgreSQL descartável, schema v5, 2026-07-10 |
 | [Auditoria e retenção](admin-audit-and-retention.md) | VALIDADO | PostgreSQL descartável, 2026-07-10 |
 | [Entrega de webhooks](webhook-delivery.md) | VALIDADO | receiver Compose + assinatura E2E, 2026-07-11 |
 | [Saúde operacional e telemetria](operational-health.md) | VALIDADO | receiver OTLP/HTTP + probes e reports E2E, 2026-07-11 |
-| [Deploy em host](container-deploy.md) | PLANO | aguarda definição do primeiro host/alvo |
+| [Deploy imutável](container-deploy.md) | AUTOMAÇÃO LOCAL VALIDADA | roles, duas réplicas, failover, restore e scripts; alvo real pendente |
 | [Rewrap de chave AES](aes-key-rewrap.md) | RASCUNHO | aguarda implementação e ensaio do job |
 
 Regras:

@@ -1,4 +1,20 @@
 services:
+  migrate-dev:
+    image: golang:1.25-alpine
+    working_dir: /workspace/server
+    command: >
+      sh -c "apk add --no-cache git >/dev/null &&
+             go run ./cmd/migrate"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
+    volumes:
+      - ./:/workspace
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+
   api-dev:
     image: golang:1.25-alpine
     working_dir: /workspace/server
@@ -10,6 +26,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      migrate-dev:
+        condition: service_completed_successfully
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"

@@ -86,7 +86,9 @@ O modo separado é útil para iterar no frontend com Vite. O build final copia
 make build
 ----
 
-O alvo executa: build web -> cópia para `server/internal/spa/dist` -> build Go.
+O alvo executa: build web -> cópia para `server/internal/spa/dist` -> build dos
+binários `/server` e `/migrate`. Nos três Composes a migration é um serviço
+one-shot concluído antes do servidor HTTP.
 
 ==== Regenerar sqlc
 

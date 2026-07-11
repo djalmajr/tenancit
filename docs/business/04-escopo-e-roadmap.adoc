@@ -93,3 +93,5 @@ ser definida e testada.
   rate limit global com Valkey foram entregues no epic 02.
 * Bootstrap, smoke e backup/restore locais têm runbooks validados; deploy real
   permanece dependente da escolha do alvo.
+* Automação genérica de deploy já separa migration/runtime/jobs/backup, fixa
+  imagem por digest e prova duas réplicas, failover e rollback sem alterar DSN.

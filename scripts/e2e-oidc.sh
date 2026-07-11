@@ -58,6 +58,8 @@ if [ "$ready" != true ]; then
 fi
 
 make -C "$root_dir" build
+TENANCIT_DATABASE_URL="postgres://postgres:${TENANCIT_OIDC_E2E_DB_PASSWORD}@127.0.0.1:15433/tenancit-oidc-e2e?sslmode=disable" \
+  "$root_dir/server/bin/migrate"
 TENANCIT_ADDR="127.0.0.1:18081" \
 TENANCIT_DATABASE_URL="postgres://postgres:${TENANCIT_OIDC_E2E_DB_PASSWORD}@127.0.0.1:15433/tenancit-oidc-e2e?sslmode=disable" \
 TENANCIT_ADMIN_AUTH_MODE="oidc" \
