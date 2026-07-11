@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, ShieldAlert, Copy, Check, Ban, RefreshCw, CircleHelp, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ export default function ApiClients() {
   const [pendingDelete, setPendingDelete] = useState<ApiClient | null>(null);
   const [isLifecyclePending, setIsLifecyclePending] = useState(false);
   const [token, setToken] = useState("");
+  const tokenFieldRef = useRef<HTMLInputElement>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState<
@@ -65,6 +66,11 @@ export default function ApiClients() {
   // constant prevents its auto-reset logic from looping during query loading.
   const clients = clientsQuery.data ?? EMPTY_API_CLIENTS;
   const visibleError = error || (clientsQuery.error ? apiErrorMessage(clientsQuery.error, t) : "");
+  useEffect(() => {
+    if (!open || !token) return;
+    const frame = window.requestAnimationFrame(() => tokenFieldRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, token]);
   const sortLabels = useMemo(() => ({
     asc: t("dataTable.sortAsc"),
     desc: t("dataTable.sortDesc"),
@@ -509,8 +515,8 @@ export default function ApiClients() {
               <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2.5">
                 <Input
                   aria-label={t("apiClients.token")}
-                  autoFocus
                   className="min-w-0 flex-1 border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent"
+                  ref={tokenFieldRef}
                   readOnly
                   tabIndex={0}
                   value={token}
