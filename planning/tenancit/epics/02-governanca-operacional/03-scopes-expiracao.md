@@ -22,10 +22,10 @@ completa; desconhecido/revogado/expirado compartilham 401 e falta de scope usa
 
 ## Tarefas
 
-- [ ] RED da matriz rota/scope e boundary de relógio.
-- [ ] Principal do client e enforcement.
-- [ ] Create/edit e UI com presets de validade.
-- [ ] Compatibilidade `legacy_unbounded`.
+- [x] RED da matriz rota/scope e boundary de relógio.
+- [x] Principal do client e enforcement.
+- [x] Create/edit e UI com presets de validade.
+- [x] Compatibilidade `legacy_unbounded`.
 
 ## Verificação
 

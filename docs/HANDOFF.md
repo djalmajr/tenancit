@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
-- **Snapshot:** 2026-07-10
-- **Base observado:** `21b541a`
-- **Entrega Git:** nenhuma branch, commit, push ou PR foi criado nesta rodada
+- **Snapshot:** 2026-07-11
+- **Base observada:** `c5424d6`
+- **Entrega Git anterior:** `c5424d6` está em `main`/`origin/main`
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -126,14 +126,20 @@ no produto e validados localmente; ainda exigem configuração segura do alvo.
 
 ## Próxima sequência recomendada
 
-1. Aprovar e entregar ADR 0005 com OIDC/sessões/CSRF/RBAC, propagando o novo
+O plano persistente e decomposto para essa sequência está em
+[`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
+baseado também na análise das novidades do reference implementation em 2026-07-11.
+
+1. Estabilizar a CI remota e manter a documentação reconciliada com `main`.
+2. Aprovar e entregar ADR 0005 com OIDC/sessões/CSRF/RBAC, propagando o novo
    principal para a auditoria já existente.
-2. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
+3. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
    primeiro alvo.
-3. Escolher o primeiro alvo e validar o
+4. Escolher o primeiro alvo e validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
-4. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
+5. Implementar outbox/webhooks, observabilidade e idempotência administrativa.
+6. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
 
 ## Limites conscientes desta rodada
 

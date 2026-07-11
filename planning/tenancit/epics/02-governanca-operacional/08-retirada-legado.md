@@ -21,10 +21,10 @@ validar backup/restore e rollback operacional antes do contract.
 
 ## Tarefas
 
-- [ ] Relatório/gate de inventário zerado.
-- [ ] Migration contract e remoção de compatibilidade.
-- [ ] Ensaio de backup/restore e multi-réplica.
-- [ ] Documentação e fechamento do epic.
+- [x] Relatório/gate de inventário zerado.
+- [x] Migration contract e remoção de compatibilidade.
+- [x] Ensaio de backup/restore e multi-réplica.
+- [x] Documentação e fechamento do epic.
 
 ## Verificação
 

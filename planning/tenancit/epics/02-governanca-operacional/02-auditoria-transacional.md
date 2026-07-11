@@ -22,9 +22,9 @@ consulta keyset. O token compartilhado identifica a credencial, não uma pessoa.
 ## Tarefas
 
 - [x] RED de rollback, reveal e redação.
-- [ ] Writer transacional e cobertura dos dois cortes.
-- [ ] API de consulta e tela filtrável.
-- [ ] Runbook de partições/retenção.
+- [x] Writer transacional e cobertura dos dois cortes.
+- [x] API de consulta e tela filtrável.
+- [x] Runbook de partições/retenção.
 
 ## Verificação
 

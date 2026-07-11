@@ -21,10 +21,10 @@ pt-BR/en-US/es-ES, teclado, mobile e personas permanecem gates.
 
 ## Tarefas
 
-- [ ] RED de contratos de formulário/tabela.
-- [ ] Telas, filtros, gráficos e estados.
-- [ ] Persistência de colunas e i18n.
-- [ ] Fluxos e scoreboard por persona.
+- [x] RED de contratos de formulário/tabela.
+- [x] Telas, filtros, gráficos e estados.
+- [x] Persistência de colunas e i18n.
+- [x] Fluxos e scoreboard por persona.
 
 ## Verificação
 

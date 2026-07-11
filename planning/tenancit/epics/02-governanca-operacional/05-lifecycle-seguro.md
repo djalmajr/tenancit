@@ -21,10 +21,10 @@ rotação; todas as ações são auditadas.
 
 ## Tarefas
 
-- [ ] RED de idempotência, conflitos e token one-shot.
-- [ ] Endpoints PATCH/rotate/revoke/delete.
-- [ ] UI de ações e janela de transição.
-- [ ] Remover toggle após gate do legado.
+- [x] RED de idempotência, conflitos e token one-shot.
+- [x] Endpoints PATCH/rotate/revoke/delete.
+- [x] UI de ações e janela de transição.
+- [x] Remover toggle após gate do legado.
 
 ## Verificação
 

@@ -25,14 +25,14 @@ defaults permissivos e auditoria best-effort.
 
 | # | História | Tamanho | Dependências | Estado |
 |---|---|---|---|---|
-| 01 | Schema expandível e contratos | L | — | em andamento |
-| 02 | Auditoria transacional | L | 01 | pendente |
-| 03 | Scopes e expiração | L | 01 | pendente |
-| 04 | Telemetria de uso | L | 01 | pendente |
-| 05 | Lifecycle seguro | L | 02, 03, 04 | pendente |
-| 06 | Limite global com Valkey | L | 03, 04 | pendente |
-| 07 | Console e UX por persona | L | 05, 06 | pendente |
-| 08 | Retirada do legado | M | 07 | pendente |
+| 01 | Schema expandível e contratos | L | — | entregue |
+| 02 | Auditoria transacional | L | 01 | entregue |
+| 03 | Scopes e expiração | L | 01 | entregue |
+| 04 | Telemetria de uso | L | 01 | entregue |
+| 05 | Lifecycle seguro | L | 02, 03, 04 | entregue |
+| 06 | Limite global com Valkey | L | 03, 04 | entregue |
+| 07 | Console e UX por persona | L | 05, 06 | entregue |
+| 08 | Retirada do legado | M | 07 | entregue |
 
 ## Roadmap
 

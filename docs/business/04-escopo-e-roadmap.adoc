@@ -16,7 +16,6 @@
 ==== Fora do escopo atual
 
 * Login humano completo para o painel admin via IdP.
-* Auditoria detalhada de ações administrativas.
 * Rotação automática de chaves AES.
 * Multi-região ou cache distribuído.
 * Versionamento coexistente de definitions.
@@ -43,19 +42,17 @@ fronteira de secrets.
 | P1
 | Auditoria de ações admin
 | Ator, ação, alvo, resultado e `request_id` consultáveis sem registrar secrets.
-| Aprovar o link:developers/design/admin-audit-log.md[design] do
-  link:../plans/021-admin-audit-log-spike.md[plano 021]; integrar principal.
+| Integrar o futuro principal OIDC e definir retenção organizacional.
 | Todas as mutações e reveals geram evento append-only; testes de redação verdes.
-| Spike concluído
+| Implementada para token compartilhado; OIDC no epic 03
 
 | P2
 | Governança de API clients
 | Scopes, expiração, rate limit e uso observável com compatibilidade explícita.
-| Aprovar link:developers/design/api-client-policy.md[política]; escolher
-  limiter compartilhado antes de múltiplas réplicas.
+| Política aprovada; Valkey é obrigatório em múltiplas réplicas.
 | Tokens fora de política são negados; `last_used_at` e métricas são úteis sem
   alta cardinalidade.
-| Design proposto
+| Implementada; contract schema v5
 
 | P2
 | Job guiado de rewrap AES
@@ -74,10 +71,10 @@ fronteira de secrets.
 | Dependência externa
 |===
 
-Sequência recomendada: aprovar identidade + auditoria em paralelo; introduzir o
-principal/audit primitives; entregar OIDC/RBAC e auditoria por cortes; aplicar a
-política de API clients antes de escalar réplicas; implementar rewrap após o
-backup/restore estar validado no alvo.
+Sequência atual: executar o
+link:../../planning/tenancit/epics/03-plataforma-operacional/00-overview.md[epic 03],
+começando por CI/verdade documental, OIDC/RBAC e operação multi-réplica;
+implementar rewrap após backup/restore estar validado no alvo.
 
 Não são compromissos desta trajetória: multi-região, storage WORM/SIEM, HSM,
 cache distribuído genérico ou allowlist de CIDR antes de a topologia de proxies
@@ -90,7 +87,9 @@ ser definida e testada.
 * ETag cobre mutações de status, fields e values sem decriptar para responder 304.
 * Fluxo de borda sem secrets, hard delete explícito e snippets de integração
   estão documentados e cobertos por testes.
-* TanStack Query iniciou pela tela de API clients; o gate web agora inclui regras
-  ESLint de hooks, typecheck e Vitest.
+* Todas as telas usam TanStack Query; o gate web inclui ESLint, typecheck,
+  Vitest, budgets de bundle e catálogo Playwright.
+* Auditoria transacional, scopes, expiração, RPM, lifecycle, telemetria de uso e
+  rate limit global com Valkey foram entregues no epic 02.
 * Bootstrap, smoke e backup/restore locais têm runbooks validados; deploy real
   permanece dependente da escolha do alvo.

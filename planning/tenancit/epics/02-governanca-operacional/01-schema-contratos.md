@@ -26,8 +26,8 @@ a retirada coordenada.
 
 - [x] RED de schema, compatibilidade e ausência de hash.
 - [x] Migration expand e geração sqlc.
-- [ ] Views com status efetivo e marcador legado.
-- [ ] Atualizar documentação do modelo e rollout.
+- [x] Views com status efetivo e marcador legado.
+- [x] Atualizar documentação do modelo e rollout.
 
 ## Verificação
 

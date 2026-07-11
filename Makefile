@@ -29,7 +29,9 @@ lint-go:
 test-go: lint-go
 	cd server && go test ./...
 
-## test-go-strict: require Docker-backed integration tests instead of allowing skips.
+## test-go-strict: require DB integration tests instead of allowing skips.
+# Set TENANCIT_TEST_DATABASE_URL to reuse a shared PostgreSQL service with an
+# isolated database per test; otherwise the local fallback is Testcontainers.
 test-go-strict: lint-go
 	cd server && REQUIRE_DB_TESTS=1 go test ./...
 

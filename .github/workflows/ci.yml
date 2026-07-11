@@ -12,6 +12,20 @@ jobs:
   server:
     name: server (Go)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -20,10 +34,11 @@ jobs:
           cache-dependency-path: server/go.sum
       - name: lint (gofmt, vet, staticcheck)
         run: make lint-go
-      - name: test (unit + integration via testcontainers)
+      - name: test (unit + integration on isolated databases)
         working-directory: server
         env:
           REQUIRE_DB_TESTS: "1"
+          TENANCIT_TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/postgres?sslmode=disable
         run: go test -coverprofile=coverage.out ./...
       - name: coverage summary
         working-directory: server

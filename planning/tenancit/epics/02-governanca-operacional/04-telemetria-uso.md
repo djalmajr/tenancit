@@ -21,10 +21,10 @@ meses. Polling ocorre somente com a aba visível.
 
 ## Tarefas
 
-- [ ] RED de concorrência, UTC, flush e retenção.
-- [ ] Agregador e job de limpeza.
-- [ ] APIs de usage/overview.
-- [ ] Dashboard e filtros.
+- [x] RED de concorrência, UTC, flush e retenção.
+- [x] Agregador e job de limpeza.
+- [x] APIs de usage/overview.
+- [x] Dashboard e filtros.
 
 ## Verificação
 

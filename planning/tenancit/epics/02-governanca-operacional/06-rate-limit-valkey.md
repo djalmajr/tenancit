@@ -21,10 +21,10 @@ sem fallback local em produção.
 
 ## Tarefas
 
-- [ ] RED do algoritmo, headers e falha fechada.
-- [ ] Adapter Valkey e configuração segura.
-- [ ] Compose local/E2E e readiness.
-- [ ] Prova em duas instâncias/restart.
+- [x] RED do algoritmo, headers e falha fechada.
+- [x] Adapter Valkey e configuração segura.
+- [x] Compose local/E2E e readiness.
+- [x] Prova em duas instâncias/restart.
 
 ## Verificação
 
