@@ -122,6 +122,7 @@ async function measureBrowser() {
         path: "/tenants",
         heading: "Tenants",
         kind: "table",
+        searchLabel: "Buscar por nome ou slug...",
       },
       {
         apiPath: "/v1/admin/api-clients",
@@ -130,6 +131,7 @@ async function measureBrowser() {
         path: "/api-clients",
         heading: "Chaves de API",
         kind: "table",
+        searchLabel: "Buscar por nome, data ou status...",
       },
     ]) {
       const renderSamples = [];
@@ -148,7 +150,7 @@ async function measureBrowser() {
 
       const surfaceResult = { render: { samples: renderSamples, summary: summary(renderSamples) } };
       if (surface.kind === "table") {
-        const search = page.locator('input[aria-label][class*="max-w-xs"]').first();
+        const search = page.getByRole("textbox", { name: surface.searchLabel, exact: true });
         const filterSamples = [];
         const sortSamples = [];
         for (let i = 0; i < 35; i += 1) {
