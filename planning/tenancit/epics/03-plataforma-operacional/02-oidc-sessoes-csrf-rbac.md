@@ -35,11 +35,17 @@ mudança de privilégio revoga/reavalia sessões; break-glass não liga sozinho.
 - [x] Implementar discovery/JWKS/PKCE/nonce/state e timeouts.
 - [x] Implementar cookie, CSRF/origin, logout e revogação imediata.
 - [x] Mapear roles para permissões deny-by-default em todas as rotas.
-- [ ] Propagar principal OIDC/break-glass à auditoria.
-- [ ] Migrar SPA e remover token/localStorage.
-- [ ] Cobrir replay, fixation, spoofing, clock boundary e IdP indisponível.
+- [x] Propagar principal OIDC/break-glass à auditoria.
+- [x] Migrar SPA e remover token/localStorage.
+- [x] Cobrir replay, fixation, spoofing, clock boundary e IdP indisponível.
 
 ## Verificação
 
 Unitários criptográficos/config; integração com Dex; matriz rota/permissão;
 Playwright login/logout/expiração/CSRF/break-glass; canários de logs e cookies.
+
+Entregue em 2026-07-11 com `make test`, catálogo legado retry-zero (18/18),
+route smoke Vite e `make e2e-oidc` contra Dex descartável. O gate OIDC cobre
+login real, cookie opaco, ausência de token no storage, CSRF, logout/revogação
+e break-glass explícito least-privilege. A ativação em produção continua
+condicionada ao issuer/client/claims e origin escolhidos pelo operador.

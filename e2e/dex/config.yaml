@@ -1,0 +1,26 @@
+issuer: http://127.0.0.1:15556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+staticClients:
+  - id: tenancit
+    name: Tenancit E2E
+    secret: tenancit-oidc-e2e-secret
+    redirectURIs:
+      - http://127.0.0.1:18081/v1/auth/callback
+
+connectors:
+  - type: mockCallback
+    id: e2e
+    name: Tenancit E2E Identity
+    config:
+      username: e2e-operator
+      groups:
+        - tenancit-security-admins

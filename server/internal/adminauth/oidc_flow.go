@@ -59,6 +59,26 @@ type CompletedLogin struct {
 	RedirectAfter string
 }
 
+type oidcFlowError struct {
+	stage string
+	err   error
+}
+
+func (e *oidcFlowError) Error() string { return "OIDC flow failed at " + e.stage }
+func (e *oidcFlowError) Unwrap() error { return e.err }
+
+func flowFailure(stage string, err error) error {
+	return &oidcFlowError{stage: stage, err: err}
+}
+
+func FailureStage(err error) string {
+	var flowError *oidcFlowError
+	if errors.As(err, &flowError) {
+		return flowError.stage
+	}
+	return "unknown"
+}
+
 type OIDCManager struct {
 	config   OIDCConfig
 	provider oidcProvider
@@ -124,36 +144,43 @@ func (m *OIDCManager) Complete(ctx context.Context, state, code string) (Complet
 	}
 	attempt, err := m.attempts.ConsumeLoginAttempt(ctx, HashCredential(state), m.now().UTC())
 	if err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("state", err)
 	}
 	verifier, err := m.cryptor.Decrypt(appcrypto.Encrypted{
 		Cipher: attempt.PKCEVerifierCipher, Nonce: attempt.CipherNonce, KeyVersion: int(attempt.KeyVersion),
 	})
 	if err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("pkce", err)
 	}
 	claims, err := m.provider.Exchange(ctx, code, verifier)
 	if err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("exchange", err)
 	}
-	if strings.TrimSuffix(claims.Issuer, "/") != strings.TrimSuffix(m.config.Issuer, "/") || strings.TrimSpace(claims.Subject) == "" {
-		return CompletedLogin{}, errors.New("OIDC identity does not match configured issuer")
+	if err := validateOIDCIdentity(m.config.Issuer, claims.Issuer, claims.Subject); err != nil {
+		return CompletedLogin{}, flowFailure("identity", err)
 	}
 	if err := validateNonce(attempt.NonceHash, claims.Nonce); err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("nonce", err)
 	}
 	roles, err := mapRoles(claims.RoleValues, m.config.RoleMappings)
 	if err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("roles", err)
 	}
 	created, err := m.sessions.Create(ctx, SessionIdentity{
 		Issuer: claims.Issuer, Subject: claims.Subject, Label: claims.Label,
 		Roles: roles, Permissions: permissionsForRoles(roles),
 	})
 	if err != nil {
-		return CompletedLogin{}, err
+		return CompletedLogin{}, flowFailure("session", err)
 	}
 	return CompletedLogin{CreatedSession: created, RedirectAfter: attempt.RedirectAfter}, nil
+}
+
+func validateOIDCIdentity(expectedIssuer, actualIssuer, subject string) error {
+	if strings.TrimSuffix(strings.TrimSpace(actualIssuer), "/") != strings.TrimSuffix(strings.TrimSpace(expectedIssuer), "/") || strings.TrimSpace(subject) == "" {
+		return errors.New("OIDC identity does not match configured issuer")
+	}
+	return nil
 }
 
 func pkceChallenge(verifier string) string {

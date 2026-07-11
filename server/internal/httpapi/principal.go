@@ -78,6 +78,12 @@ type principal struct {
 }
 
 type principalContextKey struct{}
+type principalCaptureContextKey struct{}
+
+type principalCapture struct {
+	value principal
+	ok    bool
+}
 
 func newPrincipal(kind principalKind, subject string, permissions ...adminPermission) principal {
 	permissionSet := make(map[adminPermission]struct{}, len(permissions))
@@ -136,7 +142,16 @@ func (p principal) hasPermission(permission adminPermission) bool {
 }
 
 func contextWithPrincipal(ctx context.Context, value principal) context.Context {
+	if capture, ok := ctx.Value(principalCaptureContextKey{}).(*principalCapture); ok && capture != nil {
+		capture.value = value
+		capture.ok = true
+	}
 	return context.WithValue(ctx, principalContextKey{}, value)
+}
+
+func contextWithPrincipalCapture(ctx context.Context) (context.Context, *principalCapture) {
+	capture := &principalCapture{}
+	return context.WithValue(ctx, principalCaptureContextKey{}, capture), capture
 }
 
 func principalFromContext(ctx context.Context) (principal, bool) {

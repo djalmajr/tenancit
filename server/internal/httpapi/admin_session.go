@@ -14,6 +14,23 @@ type sessionAuthenticator interface {
 	Authenticate(context.Context, string) (adminauth.SessionIdentity, error)
 }
 
+func RequireAdminIdentity(authenticator sessionAuthenticator, cookieName, breakGlassTokenHash, breakGlassVersion string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if token := bearerToken(r); token != "" {
+				if breakGlassTokenHash == "" || !constantTimeCredentialMatch(breakGlassTokenHash, token) {
+					writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})
+					return
+				}
+				value := newBreakGlassPrincipal(breakGlassVersion)
+				next.ServeHTTP(w, r.WithContext(contextWithPrincipal(r.Context(), value)))
+				return
+			}
+			RequireAdminSession(authenticator, cookieName)(next).ServeHTTP(w, r)
+		})
+	}
+}
+
 func RequireAdminSession(authenticator sessionAuthenticator, cookieName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +89,10 @@ func RequireAdminCSRF(adminOrigin string) func(http.Handler) http.Handler {
 				return
 			}
 			value, ok := principalFromContext(r.Context())
+			if ok && value.Kind == principalKindBreakGlass {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if !ok || value.Kind != principalKindOIDCUser || !sameRequestOrigin(r, adminOrigin) ||
 				!adminauth.ValidateCSRF(value.csrfTokenHash, r.Header.Get("X-CSRF-Token")) {
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "csrf_invalid"})

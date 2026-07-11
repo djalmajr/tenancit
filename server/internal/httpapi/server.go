@@ -73,7 +73,13 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 	r.Route("/v1/admin", func(ar chi.Router) {
 		ar.Use(s.AuditAdminFailures)
 		if s.AdminAuth != nil && s.AdminAuth.Config.Mode == adminauth.ModeOIDC {
-			ar.Use(RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName))
+			breakGlassHash := ""
+			breakGlassVersion := ""
+			if s.AdminAuth.Config.BreakGlass.Enabled {
+				breakGlassHash = s.AdminAuth.Config.BreakGlass.TokenHash
+				breakGlassVersion = s.AdminAuth.Config.BreakGlass.Version
+			}
+			ar.Use(RequireAdminIdentity(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName, breakGlassHash, breakGlassVersion))
 			ar.Use(RequireAdminCSRF(s.AdminAuth.Config.AdminOrigin))
 		} else {
 			ar.Use(RequireAdminToken(s.AdminTokenHash))

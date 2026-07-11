@@ -16,16 +16,40 @@ type Provider struct {
 	roleClaim   string
 }
 
+type oidcProviderError struct {
+	stage string
+	err   error
+}
+
+func (e *oidcProviderError) Error() string { return "OIDC provider failed at " + e.stage }
+func (e *oidcProviderError) Unwrap() error { return e.err }
+
+func providerFailure(stage string, err error) error {
+	return &oidcProviderError{stage: stage, err: err}
+}
+
+func ProviderFailureStage(err error) string {
+	var providerError *oidcProviderError
+	if errors.As(err, &providerError) {
+		return providerError.stage
+	}
+	return "none"
+}
+
 func NewProvider(ctx context.Context, config OIDCConfig) (*Provider, error) {
 	provider, err := oidc.NewProvider(ctx, config.Issuer)
 	if err != nil {
 		return nil, fmt.Errorf("OIDC discovery: %w", err)
 	}
+	scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+	if config.RoleClaim == "groups" {
+		scopes = append(scopes, "groups")
+	}
 	return &Provider{
 		oauthConfig: oauth2.Config{
 			ClientID: config.ClientID, ClientSecret: config.ClientSecret,
 			Endpoint: provider.Endpoint(), RedirectURL: config.RedirectURL,
-			Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
+			Scopes: scopes,
 		},
 		verifier: provider.Verifier(&oidc.Config{ClientID: config.ClientID}),
 		issuer:   config.Issuer, roleClaim: config.RoleClaim,
@@ -45,21 +69,25 @@ func (p *Provider) AuthorizationURL(state, nonce, challenge string) string {
 func (p *Provider) Exchange(ctx context.Context, code, verifier string) (OIDCClaims, error) {
 	token, err := p.oauthConfig.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
 	if err != nil {
-		return OIDCClaims{}, fmt.Errorf("OIDC code exchange: %w", err)
+		return OIDCClaims{}, providerFailure("token_exchange", err)
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
-		return OIDCClaims{}, errors.New("OIDC response omitted id_token")
+		return OIDCClaims{}, providerFailure("id_token_missing", errors.New("OIDC response omitted id_token"))
 	}
 	idToken, err := p.verifier.Verify(ctx, rawIDToken)
 	if err != nil {
-		return OIDCClaims{}, fmt.Errorf("OIDC id_token verification: %w", err)
+		return OIDCClaims{}, providerFailure("id_token_verify", err)
 	}
 	var rawClaims map[string]any
 	if err := idToken.Claims(&rawClaims); err != nil {
-		return OIDCClaims{}, fmt.Errorf("OIDC claims: %w", err)
+		return OIDCClaims{}, providerFailure("claims_decode", err)
 	}
-	return claimsFromMap(rawClaims, p.issuer, p.roleClaim)
+	claims, err := claimsFromMap(rawClaims, p.issuer, p.roleClaim)
+	if err != nil {
+		return OIDCClaims{}, providerFailure("claims_validate", err)
+	}
+	return claims, nil
 }
 
 func claimsFromMap(raw map[string]any, expectedIssuer, roleClaim string) (OIDCClaims, error) {

@@ -107,3 +107,11 @@ func bearerToken(r *http.Request) string {
 	}
 	return strings.TrimSpace(token)
 }
+
+func constantTimeCredentialMatch(expectedHash, token string) bool {
+	if expectedHash == "" || token == "" {
+		return false
+	}
+	hash := service.HashAPIKey(token)
+	return subtle.ConstantTimeCompare([]byte(hash), []byte(expectedHash)) == 1
+}

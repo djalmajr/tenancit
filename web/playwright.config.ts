@@ -7,6 +7,10 @@ const retries = Number(process.env.TENANCIT_E2E_RETRIES ?? (process.env.CI ? 1 :
 const desktopChrome = { ...devices["Desktop Chrome"] };
 const captureFailureScreenshots = process.env.TENANCIT_E2E_EPHEMERAL === "true";
 const outputDir = process.env.TENANCIT_E2E_OUTPUT_DIR ?? `../output/playwright/direct-${process.pid}`;
+const chromiumIgnoredTests = [
+  /bootstrap\.e2e\.test\.ts/,
+  ...(process.env.TENANCIT_E2E_AUTH_MODE === "oidc" ? [] : [/oidc-auth\.e2e\.test\.ts/]),
+];
 
 export default defineConfig({
   testDir: "./e2e",
@@ -37,7 +41,7 @@ export default defineConfig({
     {
       name: "chromium",
       dependencies: ["bootstrap"],
-      testIgnore: /bootstrap\.e2e\.test\.ts/,
+      testIgnore: chromiumIgnoredTests,
       use: desktopChrome,
     },
   ],

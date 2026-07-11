@@ -6,7 +6,24 @@ binário e usa a API admin same-origin.
 
 ==== Admin API
 
-Proteção: `Authorization: Bearer <TENANCIT_ADMIN_TOKEN>`.
+Proteção normal: cookie de sessão opaco `HttpOnly` criado por Authorization
+Code + PKCE no backend. Mutações e reveal também exigem origin válido e
+`X-CSRF-Token`. O principal OIDC recebe permissões por role deny-by-default.
+O bearer administrativo é aceito somente quando break-glass estiver habilitado
+explicitamente; não é usado pela SPA e possui permissões mínimas.
+
+[cols="1,2,3",options="header"]
+|===
+| Método | Path | Uso
+
+| `GET`
+| `/v1/auth/config`, `/v1/auth/login`, `/v1/auth/callback`, `/v1/auth/session`
+| Descoberta pública do modo, início/callback OIDC e sessão atual.
+
+| `POST`
+| `/v1/auth/logout`
+| Revoga imediatamente a sessão atual; exige CSRF/origin.
+|===
 
 [cols="1,2,3",options="header"]
 |===

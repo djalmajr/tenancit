@@ -1,5 +1,5 @@
 .PHONY: build build-web embed build-server lint lint-go test test-go test-go-strict test-web test-db \
-        e2e-catalog e2e-smoke e2e-pr e2e e2e-stability benchmark-scale sqlc \
+        e2e-catalog e2e-smoke e2e-pr e2e e2e-oidc e2e-stability benchmark-scale sqlc \
         dev-server dev-web dev-compose dev-compose-up dev-compose-down tidy clean \
         docker docker-up docker-down docker-reset smoke
 
@@ -55,6 +55,9 @@ e2e-pr: e2e-catalog
 ## e2e: full catalog in packaged mode, plus Vite route smoke.
 e2e: e2e-catalog
 	sh ./scripts/e2e.sh
+
+e2e-oidc:
+	sh ./scripts/e2e-oidc.sh
 
 ## e2e-stability: full suite three times on fresh stacks, always without retry.
 e2e-stability: e2e-catalog

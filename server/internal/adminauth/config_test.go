@@ -94,6 +94,38 @@ func TestLoadConfigRestrictsLegacySharedTokenToDev(t *testing.T) {
 	}
 }
 
+func TestLoadConfigRequiresExplicitStrongBreakGlass(t *testing.T) {
+	base := map[string]string{
+		"TENANCIT_ADMIN_AUTH_MODE":    "oidc",
+		"TENANCIT_ADMIN_ORIGIN":       "https://tenancit.example.test",
+		"TENANCIT_OIDC_ISSUER":        "https://id.example.test",
+		"TENANCIT_OIDC_CLIENT_ID":     "tenancit",
+		"TENANCIT_OIDC_CLIENT_SECRET": "client-secret",
+		"TENANCIT_OIDC_ROLE_CLAIM":    "groups",
+		"TENANCIT_OIDC_ROLE_MAPPINGS": `{"admins":"security_admin"}`,
+	}
+
+	base["TENANCIT_ADMIN_TOKEN"] = strings.Repeat("x", 32)
+	if _, err := LoadConfig(mapGetter(base)); err == nil || !strings.Contains(err.Error(), "requires TENANCIT_BREAK_GLASS_ENABLED") {
+		t.Fatalf("disabled break-glass error=%v", err)
+	}
+	base["TENANCIT_BREAK_GLASS_ENABLED"] = "true"
+	if _, err := LoadConfig(mapGetter(base)); err == nil || !strings.Contains(err.Error(), "TENANCIT_BREAK_GLASS_VERSION") {
+		t.Fatalf("missing version error=%v", err)
+	}
+	base["TENANCIT_BREAK_GLASS_VERSION"] = "rotation-2026-07"
+	cfg, err := LoadConfig(mapGetter(base))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.BreakGlass.Enabled || cfg.BreakGlass.Version != "rotation-2026-07" {
+		t.Fatalf("break-glass=%+v", cfg.BreakGlass)
+	}
+	if cfg.BreakGlass.TokenHash == base["TENANCIT_ADMIN_TOKEN"] || cfg.BreakGlass.TokenHash != HashCredential(base["TENANCIT_ADMIN_TOKEN"]) {
+		t.Fatal("break-glass configuration retained a raw credential")
+	}
+}
+
 func mapGetter(values map[string]string) func(string) string {
 	return func(key string) string { return values[key] }
 }

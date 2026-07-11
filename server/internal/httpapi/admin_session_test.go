@@ -7,12 +7,67 @@ import (
 	"testing"
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
+	"github.com/djalmajr/tenancit/server/internal/service"
 )
 
 type fakeSessionAuthenticator struct {
 	identity adminauth.SessionIdentity
 	err      error
 	token    string
+}
+
+func TestRequireAdminIdentityAcceptsOnlyExplicitBreakGlassBearer(t *testing.T) {
+	token := "high-entropy-break-glass-token-value"
+	tests := []struct {
+		name       string
+		header     string
+		hash       string
+		wantStatus int
+		wantKind   principalKind
+	}{
+		{name: "disabled", header: "Bearer " + token, wantStatus: http.StatusUnauthorized},
+		{name: "wrong token", header: "Bearer wrong", hash: service.HashAPIKey(token), wantStatus: http.StatusUnauthorized},
+		{name: "enabled", header: "Bearer " + token, hash: service.HashAPIKey(token), wantStatus: http.StatusNoContent, wantKind: principalKindBreakGlass},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v1/admin/overview", nil)
+			req.Header.Set("Authorization", tt.header)
+			recorder := httptest.NewRecorder()
+			var got principal
+			RequireAdminIdentity(nil, "session", tt.hash, "rotation-1")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got, _ = principalFromContext(r.Context())
+				w.WriteHeader(http.StatusNoContent)
+			})).ServeHTTP(recorder, req)
+			if recorder.Code != tt.wantStatus || got.Kind != tt.wantKind {
+				t.Fatalf("status=%d principal=%+v", recorder.Code, got)
+			}
+		})
+	}
+}
+
+func TestPrincipalCaptureObservesDownstreamOIDCIdentity(t *testing.T) {
+	ctx, capture := contextWithPrincipalCapture(context.Background())
+	value, err := newOIDCPrincipal("https://id.example.test", "user-1", "Ada", "session-1", []adminRole{roleViewer})
+	if err != nil {
+		t.Fatalf("newOIDCPrincipal: %v", err)
+	}
+	_ = contextWithPrincipal(ctx, value)
+	if !capture.ok || capture.value.Issuer != "https://id.example.test" || capture.value.Subject != "user-1" {
+		t.Fatalf("capture=%+v", capture)
+	}
+}
+
+func TestRequireAdminCSRFIgnoresCookieDefenseForExplicitBreakGlass(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/recovery", nil)
+	req = req.WithContext(contextWithPrincipal(req.Context(), newBreakGlassPrincipal("rotation-1")))
+	recorder := httptest.NewRecorder()
+	RequireAdminCSRF("https://tenancit.example.test")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status=%d", recorder.Code)
+	}
 }
 
 func (f *fakeSessionAuthenticator) Authenticate(_ context.Context, token string) (adminauth.SessionIdentity, error) {

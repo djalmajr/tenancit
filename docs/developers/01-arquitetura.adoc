@@ -3,8 +3,8 @@
 
 O Tenancit é um binário Go que combina API HTTP, painel SPA
 embutido, migrations e acesso direto ao PostgreSQL. O desenho favorece poucas
-partes móveis: não há broker, cache externo, ORM mágico ou serviço separado
-para o painel.
+partes móveis: não há broker, ORM mágico ou serviço separado para o painel.
+PostgreSQL mantém domínio/sessões/auditoria e Valkey sustenta o rate limit global.
 
 ==== Visão de 30 segundos
 
@@ -13,7 +13,8 @@ para o painel.
 * `web/` contém a SPA admin em React + TanStack Router + Tailwind/shadcn.
 * `web/dist` é copiado para `server/internal/spa/dist` e servido pelo Go via
   `embed.FS`.
-* `/v1/admin/*` é protegido por `TENANCIT_ADMIN_TOKEN`.
+* `/v1/admin/*` usa sessão OIDC opaca server-side, RBAC e CSRF. O token
+  administrativo só existe como break-glass explícito ou modo local legado.
 * `/v1/identify` e `/v1/resolve*` são protegidos por API clients
   (`Authorization: Bearer`).
 * Segredos ficam cifrados no banco e só são descriptografados server-side.
@@ -73,7 +74,10 @@ secrets ao chamador autenticado. A fonte normativa de payloads, cache e erros é
 ----
 flowchart LR
   admin["Operador"] --> spa["SPA admin"]
-  spa -->|"Authorization: Bearer TENANCIT_ADMIN_TOKEN"| api["/v1/admin/*"]
+  spa -->|"/v1/auth/login"| idp["IdP OIDC"]
+  idp -->|"callback + code"| auth["Backend OIDC/PKCE"]
+  auth -->|"cookie HttpOnly + CSRF"| spa
+  spa -->|"sessão same-origin"| api["/v1/admin/*"]
   api --> svc["services"]
   svc --> pg["PostgreSQL"]
 ----

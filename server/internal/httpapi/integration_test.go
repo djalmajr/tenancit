@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/djalmajr/tenancit/server/internal/adminauth"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/djalmajr/tenancit/server/internal/testsupport"
@@ -722,6 +723,61 @@ func TestE2E_AuditFailureRollsBackAdminMutation(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("tenant committed without audit event")
+	}
+}
+
+func TestE2E_DeniedOIDCRequestAuditsDurablePrincipal(t *testing.T) {
+	srv, _ := newTestServer(t)
+	authStore := adminauth.NewPostgresSessionStore(srv.DB)
+	sessions := adminauth.NewSessionManager(authStore, srv.Cryptor, nil, time.Now, 8*time.Hour, 30*time.Minute)
+	created, err := sessions.Create(context.Background(), adminauth.SessionIdentity{
+		Issuer: "https://id.example.test", Subject: "operator-1", Label: "Ada Operator",
+		Roles: []adminauth.Role{adminauth.RoleOperator}, Permissions: []string{"admin.read"},
+	})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	srv.ConfigureAdminAuth(adminauth.Config{
+		Mode: adminauth.ModeOIDC, CookieName: "tenancit_session", AdminOrigin: "https://tenancit.example.test",
+		BreakGlass: adminauth.BreakGlassConfig{Enabled: true, TokenHash: adminauth.HashCredential("break-glass-test-token"), Version: "test-current"},
+	}, nil, sessions)
+	handler := srv.Routes(nil)
+	request := httptest.NewRequest(http.MethodGet, "/v1/admin/audit-events", nil)
+	request.AddCookie(&http.Cookie{Name: "tenancit_session", Value: created.Token})
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body)
+	}
+
+	var actorKind, actorIssuer, actorSubject, actorLabel string
+	if err := srv.DB.QueryRow(context.Background(), `
+		SELECT actor_kind, COALESCE(actor_issuer, ''), actor_subject, COALESCE(actor_label, '')
+		FROM admin_audit_events WHERE action = 'admin.request_denied'
+		ORDER BY occurred_at DESC, id DESC LIMIT 1
+	`).Scan(&actorKind, &actorIssuer, &actorSubject, &actorLabel); err != nil {
+		t.Fatalf("query denied audit: %v", err)
+	}
+	if actorKind != "oidc_user" || actorIssuer != "https://id.example.test" || actorSubject != "operator-1" || actorLabel != "Ada Operator" {
+		t.Fatalf("audit actor=%q/%q/%q/%q", actorKind, actorIssuer, actorSubject, actorLabel)
+	}
+
+	breakGlassRequest := httptest.NewRequest(http.MethodGet, "/v1/admin/overview", nil)
+	breakGlassRequest.Header.Set("Authorization", "Bearer break-glass-test-token")
+	breakGlassRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(breakGlassRecorder, breakGlassRequest)
+	if breakGlassRecorder.Code != http.StatusOK {
+		t.Fatalf("break-glass status=%d body=%s", breakGlassRecorder.Code, breakGlassRecorder.Body)
+	}
+	var breakGlassSubject string
+	if err := srv.DB.QueryRow(context.Background(), `
+		SELECT actor_subject FROM admin_audit_events
+		WHERE action = 'break_glass.request_succeeded' ORDER BY occurred_at DESC, id DESC LIMIT 1
+	`).Scan(&breakGlassSubject); err != nil {
+		t.Fatalf("query break-glass audit: %v", err)
+	}
+	if breakGlassSubject != "admin-token:test-current" {
+		t.Fatalf("break-glass actor=%q", breakGlassSubject)
 	}
 }
 

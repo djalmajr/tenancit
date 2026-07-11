@@ -43,7 +43,14 @@ type Config struct {
 	SessionAbsolute time.Duration
 	SessionIdle     time.Duration
 	LegacyToken     string
+	BreakGlass      BreakGlassConfig
 	OIDC            OIDCConfig
+}
+
+type BreakGlassConfig struct {
+	Enabled   bool
+	TokenHash string
+	Version   string
 }
 
 // LoadConfig validates the complete administrative authentication boundary.
@@ -84,6 +91,24 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 }
 
 func loadOIDCConfig(cfg Config, getenv func(string) string) (Config, error) {
+	breakGlassEnabled, err := parseExplicitBool("TENANCIT_BREAK_GLASS_ENABLED", getenv("TENANCIT_BREAK_GLASS_ENABLED"))
+	if err != nil {
+		return Config{}, err
+	}
+	breakGlassToken := strings.TrimSpace(getenv("TENANCIT_ADMIN_TOKEN"))
+	breakGlassVersion := strings.TrimSpace(getenv("TENANCIT_BREAK_GLASS_VERSION"))
+	if !breakGlassEnabled && (breakGlassToken != "" || breakGlassVersion != "") {
+		return Config{}, errors.New("break-glass token or version requires TENANCIT_BREAK_GLASS_ENABLED=true")
+	}
+	if breakGlassEnabled {
+		if len(breakGlassToken) < 32 {
+			return Config{}, errors.New("TENANCIT_ADMIN_TOKEN must contain at least 32 characters for break-glass")
+		}
+		if breakGlassVersion == "" {
+			return Config{}, errors.New("TENANCIT_BREAK_GLASS_VERSION is required when break-glass is enabled")
+		}
+		cfg.BreakGlass = BreakGlassConfig{Enabled: true, TokenHash: HashCredential(breakGlassToken), Version: breakGlassVersion}
+	}
 	origin, err := validateEndpoint("TENANCIT_ADMIN_ORIGIN", getenv("TENANCIT_ADMIN_ORIGIN"), cfg.DevMode, true)
 	if err != nil {
 		return Config{}, err
@@ -124,6 +149,17 @@ func loadOIDCConfig(cfg Config, getenv func(string) string) (Config, error) {
 		RoleMappings: roleMappings,
 	}
 	return cfg, nil
+}
+
+func parseExplicitBool(name, raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "false":
+		return false, nil
+	case "true":
+		return true, nil
+	default:
+		return false, fmt.Errorf("%s must be true or false", name)
+	}
 }
 
 func validateEndpoint(name, raw string, devMode, originOnly bool) (*url.URL, error) {

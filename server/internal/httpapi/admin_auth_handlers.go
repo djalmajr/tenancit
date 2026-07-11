@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type AdminAuthRuntime struct {
@@ -45,6 +47,7 @@ func (s *Server) completeOIDCLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	completed, err := s.AdminAuth.OIDC.Complete(r.Context(), r.URL.Query().Get("state"), r.URL.Query().Get("code"))
 	if err != nil {
+		slog.Warn("OIDC callback rejected", "request_id", middleware.GetReqID(r.Context()), "failure_stage", adminauth.FailureStage(err), "provider_failure_stage", adminauth.ProviderFailureStage(err))
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "oidc_callback_invalid"})
 		return
 	}

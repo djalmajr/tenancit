@@ -13,8 +13,15 @@
 | `TENANCIT_DATABASE_URL`
 | DSN PostgreSQL. Obrigatória.
 
+| `TENANCIT_ADMIN_AUTH_MODE`
+| `oidc` ou `legacy_shared_token`; obrigatório e validado no boot.
+
+| `TENANCIT_ADMIN_ORIGIN`, `TENANCIT_OIDC_*`
+| Origin, issuer, client confidencial, role claim e mappings; obrigatórios em OIDC.
+
 | `TENANCIT_ADMIN_TOKEN`
-| Token de acesso ao painel e `/v1/admin/*`. Obrigatória.
+| Obrigatório no modo legado dev. Em OIDC, só é aceito com
+  `TENANCIT_BREAK_GLASS_ENABLED=true`, versão declarada e ao menos 32 caracteres.
 
 | `TENANCIT_AES_KEY`
 | Chave AES-256-GCM atual em base64. Obrigatória.
@@ -35,6 +42,7 @@ make test
 make test-go
 make test-go-strict
 make test-web
+make e2e-oidc
 ----
 
 `make test-go` roda `go vet ./...` e `go test ./...`. Os testes HTTP/store usam
@@ -46,6 +54,8 @@ não puder iniciar o PostgreSQL efêmero, o gate falha em vez de pular a cobertu
 e a suíte Vitest. `make test` é o gate local padrão e combina Go, lint, typecheck
 e testes web. Na CI, use o modo estrito para que indisponibilidade do Docker seja
 visível como falha.
+`make e2e-oidc` sobe PostgreSQL, Valkey e Dex descartáveis e prova login OIDC,
+sessão opaca, CSRF, logout/revogação e break-glass least-privilege sem retries.
 
 ==== Healthcheck
 
@@ -63,7 +73,8 @@ Resposta esperada:
 
 ==== Operação segura
 
-* Guarde `TENANCIT_ADMIN_TOKEN`, `TENANCIT_AES_KEY` e API client tokens em secret manager.
+* Guarde client secret OIDC, eventual token break-glass, `TENANCIT_AES_KEY` e
+  API client tokens em secret manager.
 * Rotacione API clients revogando o antigo e criando um novo.
 * Não reutilize a chave AES de demo do compose.
 * Exponha `/v1/resolve` apenas por TLS.

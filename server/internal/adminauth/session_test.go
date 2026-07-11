@@ -103,6 +103,31 @@ func TestSessionManagerAuthenticatesByHashAndValidatesCSRF(t *testing.T) {
 	}
 }
 
+func TestSessionManagerNeverAdoptsAPreexistingSessionCredential(t *testing.T) {
+	store := &fakeSessionStore{}
+	now := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+	randomBytes := make([]byte, 256)
+	for index := range randomBytes {
+		randomBytes[index] = byte(index)
+	}
+	manager := NewSessionManager(store, testCryptor(t), bytes.NewReader(randomBytes), func() time.Time { return now }, 8*time.Hour, 30*time.Minute)
+	identity := SessionIdentity{
+		Issuer: "https://id.example.test", Subject: "user-1",
+		Roles: []Role{RoleViewer}, Permissions: []string{"admin.read"},
+	}
+	first, err := manager.Create(context.Background(), identity)
+	if err != nil {
+		t.Fatalf("first session: %v", err)
+	}
+	second, err := manager.Create(context.Background(), identity)
+	if err != nil {
+		t.Fatalf("second session: %v", err)
+	}
+	if first.Token == second.Token || first.CSRFToken == second.CSRFToken {
+		t.Fatal("a new login reused a preexisting session credential")
+	}
+}
+
 func paramsToUUID() uuid.UUID {
 	return uuid.MustParse("11111111-1111-4111-8111-111111111111")
 }

@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `c5424d6`
-- **Entrega Git anterior:** `c5424d6` está em `main`/`origin/main`
+- **Base observada:** `e3a1da5` mais a fatia OIDC/Dex em validação desta sessão
+- **Entrega Git anterior:** `e3a1da5` está em `main`; push da fatia corrente vem após os gates
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -22,10 +22,10 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
 - Leituras administrativas com `reveal=true` usam `Cache-Control: private,
   no-store` no servidor e `cache: "no-store"` no cliente, reduzindo a exposição
   de cleartext em caches do navegador.
-- A Admin API converte o token compartilhado validado no principal não secreto
-  `shared_admin_token/primary`, falha fechado sem principal/permissão e declara
-  autorização em cada rota. Reveal, hard delete e gestão de API clients possuem
-  permissões próprias, preservando o contrato atual enquanto OIDC/RBAC não chega.
+- A Admin API usa Authorization Code + PKCE no backend, sessão opaca hash-only,
+  cookie `HttpOnly`, CSRF/origin e RBAC deny-by-default. OIDC audita `iss` +
+  `sub`; o bearer só permanece como modo legado dev ou break-glass opt-in,
+  versionado, hash-only e read-only.
 - Toda mutação administrativa e reveal bem-sucedidos escrevem auditoria
   append-only na mesma transação. Negativas/erros também são registrados sem
   headers, body ou query string; a consulta usa filtros exatos e cursor keyset.
@@ -43,8 +43,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   credencial cancela requests, desmonta observers e apaga dados protegidos.
 - As seis páginas de negócio carregam por rota lazy; budgets automáticos
   protegem o entry e impedem chunks acima de 500 kB.
-- O catálogo Playwright automatiza 15/15 flows e 126/126 passos em PostgreSQL
+- O catálogo Playwright automatiza 18/18 flows e 139/139 passos em PostgreSQL
   efêmero, cobrindo produto empacotado e Vite/proxy com cleanup verificado.
+  Um gate adicional usa Dex real para login/logout, sessão, CSRF e break-glass.
 - A imagem final aplica CSP/HSTS/nosniff/frame-deny/referrer/permissions headers.
 - Compose preserva PostgreSQL em volume nomeado; reset destrutivo exige
   confirmação explícita; smoke, bootstrap e backup/restore locais têm runbooks.
@@ -68,13 +69,13 @@ outro ambiente.
 |---|---|
 | Web lint | ESLint, zero warnings |
 | Web typecheck | `tsc --noEmit`, exit 0 |
-| Web unit | 19 arquivos / 70 testes, todos verdes |
+| Web unit | 19 arquivos / 73 testes, todos verdes |
 | Go estrito | `REQUIRE_DB_TESTS=1 go test -count=1 ./...`, incluindo testcontainers, verde |
 | Produto | Docker multi-stage com lockfile frozen, SPA + binário Go, verde |
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
 | HTTP empacotado | `/` e `/healthz` 200; headers defensivos presentes; `reveal=true` com `private, no-store` |
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
-| Catálogo E2E | 15/15 flows, 126/126 passos; três runs retry-zero em stacks novas abaixo de 22 s cada |
+| Catálogo E2E | 18/18 testes + route smoke Vite, retry-zero; OIDC/Dex 1/1 retry-zero |
 | Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
 | Browser | Vite `:5180` validado em login, dashboard, API clients, token one-shot, snippets e hard delete; console final sem erros |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
@@ -88,6 +89,7 @@ make test-web
 make test-db
 make build
 make e2e
+make e2e-oidc
 make e2e-stability
 make benchmark-scale
 docker compose config
@@ -104,15 +106,15 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
 |---|---|---|
 | Produto autônomo, secrets e fronteiras atuais | [ADRs 0001–0004](adr/README.md) | Aceito/implementado |
 | Principal administrativo e autorização por rota | [Plano](../.agents/plans/admin-principal-authorization-foundation.md) | Implementado para o token compartilhado |
-| Identidade humana admin | [ADR 0005](adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Proposto; não implementado |
-| Auditoria admin append-only | [Design](developers/design/admin-audit-log.md) | Implementada para token compartilhado; OIDC futuro |
+| Identidade humana admin | [ADR 0005](adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Implementada e validada com Dex; ativação real depende do IdP |
+| Auditoria admin append-only | [Design](developers/design/admin-audit-log.md) | Principal legado, OIDC e break-glass implementados |
 | Política de API clients | [Design](developers/design/api-client-policy.md) / [ADR 0006](adr/0006-valkey-rate-limit-global.md) | Implementada; contract schema v5 |
 | Rewrap AES | [Design](developers/design/aes-key-rewrap.md) / [runbook](runbooks/aes-key-rewrap.md) / [plano 022](../plans/022-aes-key-rewrap-spike.md) | Spike concluído; job não implementado |
 | Trajetória e dependências | [Roadmap](business/04-escopo-e-roadmap.adoc) | Atualizado |
 
 ## Decisões externas ainda necessárias
 
-1. **Identidade:** IdP, issuer/audience, claims/grupos, roles e origin de produção.
+1. **Ativação de identidade:** IdP, issuer/audience, claims/grupos, roles e origin de produção.
 2. **Topologia:** alvo de deploy, ingress/TLS, DNS, secret manager, quantidade de
    réplicas e trusted proxies. CIDR não deve ser habilitado antes desse desenho.
 3. **Auditoria:** retenção organizacional e separação dos roles PostgreSQL de
@@ -120,9 +122,9 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
 5. **Rewrap:** implementação do CLI/job, tamanho de lote e ensaio integral em um
    restore representativo antes de qualquer rotação real.
 
-Essas dependências impedem afirmar que deploy real, OIDC ou rotação AES estão
-entregues. Auditoria, governança de clients e rate limit global estão entregues
-no produto e validados localmente; ainda exigem configuração segura do alvo.
+Essas dependências impedem afirmar que o deploy/IdP real ou a rotação AES estão
+ativados. O contrato OIDC, auditoria, governança de clients e rate limit global
+estão implementados e validados localmente; ainda exigem configuração do alvo.
 
 ## Próxima sequência recomendada
 
@@ -131,8 +133,7 @@ O plano persistente e decomposto para essa sequência está em
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
 1. Estabilizar a CI remota e manter a documentação reconciliada com `main`.
-2. Aprovar e entregar ADR 0005 com OIDC/sessões/CSRF/RBAC, propagando o novo
-   principal para a auditoria já existente.
+2. Entregar governança de sessões/settings e fluxos de revogação administrativa.
 3. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
    primeiro alvo.
 4. Escolher o primeiro alvo e validar o
@@ -150,6 +151,6 @@ baseado também na análise das novidades do reference implementation em 2026-07
   cardinalidade real ou prevista antes de abrir o epic de paginação.
 - O runbook de deploy continua `PLANO` até existir um alvo. Não foram copiadas
   credenciais, CIDRs, host networking ou automações específicas do reference implementation.
-- A fundação de autorização não identifica uma pessoa: até a decisão e entrega
-  de OIDC, toda ação administrativa continua atribuída ao ator técnico
-  `shared_admin_token/primary`.
+- A fixture Dex prova identidade humana; a atribuição real depende de ativar um
+  IdP corporativo com mappings revisados. O modo legado continua explicitamente
+  técnico e nunca é apresentado como pessoa.

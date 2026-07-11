@@ -36,7 +36,10 @@ servidor falha de forma explícita quando uma configuração obrigatória não e
 | --- | --- |
 | `TENANCIT_ADDR` | Endereço do servidor HTTP; default `:8080` |
 | `TENANCIT_DATABASE_URL` | DSN PostgreSQL |
-| `TENANCIT_ADMIN_TOKEN` | Bearer token da API administrativa |
+| `TENANCIT_ADMIN_AUTH_MODE` | `oidc` em operação real; `legacy_shared_token` apenas em dev explícito |
+| `TENANCIT_ADMIN_ORIGIN` | Origin público usado por callback e defesa CSRF no modo OIDC |
+| `TENANCIT_OIDC_*` | Issuer, client confidencial, claim e mapeamento fechado de roles |
+| `TENANCIT_ADMIN_TOKEN` | Token somente de dev legado ou break-glass OIDC explicitamente habilitado |
 | `TENANCIT_AES_KEY` | Chave AES-256 atual, 32 bytes em base64 |
 | `TENANCIT_AES_KEY_VERSION` | Versão numérica da chave atual |
 | `TENANCIT_AES_KEY_V<n>` | Chave adicional do keyring para decrypt/cutover |
@@ -47,6 +50,7 @@ servidor falha de forma explícita quando uma configuração obrigatória não e
 make test          # Go, ESLint, typecheck e Vitest
 make test-db       # mesmo gate Go, exigindo os testes PostgreSQL
 make build         # SPA embutida no binário Go
+make e2e-oidc      # Dex descartável: OIDC, sessão, CSRF, logout e break-glass
 make sqlc          # regenera acesso tipado ao banco
 make smoke         # smoke autenticado pós-deploy, com criação e cleanup
 ```

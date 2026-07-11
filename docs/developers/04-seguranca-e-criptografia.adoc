@@ -10,8 +10,8 @@ Há duas fronteiras independentes:
 | Superfície | Credencial | Propósito
 
 | `/v1/admin/*`
-| `TENANCIT_ADMIN_TOKEN`
-| Operação humana/admin e bootstrap de API clients.
+| Sessão OIDC opaca + CSRF/origin; bearer somente para break-glass explícito
+| Operação humana identificada por `iss` + `sub`, com RBAC.
 
 | `/v1/identify`
 | Token de `api_clients`
@@ -24,14 +24,14 @@ Há duas fronteiras independentes:
   retornar segredos descriptografados sobre TLS.
 |===
 
-`TENANCIT_ADMIN_TOKEN` não é persistido no banco. O servidor guarda em memória apenas
-o hash SHA-256 para comparação. API clients são persistidos em `api_clients`
-com hash SHA-256; o token bruto é exibido uma única vez.
-
-Esse token compartilhado continua sendo o mecanismo *atual*. A evolução proposta
-em link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[ADR 0005]
-adota OIDC, sessões server-side, CSRF e RBAC e preserva o token somente como
-break-glass; ela ainda não está implementada.
+Sessões guardam somente hash do token opaco, expiram por limite absoluto e idle,
+podem ser revogadas imediatamente e nunca contêm token do IdP. O token CSRF é
+hash-only para validação e cifrado apenas para ser devolvido à sessão same-origin.
+`TENANCIT_ADMIN_TOKEN`, quando break-glass está explicitamente habilitado, é
+convertido em hash durante o boot; configuração parcial falha fechado.
+API clients são persistidos com hash SHA-256; o token bruto aparece uma vez.
+O contrato completo está na
+link:adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md[ADR 0005].
 
 Identify e resolve exigem autenticação mesmo tendo responsabilidades distintas.
 O `tenantSlug` propagado como `x-tenant-id` é identidade, não uma credencial: a

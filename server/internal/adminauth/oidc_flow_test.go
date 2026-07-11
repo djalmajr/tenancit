@@ -111,4 +111,7 @@ func TestOIDCManagerRejectsUnmappedRoleAndNonceMismatch(t *testing.T) {
 	if err := validateNonce(HashCredential("expected"), "other"); err == nil {
 		t.Fatal("nonce mismatch accepted")
 	}
+	if err := validateOIDCIdentity("https://id.example.test", "https://spoofed.example.test", "user-1"); err == nil {
+		t.Fatal("spoofed issuer accepted")
+	}
 }

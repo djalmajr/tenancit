@@ -1,7 +1,7 @@
 # Auditoria de ações administrativas
 
-- **Status:** Implementado para token compartilhado; OIDC permanece futuro
-- **Data:** 2026-07-09
+- **Status:** Implementado para token legado, OIDC e break-glass explícito
+- **Data:** 2026-07-11
 - **Escopo:** trilha append-only das ações na superfície `/v1/admin/*`
 - **Relacionados:** ADR 0004 (admin token e API clients), roadmap P1 (login
   humano e auditoria)
@@ -19,11 +19,10 @@ para autenticação humana.
 
 ## Princípios
 
-1. **Não inventar identidade.** O `TENANCIT_ADMIN_TOKEN` atual é compartilhado;
-   enquanto ele for o login cotidiano da SPA, seu ator é
-   `shared_admin_token/admin-token:primary`, não o e-mail de uma pessoa nem um
-   evento emergencial fictício.
-2. **Somente identidade autenticada pelo servidor.** Um futuro ator humano vem
+1. **Não inventar identidade.** O token legado de desenvolvimento é
+   `shared_admin_token/primary`; o token OIDC opt-in de recuperação é
+   `break_glass/admin-token:<version>`. Nenhum deles finge ser uma pessoa.
+2. **Somente identidade autenticada pelo servidor.** O ator humano vem
    de `iss` + `sub` de uma sessão OIDC validada. `X-Actor-Email` e outros headers
    fornecidos pelo cliente são ignorados para atribuição de autoria.
 3. **Sem ação sensível não auditada.** Mutações bem-sucedidas gravam o evento na
@@ -42,7 +41,7 @@ para autenticação humana.
 O middleware de autenticação deve colocar no contexto um principal verificado,
 consumido pelos handlers e pelo gravador de auditoria:
 
-| Campo | Token compartilhado atual | Break-glass futuro | Futuro OIDC |
+| Campo | Token legado dev | Break-glass explícito | OIDC |
 |---|---|---|---|
 | `actor_kind` | `shared_admin_token` | `break_glass` | `oidc_user` |
 | `actor_issuer` | `NULL` | `NULL` | valor exato de `iss` validado |
@@ -54,9 +53,9 @@ consumido pelos handlers e pelo gravador de auditoria:
 E-mail não é identificador porque pode mudar ou ser reciclado. O label é dado
 pessoal e segue a mesma retenção da auditoria.
 
-Enquanto só existir o token compartilhado, a trilha responde **qual credencial**
-agiu, mas não **qual pessoa** a usou. O painel e a documentação não devem afirmar
-o contrário. A migração para login humano deve:
+O modo legado responde apenas **qual credencial** agiu. No modo OIDC, a trilha
+preserva a identidade durável `iss` + `sub`; label continua sendo somente
+snapshot de exibição. A implementação:
 
 - validar assinatura, `iss`, `aud`, expiração e nonce/PKCE no backend;
 - criar sessão server-side com cookie `Secure`, `HttpOnly` e `SameSite`;
