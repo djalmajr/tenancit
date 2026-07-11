@@ -509,6 +509,7 @@ export default function ApiClients() {
               <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2.5">
                 <Input
                   aria-label={t("apiClients.token")}
+                  autoFocus
                   className="min-w-0 flex-1 border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent"
                   readOnly
                   tabIndex={0}
