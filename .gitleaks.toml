@@ -11,5 +11,4 @@ regexTarget = "secret"
 regexes = [
   '''^MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=$''',
   '''^0123456789abcdef0123456789abcdef$''',
-  '''^tnc_fixture_value_long$''',
 ]

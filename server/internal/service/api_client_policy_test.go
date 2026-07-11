@@ -54,7 +54,7 @@ func TestEffectiveAPIClientStatus(t *testing.T) {
 func TestAPITokenPreviewDoesNotExposeWholeToken(t *testing.T) {
 	token := "tnc_fixture_value_long"
 	preview := APITokenPreview(token)
-	if preview == token || preview != "tnc_01234567…" {
+	if preview == token || preview != "tnc_fixture_…" {
 		t.Fatalf("APITokenPreview() = %q", preview)
 	}
 }
