@@ -16,13 +16,15 @@ const (
 )
 
 const (
-	SessionAbsoluteHours    = "session_absolute_hours"
-	SessionIdleMinutes      = "session_idle_minutes"
-	APIClientDefaultRPM     = "api_client_default_rpm"
-	APIClientDefaultTTLDays = "api_client_default_ttl_days"
-	UsageRetentionMonths    = "usage_retention_months"
-	AuditRetentionDays      = "audit_retention_days"
-	DefaultLocale           = "default_locale"
+	SessionAbsoluteHours         = "session_absolute_hours"
+	SessionIdleMinutes           = "session_idle_minutes"
+	APIClientDefaultRPM          = "api_client_default_rpm"
+	APIClientDefaultTTLDays      = "api_client_default_ttl_days"
+	UsageRetentionMonths         = "usage_retention_months"
+	AuditRetentionDays           = "audit_retention_days"
+	DefaultLocale                = "default_locale"
+	WebhookDeliveryRetentionDays = "webhook_delivery_retention_days"
+	OutboxEventRetentionDays     = "outbox_event_retention_days"
 )
 
 type Definition struct {
@@ -40,12 +42,14 @@ func integerDefinition(key, defaultValue, owner string, minimum, maximum int) De
 }
 
 var registry = map[string]Definition{
-	SessionAbsoluteHours:    integerDefinition(SessionAbsoluteHours, "8", "security", 1, 24),
-	SessionIdleMinutes:      integerDefinition(SessionIdleMinutes, "30", "security", 5, 120),
-	APIClientDefaultRPM:     integerDefinition(APIClientDefaultRPM, "300", "platform", 1, 10000),
-	APIClientDefaultTTLDays: integerDefinition(APIClientDefaultTTLDays, "90", "platform", 1, 365),
-	UsageRetentionMonths:    integerDefinition(UsageRetentionMonths, "6", "operations", 1, 24),
-	AuditRetentionDays:      integerDefinition(AuditRetentionDays, "180", "security", 30, 730),
+	SessionAbsoluteHours:         integerDefinition(SessionAbsoluteHours, "8", "security", 1, 24),
+	SessionIdleMinutes:           integerDefinition(SessionIdleMinutes, "30", "security", 5, 120),
+	APIClientDefaultRPM:          integerDefinition(APIClientDefaultRPM, "300", "platform", 1, 10000),
+	APIClientDefaultTTLDays:      integerDefinition(APIClientDefaultTTLDays, "90", "platform", 1, 365),
+	UsageRetentionMonths:         integerDefinition(UsageRetentionMonths, "6", "operations", 1, 24),
+	WebhookDeliveryRetentionDays: integerDefinition(WebhookDeliveryRetentionDays, "30", "operations", 7, 365),
+	OutboxEventRetentionDays:     integerDefinition(OutboxEventRetentionDays, "90", "operations", 30, 730),
+	AuditRetentionDays:           integerDefinition(AuditRetentionDays, "180", "security", 30, 730),
 	DefaultLocale: {
 		Key: DefaultLocale, Type: TypeEnum, DefaultValue: "pt-BR", Owner: "product",
 		Options: []string{"pt-BR", "en-US", "es-ES"},
@@ -111,6 +115,11 @@ func Validate(updates map[string]string, current map[string]string) (map[string]
 	idleMinutes, _ := strconv.Atoi(merged[SessionIdleMinutes])
 	if idleMinutes > absoluteHours*60 {
 		return nil, errors.New("session idle duration cannot exceed absolute duration")
+	}
+	deliveryDays, _ := strconv.Atoi(merged[WebhookDeliveryRetentionDays])
+	eventDays, _ := strconv.Atoi(merged[OutboxEventRetentionDays])
+	if eventDays < deliveryDays {
+		return nil, errors.New("outbox event retention cannot be shorter than delivery retention")
 	}
 	return normalized, nil
 }

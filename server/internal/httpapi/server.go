@@ -10,6 +10,7 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/service"
 	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/webhook"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,6 +29,7 @@ type Server struct {
 	AdminAuth      *AdminAuthRuntime
 	AdminAuthStore *adminauth.PostgresSessionStore
 	Settings       *appsettings.Repository
+	Webhooks       *webhook.TargetRepository
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
@@ -43,6 +45,7 @@ func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server
 		Usage:          discardUsageRecorder{},
 		Limiter:        ratelimit.NewMemory(time.Now),
 		Settings:       appsettings.NewRepository(pool, time.Now),
+		Webhooks:       webhook.NewTargetRepository(pool, c, nil, nil, false),
 	}
 }
 
@@ -72,6 +75,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		cr.With(RequireAPIClientScope(service.ScopeTenantIdentify), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "identify", s.Now), RecordAPIUsage(s.Usage, "identify", s.Now)).Get("/v1/identify", s.handleIdentify)
 		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve", s.handleResolve)
 		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve/{hostname}/resources/{definitionKey}", s.handleResolveOne)
+		cr.With(RequireAPIClientScope(service.ScopeEventsRead), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "events", s.Now), RecordAPIUsage(s.Usage, "events", s.Now)).Get("/v1/events", s.listChangeFeed)
 	})
 
 	r.Route("/v1/admin", func(ar chi.Router) {
@@ -129,6 +133,12 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.With(requireAdminPermission(permissionSessionManage)).Get("/sessions", s.listAdminSessions)
 		ar.With(requireAdminPermission(permissionSessionManage)).Delete("/sessions/{id}", s.revokeAdminSession)
 		ar.With(requireAdminPermission(permissionSessionManage)).Post("/sessions/revoke-principal", s.revokeAdminPrincipalSessions)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Get("/webhook-targets", s.listWebhookTargets)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Post("/webhook-targets", s.createWebhookTarget)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Put("/webhook-targets/{id}/status", s.setWebhookTargetStatus)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Get("/webhook-deliveries", s.listWebhookDeliveries)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Post("/webhook-deliveries/{id}/replay", s.replayWebhookDelivery)
+		ar.With(requireAdminPermission(permissionIntegrationManage)).Get("/webhook-overview", s.webhookOverview)
 	})
 
 	if staticHandler != nil {
@@ -139,6 +149,12 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 
 func (s *Server) SetAdminAuthStore(store *adminauth.PostgresSessionStore) {
 	s.AdminAuthStore = store
+}
+
+func (s *Server) SetWebhookTargets(repository *webhook.TargetRepository) {
+	if repository != nil {
+		s.Webhooks = repository
+	}
 }
 
 func (s *Server) ConfigureAdminAuth(config adminauth.Config, oidc *adminauth.OIDCManager, sessions *adminauth.SessionManager) {

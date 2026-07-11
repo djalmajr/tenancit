@@ -9,6 +9,7 @@ const captureFailureScreenshots = process.env.TENANCIT_E2E_EPHEMERAL === "true";
 const outputDir = process.env.TENANCIT_E2E_OUTPUT_DIR ?? `../output/playwright/direct-${process.pid}`;
 const chromiumIgnoredTests = [
   /bootstrap\.e2e\.test\.ts/,
+  ...(process.env.TENANCIT_E2E_WEBHOOK_RECEIVER_BASE_URL ? [] : [/webhook-delivery\.e2e\.test\.ts/]),
   ...(process.env.TENANCIT_E2E_AUTH_MODE === "oidc" ? [] : [/oidc-.*\.e2e\.test\.ts/]),
 ];
 

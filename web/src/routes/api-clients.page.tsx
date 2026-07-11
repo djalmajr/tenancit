@@ -40,7 +40,7 @@ export default function ApiClients() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<Array<"tenant:identify" | "resource:resolve">>([
+  const [scopes, setScopes] = useState<Array<"tenant:identify" | "resource:resolve" | "events:read">>([
     "tenant:identify",
     "resource:resolve",
   ]);
@@ -119,7 +119,7 @@ export default function ApiClients() {
     {
       accessorFn: (client) => client.scopes.join(", "),
       id: "scopes",
-      filterFn: (row, _id, value) => (value as Array<"tenant:identify" | "resource:resolve">).some((scope) => row.original.scopes.includes(scope)),
+      filterFn: (row, _id, value) => (value as Array<"tenant:identify" | "resource:resolve" | "events:read">).some((scope) => row.original.scopes.includes(scope)),
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("apiClients.scopes")} labels={sortLabels} />,
       cell: ({ row }) => <div className="flex flex-wrap gap-1">{row.original.scopes.map((scope) => <Badge key={scope} variant="outline">{scope}</Badge>)}</div>,
       meta: { label: t("apiClients.scopes") },
@@ -228,7 +228,7 @@ export default function ApiClients() {
   function startEdit(client: ApiClient) {
     setEditingClient(client);
     setName(client.name);
-    setScopes(client.scopes as Array<"tenant:identify" | "resource:resolve">);
+    setScopes(client.scopes as Array<"tenant:identify" | "resource:resolve" | "events:read">);
     setRpmLimit(String(client.rpm_limit ?? 300));
     const remainingDays = client.expires_at
       ? Math.max(30, Math.ceil((Date.parse(client.expires_at) - Date.now()) / (24 * 60 * 60 * 1000)))
@@ -326,7 +326,7 @@ export default function ApiClients() {
       setIsLifecyclePending(false);
     }
   }
-  function toggleScope(scope: "tenant:identify" | "resource:resolve") {
+  function toggleScope(scope: "tenant:identify" | "resource:resolve" | "events:read") {
     setScopes((current) => current.includes(scope)
       ? current.filter((candidate) => candidate !== scope)
       : [...current, scope]);
@@ -390,7 +390,7 @@ export default function ApiClients() {
             emptyLabel={t("dataTable.noResults")}
             facets={[
               { columnId: "status", multiple: true, options: ["active", "expired", "revoked"].map((value) => ({ value, label: formatStatus(value, t) })), title: t("apiClients.filterStatus") },
-              { columnId: "scopes", multiple: true, options: ["tenant:identify", "resource:resolve"].map((value) => ({ value, label: value })), title: t("apiClients.filterScope") },
+              { columnId: "scopes", multiple: true, options: ["tenant:identify", "resource:resolve", "events:read"].map((value) => ({ value, label: value })), title: t("apiClients.filterScope") },
               { columnId: "flags", multiple: true, options: [{ value: "expiring", label: t("apiClients.expiringSoon") }, { value: "legacy", label: t("apiClients.legacy") }, { value: "inactive", label: t("apiClients.inactive") }], title: t("apiClients.filters") },
             ]}
             searchLabel={t("apiClients.search")}
@@ -478,6 +478,10 @@ export default function ApiClients() {
                     onCheckedChange={() => toggleScope("resource:resolve")}
                   />
                   <span><strong>{t("apiClients.scopeResolve")}</strong><span className="block text-muted-foreground">{t("apiClients.scopeResolveDescription")}</span></span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border p-3 text-sm" htmlFor="api-client-scope-events">
+                  <Checkbox aria-label={t("apiClients.scopeEvents")} id="api-client-scope-events" checked={scopes.includes("events:read")} className="mt-0.5" onCheckedChange={() => toggleScope("events:read")} />
+                  <span><strong>{t("apiClients.scopeEvents")}</strong><span className="block text-muted-foreground">{t("apiClients.scopeEventsDescription")}</span></span>
                 </label>
               </fieldset>
               <div className="grid gap-3 sm:grid-cols-2">

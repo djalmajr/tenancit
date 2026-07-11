@@ -17,6 +17,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Webhook,
   type LucideIcon,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -69,6 +70,7 @@ const NAV: Array<{ exact?: boolean; icon: LucideIcon; labelKey: TranslationKey; 
   { icon: ScrollText, labelKey: "nav.audit", to: "/audit-events" },
   { icon: ShieldCheck, labelKey: "nav.sessions", to: "/security/sessions" },
   { icon: Settings, labelKey: "nav.settings", to: "/operations/settings" },
+  { icon: Webhook, labelKey: "nav.integrations", to: "/integrations/webhooks" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -526,5 +528,6 @@ function pageLabel(pathname: string, t: (key: TranslationKey) => string): string
   if (pathname.startsWith("/audit-events")) return t("nav.audit");
   if (pathname.startsWith("/security/sessions")) return t("nav.sessions");
   if (pathname.startsWith("/operations/settings")) return t("nav.settings");
+  if (pathname.startsWith("/integrations/webhooks")) return t("nav.integrations");
   return "";
 }

@@ -254,10 +254,24 @@ export interface ApiClient {
 
 export interface CreateAPIClientInput {
   name: string;
-  scopes: Array<"tenant:identify" | "resource:resolve">;
+  scopes: Array<"tenant:identify" | "resource:resolve" | "events:read">;
   rpm_limit: number;
   expires_at: string;
 }
+
+export interface WebhookTarget {
+  id: string; name: string; format: "generic" | "slack" | "discord" | "teams";
+  status: "active" | "disabled"; endpoint: string; consecutive_failures: number;
+  circuit_open_until?: string; created_at: string; updated_at: string;
+}
+export interface CreatedWebhookTarget extends WebhookTarget { signing_secret: string }
+export interface WebhookDelivery {
+  id: string; event_id: string; event_type: string; target_id: string; target_name: string;
+  status: "pending" | "delivering" | "retry" | "delivered" | "dead_letter";
+  attempt_count: number; next_attempt_at: string; last_http_status?: number;
+  last_error_code?: string; delivered_at?: string; created_at: string;
+}
+export interface WebhookOverview { targets:number;pending:number;retry:number;delivered:number;dead_letter:number;open_circuits:number }
 
 export interface APIClientUsageRecord {
   day: string;
@@ -437,4 +451,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ issuer, subject }),
     }),
+  listWebhookTargets: (signal?: AbortSignal) => req<WebhookTarget[]>("/webhook-targets", { signal }),
+  createWebhookTarget: (body: { name: string; url: string; format: WebhookTarget["format"] }) =>
+    req<CreatedWebhookTarget>("/webhook-targets", { method: "POST", cache: "no-store", body: JSON.stringify(body) }),
+  setWebhookTargetStatus: (id: string, status: WebhookTarget["status"]) =>
+    req<void>(`/webhook-targets/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+  listWebhookDeliveries: (status = "", signal?: AbortSignal) =>
+    req<WebhookDelivery[]>(`/webhook-deliveries${status ? `?status=${status}` : ""}`, { signal }),
+  replayWebhookDelivery: (id: string) => req<void>(`/webhook-deliveries/${id}/replay`, { method: "POST" }),
+  getWebhookOverview: (signal?: AbortSignal) => req<WebhookOverview>("/webhook-overview", { signal }),
 };

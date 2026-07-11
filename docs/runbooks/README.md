@@ -12,6 +12,7 @@ executado de ponta a ponta no ambiente indicado.
 | [Valkey e rate limit](valkey-rate-limit.md) | VALIDADO | Compose local e teste multi-instância, 2026-07-10 |
 | [Migração de API clients](api-client-governance-migration.md) | VALIDADO | PostgreSQL descartável, schema v5, 2026-07-10 |
 | [Auditoria e retenção](admin-audit-and-retention.md) | VALIDADO | PostgreSQL descartável, 2026-07-10 |
+| [Entrega de webhooks](webhook-delivery.md) | VALIDADO | receiver Compose + assinatura E2E, 2026-07-11 |
 | [Deploy em host](container-deploy.md) | PLANO | aguarda definição do primeiro host/alvo |
 | [Rewrap de chave AES](aes-key-rewrap.md) | RASCUNHO | aguarda implementação e ensaio do job |
 

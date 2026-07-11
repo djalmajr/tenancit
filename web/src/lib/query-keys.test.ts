@@ -14,6 +14,9 @@ describe("admin query keys", () => {
       adminQueryKeys.apiClients(),
       adminQueryKeys.sessions(),
       adminQueryKeys.settings(),
+      adminQueryKeys.webhookTargets(),
+      adminQueryKeys.webhookDeliveries(),
+      adminQueryKeys.webhookOverview(),
     ];
 
     expect(keys.every(([root]) => root === "admin")).toBe(true);

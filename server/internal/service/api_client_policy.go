@@ -8,6 +8,7 @@ import (
 const (
 	ScopeTenantIdentify  = "tenant:identify"
 	ScopeResourceResolve = "resource:resolve"
+	ScopeEventsRead      = "events:read"
 )
 
 var (
@@ -22,7 +23,7 @@ func ValidateAPIClientPolicy(now time.Time, scopes []string, rpm int32, expiresA
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve {
+		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve && scope != ScopeEventsRead {
 			return ErrInvalidScope
 		}
 		if _, duplicate := seen[scope]; duplicate {

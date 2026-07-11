@@ -13,7 +13,7 @@ import { adminQueryKeys } from "@/lib/query-keys";
 const SECTION_KEYS = {
   security: ["session_absolute_hours", "session_idle_minutes"],
   apiClients: ["api_client_default_rpm", "api_client_default_ttl_days"],
-  retention: ["usage_retention_months", "audit_retention_days"],
+  retention: ["usage_retention_months", "audit_retention_days", "webhook_delivery_retention_days", "outbox_event_retention_days"],
   console: ["default_locale"],
 } as const;
 

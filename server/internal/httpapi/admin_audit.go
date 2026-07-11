@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/djalmajr/tenancit/server/internal/events"
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
@@ -103,7 +104,22 @@ func insertAdminAuditSuccess(
 		Result: "success", HttpMethod: r.Method, RouteTemplate: routeTemplate,
 		HttpStatus: int16(status), Metadata: metadata,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	draft, publish, err := events.FromAudit(action, targetType, targetID)
+	if err != nil || !publish {
+		return err
+	}
+	event, err := q.InsertOutboxEvent(r.Context(), db.InsertOutboxEventParams{
+		EventType: draft.Type, EventVersion: draft.Version,
+		AggregateType: draft.AggregateType, AggregateID: draft.AggregateID,
+		RequestID: middleware.GetReqID(r.Context()), Payload: draft.Payload,
+	})
+	if err != nil {
+		return err
+	}
+	return q.EnqueueOutboxDeliveries(r.Context(), event.ID)
 }
 
 func optionalString(value string) *string {

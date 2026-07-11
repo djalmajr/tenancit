@@ -40,6 +40,10 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 | `admin_settings`, `admin_settings_revision`
 | Valores não secretos de um registry fechado e sua revisão global para
   compare-and-set. Secrets de infraestrutura permanecem no ambiente/secret manager.
+
+| `outbox_events`, `webhook_targets`, `webhook_deliveries`, `webhook_dead_letters`
+| Eventos referenciais versionados, targets com URL/secret cifrados, estado de
+  lease/retry e DLQ reprocessável.
 |===
 
 ==== Invariantes

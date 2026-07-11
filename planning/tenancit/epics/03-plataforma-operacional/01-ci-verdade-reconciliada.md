@@ -41,3 +41,11 @@ descrevem capability implementada como pendente.
 
 `make lint-go`, `make test-web`, `make test-db`, `make build`, `make e2e-pr` e
 três execuções do workflow principal.
+
+## Evidência de fechamento
+
+Execuções consecutivas, sem rerun manual e com server/web/product/E2E verdes:
+
+- `29155460429` — `1b35798`;
+- `29156821526` — `29dbd37`;
+- `29157991584` — `d73ca6e` (inclui catálogo completo e OIDC 2/2).

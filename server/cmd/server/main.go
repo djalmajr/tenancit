@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/djalmajr/tenancit/server/internal/usage"
+	"github.com/djalmajr/tenancit/server/internal/webhook"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -61,6 +63,8 @@ func run() error {
 	}
 
 	srv := httpapi.NewServer(pool, cryptor, authConfig.LegacyToken)
+	allowWebhookLoopback := authConfig.DevMode && strings.EqualFold(strings.TrimSpace(os.Getenv("TENANCIT_WEBHOOK_ALLOW_LOOPBACK_HTTP")), "true")
+	srv.SetWebhookTargets(webhook.NewTargetRepository(pool, cryptor, nil, nil, allowWebhookLoopback))
 	authStore := adminauth.NewPostgresSessionStore(pool)
 	srv.SetAdminAuthStore(authStore)
 	srv.ConfigureAdminAuth(authConfig, nil, nil)
@@ -104,6 +108,9 @@ func run() error {
 	srv.SetUsageRecorder(usageCollector)
 	go usageCollector.Run(ctx)
 	go usage.RunRetention(ctx, db.New(pool), srv.Settings, time.Now, 24*time.Hour)
+	webhookWorker := webhook.NewWorker(webhook.NewDeliveryStore(pool), cryptor)
+	go webhookWorker.Run(ctx, time.Second)
+	go webhook.RunRetention(ctx, pool, srv.Settings, time.Now, 24*time.Hour)
 	httpServer := newHTTPServer(addr, srv.Routes(staticHandler))
 
 	go func() {

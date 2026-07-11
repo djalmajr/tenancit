@@ -10,21 +10,23 @@ import (
 type adminPermission string
 
 const (
-	permissionAdminRead        adminPermission = "admin.read"
-	permissionAuditRead        adminPermission = "audit.read"
-	permissionAPIClientManage  adminPermission = "api_client.manage"
-	permissionResourceWrite    adminPermission = "resource.write"
-	permissionSecretReveal     adminPermission = "secret.reveal"
-	permissionSessionManage    adminPermission = "session.manage"
-	permissionSettingsManage   adminPermission = "settings.manage"
-	permissionTenantHardDelete adminPermission = "tenant.hard_delete"
-	permissionTenantWrite      adminPermission = "tenant.write"
+	permissionAdminRead         adminPermission = "admin.read"
+	permissionAuditRead         adminPermission = "audit.read"
+	permissionAPIClientManage   adminPermission = "api_client.manage"
+	permissionIntegrationManage adminPermission = "integration.manage"
+	permissionResourceWrite     adminPermission = "resource.write"
+	permissionSecretReveal      adminPermission = "secret.reveal"
+	permissionSessionManage     adminPermission = "session.manage"
+	permissionSettingsManage    adminPermission = "settings.manage"
+	permissionTenantHardDelete  adminPermission = "tenant.hard_delete"
+	permissionTenantWrite       adminPermission = "tenant.write"
 )
 
 var sharedAdminPermissions = [...]adminPermission{
 	permissionAdminRead,
 	permissionAuditRead,
 	permissionAPIClientManage,
+	permissionIntegrationManage,
 	permissionResourceWrite,
 	permissionSecretReveal,
 	permissionSessionManage,
@@ -58,11 +60,13 @@ var permissionsByRole = map[adminRole][]adminPermission{
 		permissionTenantWrite,
 		permissionResourceWrite,
 		permissionAPIClientManage,
+		permissionIntegrationManage,
 	},
 	roleSecurityAdmin: {
 		permissionAdminRead,
 		permissionAuditRead,
 		permissionAPIClientManage,
+		permissionIntegrationManage,
 		permissionResourceWrite,
 		permissionSecretReveal,
 		permissionSessionManage,

@@ -8,6 +8,7 @@ func TestValidateRejectsUnknownSecretLikeAndCrossFieldValues(t *testing.T) {
 		{SessionAbsoluteHours: "1", SessionIdleMinutes: "120"},
 		{DefaultLocale: "fr-FR"},
 		{UsageRetentionMonths: "0"},
+		{WebhookDeliveryRetentionDays: "120", OutboxEventRetentionDays: "90"},
 	} {
 		if _, err := Validate(updates, nil); err == nil {
 			t.Fatalf("updates accepted: %v", updates)

@@ -153,6 +153,15 @@ describe("api client", () => {
     expect(new Headers(init?.headers).get("If-Match")).toBe('"settings-3"');
   });
 
+  it("creates webhook signing secrets through a no-store one-shot request", async () => {
+    const spy = mockFetch(() => new Response(JSON.stringify({ id: "target-1", signing_secret: "once" }), { status: 201 }));
+    await api.createWebhookTarget({ name: "receiver", url: "https://receiver.example/hook", format: "generic" });
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/v1/admin/webhook-targets");
+    expect(init?.method).toBe("POST");
+    expect(init?.cache).toBe("no-store");
+  });
+
   it("aborts stalled requests with a typed timeout error", async () => {
     vi.useFakeTimers();
     try {
@@ -188,6 +197,8 @@ describe("api client", () => {
       (signal) => api.listAPIClients(signal),
       (signal) => api.getSettings(signal),
       (signal) => api.listAdminSessions(signal),
+      (signal) => api.listWebhookTargets(signal),
+      (signal) => api.listWebhookDeliveries("", signal),
     ];
 
     for (const read of calls) {

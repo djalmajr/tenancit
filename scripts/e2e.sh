@@ -70,10 +70,12 @@ if [ "${TENANCIT_E2E_EXTERNAL:-0}" != "1" ]; then
   compose up -d --build
   product_port="$(compose port app-e2e 8080 | sed 's/.*://')"
   vite_port="$(compose port web-e2e 5180 | sed 's/.*://')"
+  receiver_port="$(compose port webhook-receiver-e2e 9090 | sed 's/.*://')"
   product_base_url="http://127.0.0.1:${product_port}"
   vite_base_url="http://127.0.0.1:${vite_port}"
   wait_until_ready "$product_base_url" "packaged product"
   wait_until_ready "$vite_base_url" "Vite proxy"
+  export TENANCIT_E2E_WEBHOOK_RECEIVER_BASE_URL="http://127.0.0.1:${receiver_port}"
 else
   if [ "${TENANCIT_E2E_EXTERNAL_MUTATIONS_ACK:-0}" != "1" ]; then
     echo "External E2E requires TENANCIT_E2E_EXTERNAL_MUTATIONS_ACK=1 and a dedicated empty disposable database." >&2

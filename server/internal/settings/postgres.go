@@ -44,6 +44,22 @@ func (r *Repository) UsageRetentionMonths(ctx context.Context) (int, error) {
 	return strconv.Atoi(snapshot.Values[UsageRetentionMonths])
 }
 
+func (r *Repository) WebhookRetention(ctx context.Context) (int, int, error) {
+	snapshot, err := r.Get(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	deliveries, err := strconv.Atoi(snapshot.Values[WebhookDeliveryRetentionDays])
+	if err != nil {
+		return 0, 0, err
+	}
+	events, err := strconv.Atoi(snapshot.Values[OutboxEventRetentionDays])
+	if err != nil {
+		return 0, 0, err
+	}
+	return deliveries, events, nil
+}
+
 type Snapshot struct {
 	Revision    int64             `json:"revision"`
 	Values      map[string]string `json:"values"`

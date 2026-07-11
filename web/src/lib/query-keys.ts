@@ -7,6 +7,9 @@ export const adminQueryKeys = {
   overview: () => [...adminQueryKeys.all, "overview"] as const,
   sessions: () => [...adminQueryKeys.all, "sessions"] as const,
   settings: () => [...adminQueryKeys.all, "settings"] as const,
+  webhookTargets: () => [...adminQueryKeys.all, "webhook-targets"] as const,
+  webhookDeliveries: () => [...adminQueryKeys.all, "webhook-deliveries"] as const,
+  webhookOverview: () => [...adminQueryKeys.all, "webhook-overview"] as const,
   tenant: (tenantId: string) =>
     [...adminQueryKeys.tenants(), "detail", tenantId] as const,
   tenantDomains: (tenantId: string) =>

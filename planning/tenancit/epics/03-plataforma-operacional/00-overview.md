@@ -35,10 +35,10 @@ server-side sem evidência de volume.
 
 | # | História | Objetivo observável | Tam. | Dependências | Estado |
 |---|---|---|---|---|---|
-| 01 | CI verde e verdade reconciliada | Pipeline confiável e docs compatíveis com `main` | M | — | em andamento |
+| 01 | CI verde e verdade reconciliada | Pipeline confiável e docs compatíveis com `main` | M | — | entregue; 3 runs verdes |
 | 02 | Sessões OIDC, CSRF e RBAC | Operador humano entra, age e encerra sessão individual | XL | 01 | entregue; ativação real depende do IdP |
-| 03 | Governança de sessões e settings | Administrador revoga sessões e altera políticas runtime seguras | L | 02 | pendente |
-| 04 | Outbox, webhooks e change feed | Consumidor recebe mudanças assinadas com retry/DLQ | XL | 01 | pendente |
+| 03 | Governança de sessões e settings | Administrador revoga sessões e altera políticas runtime seguras | L | 02 | entregue |
+| 04 | Outbox, webhooks e change feed | Consumidor recebe mudanças assinadas com retry/DLQ | XL | 01 | entregue |
 | 05 | Observabilidade e saúde operacional | Operador diagnostica dependências, jobs e SLOs sem secrets | L | 01, 04 | pendente |
 | 06 | Deploy, DB roles e continuidade | Ambiente alvo passa preflight, rollout, restore e rollback | XL | 02, 05 | pendente |
 | 07 | Rewrap AES executável | Operador recriptografa em lotes com dry-run e retomada | L | 01, 05, 06 | pendente |

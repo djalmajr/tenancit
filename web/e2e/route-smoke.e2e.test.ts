@@ -35,6 +35,7 @@ test("all business routes support navigation, deep links, and reload", async ({ 
       { path: "/audit-events", heading: "Auditoria administrativa" },
       { path: "/security/sessions", heading: "Sessões administrativas" },
       { path: "/operations/settings", heading: "Configurações operacionais" },
+      { path: "/integrations/webhooks", heading: "Webhooks e integrações" },
     ];
 
     for (const route of routes) {

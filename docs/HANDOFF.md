@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `29dbd37` mais governança de sessões/settings validada nesta sessão
-- **Entrega Git anterior:** `29dbd37` está em `main`; push da fatia corrente vem após os gates
+- **Base observada:** `d73ca6e` mais outbox/webhooks/change feed validado nesta sessão
+- **Entrega Git anterior:** `d73ca6e` está em `main`; push da fatia corrente vem após os gates
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -29,6 +29,8 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
 - O console lista sessões administrativas, distingue a atual e revoga outras
   imediatamente. Settings runtime não secretos usam registry fechado, revisão
   global/ETag, compare-and-set e auditoria na mesma transação.
+- Outbox transacional publica change feed `events:read` e webhooks HMAC com
+  targets cifrados, SSRF defense, lease, retry, circuito, DLQ/replay e retenção.
 - Toda mutação administrativa e reveal bem-sucedidos escrevem auditoria
   append-only na mesma transação. Negativas/erros também são registrados sem
   headers, body ou query string; a consulta usa filtros exatos e cursor keyset.
@@ -48,7 +50,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   protegem o entry e impedem chunks acima de 500 kB.
 - O catálogo Playwright automatiza 18/18 flows e 139/139 passos em PostgreSQL
   efêmero, cobrindo produto empacotado e Vite/proxy com cleanup verificado.
-  Um gate adicional usa Dex real para login/logout, sessão, CSRF e break-glass.
+  Um E2E vertical adicional entrega evento a um receiver real, recalcula HMAC e
+  remove seu tenant ao terminar; outro gate usa Dex real para login/logout,
+  sessão, CSRF e break-glass.
 - A imagem final aplica CSP/HSTS/nosniff/frame-deny/referrer/permissions headers.
 - Compose preserva PostgreSQL em volume nomeado; reset destrutivo exige
   confirmação explícita; smoke, bootstrap e backup/restore locais têm runbooks.
@@ -72,13 +76,13 @@ outro ambiente.
 |---|---|
 | Web lint | ESLint, zero warnings |
 | Web typecheck | `tsc --noEmit`, exit 0 |
-| Web unit | 19 arquivos / 76 testes, todos verdes |
+| Web unit | 19 arquivos / 78 testes, todos verdes |
 | Go estrito | `REQUIRE_DB_TESTS=1 go test -count=1 ./...`, incluindo testcontainers, verde |
 | Produto | Docker multi-stage com lockfile frozen, SPA + binário Go, verde |
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
 | HTTP empacotado | `/` e `/healthz` 200; headers defensivos presentes; `reveal=true` com `private, no-store` |
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
-| Catálogo E2E | 18/18 testes + route smoke Vite, retry-zero; OIDC/Dex 2/2 retry-zero |
+| Catálogo E2E | 19/19 testes empacotados (18 flows + receiver webhook) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
 | Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
 | Browser | Vite `:5180` validado em login, dashboard, API clients, token one-shot, snippets e hard delete; console final sem erros |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
@@ -135,14 +139,15 @@ O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
-1. Confirmar a terceira execução verde consecutiva da CI remota.
-2. Implementar outbox/webhooks/change feed com entrega idempotente.
+1. Publicar o marco de outbox/webhooks/change feed e confirmar a CI remota.
+2. Implementar observabilidade e saúde operacional para dependências, workers,
+   filas, circuitos e retenções.
 3. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
    primeiro alvo.
 4. Escolher o primeiro alvo e validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
-5. Implementar observabilidade e idempotência administrativa.
+5. Implementar idempotência administrativa e exportação governada de auditoria.
 6. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
 
 ## Limites conscientes desta rodada

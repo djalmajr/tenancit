@@ -68,6 +68,11 @@ explicitamente; não é usado pela SPA e possui permissões mínimas.
 | Criação, listagem e revogação de API clients.
 |===
 
+Webhooks administrativos usam `/v1/admin/webhook-targets` e
+`/v1/admin/webhook-deliveries`; criação devolve signing secret somente uma vez
+com `private, no-store`. Catálogo, assinatura e change feed estão em
+link:webhook-events.md[Webhooks e change feed].
+
 Segredos na listagem admin são mascarados por padrão. A query
 `?reveal=true` só deve ser usada por ação explícita de operador autenticado e
 responde `Cache-Control: private, no-store`; a SPA também usa o modo fetch
@@ -155,6 +160,19 @@ Atalho por tipo:
 GET /v1/resolve/{hostname}/resources/{definitionKey}
 Authorization: Bearer tnc_...
 ----
+
+Change feed cronológico para integrações que preferem pull:
+
+[source,http]
+----
+GET /v1/events?cursor=<cursor-opaco>&limit=100
+Authorization: Bearer tnc_...
+----
+
+Exige exclusivamente o scope `events:read`, usa paginação keyset e responde
+`Cache-Control: private, no-store`. O payload contém apenas referências
+versionadas e nunca valores, secrets, tokens ou hashes. O contrato detalhado,
+incluindo o formato do cursor, está em link:webhook-events.md[Webhooks e change feed].
 
 ==== Erros esperados
 
