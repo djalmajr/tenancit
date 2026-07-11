@@ -37,12 +37,14 @@ import {
   invalidateDefinition,
 } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 const routeApi = getRouteApi("/resource-definitions/$id");
 
 const EMPTY = { key: "", label: "", dataType: "string", required: false, isSecret: false };
 
 export default function DefinitionDetailPage() {
+  const { can } = useAdminCapabilities();
   const { t } = useI18n();
   const { id } = routeApi.useParams();
   const queryClient = useQueryClient();
@@ -151,7 +153,7 @@ export default function DefinitionDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        {can("resource.write") && <div className="flex gap-2">
           <Button variant="outline" onClick={() => { void toggleStatus(); }}>
             {d.status === "active" ? <PowerOff className="size-4" /> : <Power className="size-4" />}
             {d.status === "active" ? t("definitionDetail.deactivate") : t("definitionDetail.activate")}
@@ -159,7 +161,7 @@ export default function DefinitionDetailPage() {
           <Button onClick={() => { setF({ ...EMPTY }); setFieldError(""); setOpen(true); }}>
             <Plus className="size-4" /> {t("definitionDetail.newField")}
           </Button>
-        </div>
+        </div>}
       </div>
 
       <Card>
@@ -191,9 +193,9 @@ export default function DefinitionDetailPage() {
                     <TableCell>{field.required ? <Check className="size-4 text-green-600" /> : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{field.is_secret ? <Check className="size-4 text-amber-600" /> : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingField(field)}>
+                      {can("resource.write") && <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingField(field)}>
                         <Trash2 className="size-4" />
-                      </Button>
+                      </Button>}
                     </TableCell>
                   </TableRow>
                 ))}

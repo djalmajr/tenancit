@@ -1,10 +1,9 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `24a84a8` mais idempotência administrativa validada nesta sessão
-- **Entrega Git anterior:** auditoria governada está publicada em `24a84a8` e
-  verde na CI (`29166713313`);
-  a fatia corrente de idempotência aguarda commit.
+- **Base observada:** `a8e0aa6` mais console por persona validado nesta sessão
+- **Entrega Git anterior:** idempotência administrativa está publicada em
+  `a8e0aa6` e verde na CI (`29167446766`); a fatia corrente do console aguarda commit.
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -58,6 +57,10 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
 - Todas as telas administrativas usam TanStack Query com keys e invalidações
   centralizadas. Reveal e criação one-shot ficam fora dos caches; troca de
   credencial cancela requests, desmonta observers e apaga dados protegidos.
+- O console agrupa Gestão, Operação e Segurança e filtra navegação e ações pelas
+  permissões da sessão. Preferências de tabela persistem colunas, ordenação e
+  page size por superfície e possuem reset explícito; o backend continua sendo
+  a autoridade RBAC.
 - As seis páginas de negócio carregam por rota lazy; budgets automáticos
   protegem o entry e impedem chunks acima de 500 kB.
 - O catálogo Playwright automatiza 20/20 flows e 147/147 passos em PostgreSQL
@@ -95,7 +98,7 @@ outro ambiente.
 |---|---|
 | Web lint | ESLint, zero warnings |
 | Web typecheck | `tsc --noEmit`, exit 0 |
-| Web unit | 20 arquivos / 80 testes, todos verdes |
+| Web unit | 21 arquivos / 82 testes, todos verdes |
 | Go estrito | `REQUIRE_DB_TESTS=1 go test -count=1 ./...`, incluindo testcontainers, verde |
 | Produto | Docker multi-stage com lockfile frozen, SPA + binário Go, verde |
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
@@ -163,9 +166,9 @@ O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
-1. Publicar o marco de auditoria governada e confirmar a CI remota.
-2. Consolidar console/personas; idempotência administrativa e exportação
-   governada/retenção já estão entregues localmente.
+1. Publicar o console por persona e confirmar a CI remota.
+2. Encerrar o gate de escala/contract com nova medição reproduzível e
+   documentação consistente.
 3. Escolher o primeiro alvo e repetir o rewrap no restore real, além de validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.

@@ -101,7 +101,7 @@ export default function SessionsPage() {
     <div><h1 className="text-2xl font-semibold tracking-tight">{t("sessions.title")}</h1><p className="text-muted-foreground">{t("sessions.description")}</p></div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
     {sessionsQuery.isPending ? <div className="rounded-md border p-4 text-sm text-muted-foreground" role="status">{t("common.loading")}</div> : <DataTable labels={labels} table={table}>
-      <DataTableToolbar clearLabel={t("dataTable.clearFilters")} columnsLabel={t("dataTable.columns")} emptyLabel={t("sessions.empty")} searchLabel={t("sessions.search")} table={table} />
+      <DataTableToolbar clearLabel={t("dataTable.clearFilters")} columnsLabel={t("dataTable.columns")} emptyLabel={t("sessions.empty")} resetLabel={t("dataTable.resetPreferences")} searchLabel={t("sessions.search")} table={table} />
     </DataTable>}
     <ConfirmDialog cancelLabel={t("common.cancel")} confirmDisabled={pending} confirmLabel={t("sessions.revoke")} description={t("sessions.revokeDescription", { name: revokeTarget?.label || revokeTarget?.subject || "" })} onConfirm={() => void revoke()} onOpenChange={(open) => { if (!open) setRevokeTarget(undefined); }} open={Boolean(revokeTarget)} title={t("sessions.revokeTitle")}>
       <div className="flex items-center gap-2 rounded-md bg-muted p-3 text-sm"><Shield className="size-4" /><UserRound className="size-4" />{revokeTarget?.issuer} / {revokeTarget?.subject}</div>

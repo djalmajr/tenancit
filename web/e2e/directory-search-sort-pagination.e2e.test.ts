@@ -119,11 +119,20 @@ test("directory tables search, sort, and paginate without losing records", { tag
       await expect(first).toBeDisabled();
       await expect(previous).toBeDisabled();
     });
-    await flowStep("directory-search-sort-pagination", 4, "altera linhas por página", async () => {
+    await flowStep("directory-search-sort-pagination", 4, "persiste e restaura preferências da tabela", async () => {
       await page.getByRole("combobox").click();
       await page.getByRole("option", { name: "10", exact: true }).click();
       await expect(page.getByText("Página 1 de 2", { exact: true })).toBeVisible();
       await expect(page.locator("tbody tr")).toHaveCount(10);
+      await page.reload();
+      await expect(page.getByText("Página 1 de 2", { exact: true })).toBeVisible();
+      await expect(page.locator("tbody tr")).toHaveCount(10);
+      await page.getByRole("button", { name: "Colunas" }).click();
+      await page.getByText("Restaurar tabela", { exact: true }).click();
+      await expect(page.getByText("Página 1 de 3", { exact: true })).toBeVisible();
+      await page.getByRole("combobox").click();
+      await page.getByRole("option", { name: "10", exact: true }).click();
+      await expect(page.getByText("Página 1 de 2", { exact: true })).toBeVisible();
     });
     await flowStep("directory-search-sort-pagination", 5, "ordena nome slug e status em três estados", async () => {
       await cycleSort(

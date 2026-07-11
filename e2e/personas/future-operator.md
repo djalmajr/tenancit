@@ -1,20 +1,20 @@
 ---
 id: future-operator
-name: Operador de plataforma futuro
+name: Operador de plataforma
 ---
 
 ## Contexto
 
-Pessoa autenticada futuramente por OIDC, com permissões operacionais menores que
-as de um administrador. No estado atual, o teste usa o token compartilhado e
-verifica que a interface não atribui identidade humana inexistente.
+Pessoa autenticada por OIDC, com permissões operacionais menores que as de um
+administrador. A interface deriva a navegação da sessão, mas o backend é a
+autoridade: esconder um botão reduz ruído e não substitui RBAC.
 
 ## Objetivos
 
 - acompanhar uso, erros, limitações e expirações;
 - investigar auditoria por request ID, ação e alvo;
 - orientar rotação sem revelar ou copiar secrets desnecessariamente;
-- reconhecer ações que exigirão permissões elevadas no RBAC futuro.
+- reconhecer ações que exigem elevação explícita de permissão.
 
 ## Riscos percebidos
 

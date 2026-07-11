@@ -14,6 +14,7 @@ import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type Definition } from "@/lib/api";
 import { invalidateAllTenantResources, invalidateDefinitions } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 function defIcon(key: string) {
   if (key === "minio" || key.includes("s3") || key.includes("storage")) return <HardDrive className="size-4" />;
@@ -26,6 +27,7 @@ export default function Definitions() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { can } = useAdminCapabilities();
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ key: "", name: "", description: "" });
@@ -59,7 +61,7 @@ export default function Definitions() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("definitions.title")}</h1>
           <p className="text-muted-foreground">{t("definitions.description")}</p>
         </div>
-        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("definitions.new")}</Button>
+        {can("resource.write") && <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("definitions.new")}</Button>}
       </div>
 
       {visibleError && <Alert variant="destructive"><AlertDescription>{visibleError}</AlertDescription></Alert>}
@@ -72,9 +74,9 @@ export default function Definitions() {
             <Box className="size-5 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">{t("definitions.empty")}</p>
-          <Button variant="outline" onClick={() => { setError(""); setOpen(true); }}>
+          {can("resource.write") && <Button variant="outline" onClick={() => { setError(""); setOpen(true); }}>
             <Plus className="size-4" /> {t("definitions.new")}
-          </Button>
+          </Button>}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

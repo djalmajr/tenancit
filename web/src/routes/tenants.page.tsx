@@ -9,6 +9,7 @@ import { DomainStatus } from "@/components/domain-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -18,6 +19,7 @@ import { stableIdempotencyKey, type IdempotencyAttempt } from "@/lib/idempotency
 import { useDataTable } from "@/hooks/use-data-table";
 import { invalidateTenants } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 const EMPTY_TENANTS: Tenant[] = [];
 
@@ -25,6 +27,7 @@ export default function Tenants() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { can } = useAdminCapabilities();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "" });
   const [error, setError] = useState("");
@@ -112,9 +115,9 @@ export default function Tenants() {
     data: tenants,
     globalFilterFn: filterTenants,
     initialState: initialTableState,
+    visibilityStorageKey: "tenancit.tenants.table",
   });
-  const globalFilter: unknown = dataTable.globalFilter;
-  const { setGlobalFilter, table } = dataTable;
+  const { table } = dataTable;
 
   async function create() {
     setError("");
@@ -137,7 +140,7 @@ export default function Tenants() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("tenants.title")}</h1>
           <p className="text-muted-foreground">{t("tenants.description")}</p>
         </div>
-        <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("tenants.new")}</Button>
+        {can("tenant.write") && <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("tenants.new")}</Button>}
       </div>
 
       {pageError && <Alert variant="destructive"><AlertDescription>{pageError}</AlertDescription></Alert>}
@@ -147,15 +150,14 @@ export default function Tenants() {
         onRowClick={(tenant) => { void navigate({ to: "/tenants/$id", params: { id: tenant.id } }); }}
         table={table}
       >
-        <div className="flex items-center justify-between gap-2">
-          <Input
-            aria-label={t("tenants.search")}
-            className="max-w-xs"
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            placeholder={t("tenants.search")}
-            value={typeof globalFilter === "string" ? globalFilter : ""}
-          />
-        </div>
+        <DataTableToolbar
+          clearLabel={t("dataTable.clearFilters")}
+          columnsLabel={t("dataTable.columns")}
+          emptyLabel={t("dataTable.noResults")}
+          resetLabel={t("dataTable.resetPreferences")}
+          searchLabel={t("tenants.search")}
+          table={table}
+        />
       </DataTable>}
 
       <Dialog open={open} onOpenChange={setOpen}>

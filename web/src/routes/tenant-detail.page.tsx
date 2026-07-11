@@ -50,6 +50,7 @@ import {
 } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
 import { useTransientResourceReveal } from "@/lib/use-transient-resource-reveal";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 const routeApi = getRouteApi("/tenants/$id");
 
@@ -58,6 +59,7 @@ export default function TenantDetail() {
   const { id } = routeApi.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { can } = useAdminCapabilities();
   const [tab, setTab] = useState<"resources" | "domains">("resources");
 
   const [hostname, setHostname] = useState("");
@@ -301,9 +303,9 @@ export default function TenantDetail() {
             </div>
           </div>
         </div>
-        <Button variant="outline" onClick={openEdit}>
+        {can("tenant.write") && <Button variant="outline" onClick={openEdit}>
           <Settings2 className="size-4" /> {t("common.edit")}
-        </Button>
+        </Button>}
       </div>
 
       <Card>
@@ -344,13 +346,13 @@ export default function TenantDetail() {
         <TabsContent className="space-y-4" value="resources">
           <div className="flex justify-end">
             <div className="flex gap-2">
-              <Button disabled={reveal.isLoading} variant="outline" onClick={() => { void toggleSecrets(); }}>
+              {can("secret.reveal") && <Button disabled={reveal.isLoading} variant="outline" onClick={() => { void toggleSecrets(); }}>
                 {reveal.isRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 {reveal.isRevealed ? t("tenantDetail.hideSecrets") : t("tenantDetail.enableSecretReveal")}
-              </Button>
-              <Button onClick={() => { setResourceError(""); setPick(""); setResOpen(true); }}>
+              </Button>}
+              {can("resource.write") && <Button onClick={() => { setResourceError(""); setPick(""); setResOpen(true); }}>
                 <Plus className="size-4" /> {t("tenantDetail.addResource")}
-              </Button>
+              </Button>}
             </div>
           </div>
           {resources.length === 0 ? (
@@ -370,22 +372,22 @@ export default function TenantDetail() {
                   </div>
                   <div className="flex items-center gap-2">
                     <DomainStatus label={formatStatus(r.status, t)} value={r.status} />
-                    <Button
+                    {can("resource.write") && <Button
                       variant="ghost"
                       size="icon-sm"
                       title={r.status === "active" ? t("tenantDetail.deactivate") : t("tenantDetail.reactivate")}
                       onClick={() => { void toggleResource(r); }}
                     >
                       {r.status === "active" ? <Power className="size-4" /> : <PowerOff className="size-4" />}
-                    </Button>
-                    <Button
+                    </Button>}
+                    {can("resource.write") && <Button
                       variant="ghost"
                       size="icon-sm"
                       title={t("common.remove")}
                       onClick={() => setPendingResource({ id: r.id, name: r.name })}
                     >
                       <Trash2 className="size-4" />
-                    </Button>
+                    </Button>}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -435,9 +437,9 @@ export default function TenantDetail() {
               <CardTitle className="text-base">{t("tenantDetail.domainsTab")}</CardTitle>
               <p className="text-sm text-muted-foreground">{t("tenantDetail.domainsDescription")}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => { setHostname(""); setDomainError(""); setNewDomainOpen(true); }}>
+            {can("tenant.write") && <Button variant="outline" size="sm" onClick={() => { setHostname(""); setDomainError(""); setNewDomainOpen(true); }}>
               <Plus className="size-4" /> {t("common.add")}
-            </Button>
+            </Button>}
           </CardHeader>
           <CardContent>
             {domains.length === 0 ? (
@@ -455,9 +457,9 @@ export default function TenantDetail() {
                     <TableRow key={d.id}>
                       <TableCell className="font-medium"><code className="text-xs">{d.hostname}</code></TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingDomain(d)}>
+                        {can("tenant.write") && <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingDomain(d)}>
                           <Trash2 className="size-4" />
-                        </Button>
+                        </Button>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -469,7 +471,7 @@ export default function TenantDetail() {
         </TabsContent>
       </Tabs>
 
-      <Card className="border-destructive/30">
+      {can("tenant.hard_delete") && <Card className="border-destructive/30">
         <CardHeader>
           <CardTitle className="text-base text-destructive">{t("tenantDetail.dangerZone.title")}</CardTitle>
           <p className="text-sm text-muted-foreground">{t("tenantDetail.dangerZone.description")}</p>
@@ -485,7 +487,7 @@ export default function TenantDetail() {
             <Trash2 className="size-4" /> {t("tenantDetail.deleteAction")}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Edit tenant */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

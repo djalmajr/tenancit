@@ -111,7 +111,7 @@ export default function AuditEventsPage() {
       <Button onClick={applyFilters} variant="outline">{t("audit.applyFilters")}</Button>
     </div>
     {eventsQuery.isPending ? <div className="rounded-md border p-4 text-sm text-muted-foreground" role="status">{t("common.loading")}</div> : error && events.length === 0 ? null : <DataTable labels={labels} table={table}>
-      <DataTableToolbar clearLabel={t("dataTable.clearFilters")} columnsLabel={t("dataTable.columns")} emptyLabel={t("dataTable.noResults")} searchLabel={`${t("audit.action")}, ${t("audit.target")}, ${t("audit.request")}`} table={table}>
+      <DataTableToolbar clearLabel={t("dataTable.clearFilters")} columnsLabel={t("dataTable.columns")} emptyLabel={t("dataTable.noResults")} resetLabel={t("dataTable.resetPreferences")} searchLabel={`${t("audit.action")}, ${t("audit.target")}, ${t("audit.request")}`} table={table}>
         <div className="flex gap-2">
           <Button disabled={cursorHistory.length === 0} onClick={() => { const history = [...cursorHistory]; setCursor(history.pop() ?? ""); setCursorHistory(history); }} variant="outline">{t("audit.previous")}</Button>
           <Button disabled={!eventsQuery.data?.next_cursor} onClick={() => { setCursorHistory((history) => [...history, cursor]); setCursor(eventsQuery.data?.next_cursor ?? ""); }} variant="outline">{t("audit.next")}</Button>

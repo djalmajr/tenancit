@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { apiErrorMessage, useI18n, type TranslationKey } from "@/lib/i18n";
 import { adminQueryKeys } from "@/lib/query-keys";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 const SECTION_KEYS = {
   security: ["session_absolute_hours", "session_idle_minutes"],
@@ -20,6 +21,7 @@ const SECTION_KEYS = {
 export default function SettingsPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const { can } = useAdminCapabilities();
   const settingsQuery = useQuery({ queryKey: adminQueryKeys.settings(), queryFn: ({ signal }) => api.getSettings(signal) });
   const [draft, setDraft] = useState<Record<string, string>>();
   const [saving, setSaving] = useState(false);
@@ -50,7 +52,7 @@ export default function SettingsPage() {
     const label = t(`settings.field.${key}` as TranslationKey);
     return <div className="flex flex-col gap-1.5" key={key}>
       <label className="text-sm font-medium" htmlFor={`setting-${key}`}>{label}</label>
-      {definition.type === "enum" ? <Combobox aria-label={label} options={(definition.options ?? []).map((option) => ({ label: option, value: option }))} searchable={false} triggerClassName="w-full" value={values[key]} onValueChange={(value) => setDraft({ ...values, [key]: value })} /> : <Input id={`setting-${key}`} inputMode="numeric" max={definition.maximum} min={definition.minimum} onChange={(event) => setDraft({ ...values, [key]: event.target.value })} type="number" value={values[key] ?? ""} />}
+      {definition.type === "enum" ? <Combobox aria-label={label} disabled={!can("settings.manage")} options={(definition.options ?? []).map((option) => ({ label: option, value: option }))} searchable={false} triggerClassName="w-full" value={values[key]} onValueChange={(value) => setDraft({ ...values, [key]: value })} /> : <Input disabled={!can("settings.manage")} id={`setting-${key}`} inputMode="numeric" max={definition.maximum} min={definition.minimum} onChange={(event) => setDraft({ ...values, [key]: event.target.value })} type="number" value={values[key] ?? ""} />}
       <p className="text-xs text-muted-foreground">{t(`settings.hint.${key}` as TranslationKey)}</p>
       <p className="text-xs text-muted-foreground">{t("settings.owner", { owner: definition.owner })}</p>
     </div>;
@@ -67,6 +69,6 @@ export default function SettingsPage() {
         <CardContent className="grid gap-4 sm:grid-cols-2">{keys.map((key) => field(key))}</CardContent>
       </Card>)}
     </div>
-    <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted-foreground">{t("settings.revision", { revision: settingsQuery.data?.revision ?? 0 })}</p><Button disabled={saving || !settingsQuery.data} onClick={() => void save()}>{saving ? t("settings.saving") : t("common.save")}</Button></div>
+    <div className="flex items-center justify-between gap-4"><p className="text-sm text-muted-foreground">{t("settings.revision", { revision: settingsQuery.data?.revision ?? 0 })}</p>{can("settings.manage") && <Button disabled={saving || !settingsQuery.data} onClick={() => void save()}>{saving ? t("settings.saving") : t("common.save")}</Button>}</div>
   </div>;
 }

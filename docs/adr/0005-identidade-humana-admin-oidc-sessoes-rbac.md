@@ -116,6 +116,9 @@ por exemplo:
 - `secret.reveal` para revelar credenciais;
 - `tenant.hard_delete` para exclusão irreversível;
 - `api_client.manage` para criar, revogar e reativar credenciais de consumo;
+- `integration.manage` para configurar destinos e operar entregas;
+- `session.manage` para revogar sessões administrativas;
+- `settings.manage` para alterar políticas runtime não secretas;
 - `audit.read` para consultar a trilha, `audit.export` para materializar/baixar
   recortes e `audit.manage` para legal holds.
 

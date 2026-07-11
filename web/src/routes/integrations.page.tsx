@@ -228,6 +228,7 @@ export default function IntegrationsPage() {
           clearLabel={t("dataTable.clearFilters")}
           columnsLabel={t("dataTable.columns")}
           emptyLabel={t("integrations.emptyTargets")}
+          resetLabel={t("dataTable.resetPreferences")}
           searchLabel={t("integrations.searchTargets")}
           table={targetsTable}
         />
@@ -241,6 +242,7 @@ export default function IntegrationsPage() {
           clearLabel={t("dataTable.clearFilters")}
           columnsLabel={t("dataTable.columns")}
           emptyLabel={t("integrations.emptyDeliveries")}
+          resetLabel={t("dataTable.resetPreferences")}
           searchLabel={t("integrations.searchDeliveries")}
           table={deliveriesTable}
         />

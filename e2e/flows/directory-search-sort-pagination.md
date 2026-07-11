@@ -22,14 +22,14 @@ Localizar rapidamente um registro específico em listas grandes usando busca, or
 1. (`auth`) Autenticar-se com `tenancit_admin_dev` → painel acessível.
 2. (`tenants-list`) Abrir **Tenants**; se a lista for curta, criar tenants suficientes para passar de uma página → a tabela exibe controles de paginação e o indicador de página/itens.
 3. (`tenants-list`) Usar os controles **próxima / última / anterior / primeira página** → a navegação respeita os limites (não passa do início/fim) e o indicador atualiza.
-4. (`tenants-list`) Alterar **linhas por página** → a quantidade de linhas exibidas muda conforme selecionado.
+4. (`tenants-list`) Alterar **linhas por página**, recarregar e usar **Restaurar tabela** → a preferência sobrevive ao reload e o reset recupera o padrão explícito.
 5. (`tenants-list`) Clicar no cabeçalho **Nome** para ordenar asc, desc e resetar; repetir em **Slug** e **Status** → a ordenação tri-state funciona por coluna.
 6. (`tenants-list`) Digitar um termo na **busca** (nome, slug ou status) → a lista filtra pelos campos correspondentes; limpar a busca → a lista volta ao conjunto completo.
 7. (`api-clients`) Abrir **Chaves de API** → a tabela já vem ordenada por data de criação (desc); ordenar por **Nome**, **Criado em** e **Status**, paginar e buscar por nome/data/status → todos os controles funcionam de forma equivalente.
 
 ## Resultado esperado
 
-As tabelas suportam busca multi-campo, ordenação tri-state por coluna e paginação com limites corretos e seleção de linhas por página, mantendo a integridade dos dados exibidos.
+As tabelas suportam busca multi-campo, ordenação tri-state por coluna e paginação com limites corretos; preferências persistem por tabela e possuem reset, mantendo a integridade dos dados exibidos.
 
 ## Estado atual × design
 

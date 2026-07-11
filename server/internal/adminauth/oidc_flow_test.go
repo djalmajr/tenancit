@@ -3,6 +3,7 @@ package adminauth
 import (
 	"bytes"
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -113,5 +114,18 @@ func TestOIDCManagerRejectsUnmappedRoleAndNonceMismatch(t *testing.T) {
 	}
 	if err := validateOIDCIdentity("https://id.example.test", "https://spoofed.example.test", "user-1"); err == nil {
 		t.Fatal("spoofed issuer accepted")
+	}
+}
+
+func TestPermissionsForRolesMatchGovernedCapabilities(t *testing.T) {
+	operator := permissionsForRoles([]Role{RoleOperator})
+	if !slices.Contains(operator, "integration.manage") || slices.Contains(operator, "settings.manage") {
+		t.Fatalf("operator permissions=%v", operator)
+	}
+	securityAdmin := permissionsForRoles([]Role{RoleSecurityAdmin})
+	for _, permission := range []string{"audit.manage", "integration.manage", "session.manage", "settings.manage", "tenant.hard_delete"} {
+		if !slices.Contains(securityAdmin, permission) {
+			t.Fatalf("security admin missing %q: %v", permission, securityAdmin)
+		}
 	}
 }

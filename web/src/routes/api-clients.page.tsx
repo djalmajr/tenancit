@@ -31,6 +31,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DomainStatus } from "@/components/domain-status";
+import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 
 const EMPTY_API_CLIENTS: ApiClient[] = [];
 const FILTER_REFERENCE_TIME = Date.now();
@@ -38,6 +39,7 @@ const FILTER_REFERENCE_TIME = Date.now();
 export default function ApiClients() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const { can } = useAdminCapabilities();
   const [helpOpen, setHelpOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -105,7 +107,7 @@ export default function ApiClients() {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label={t("apiClients.token")} labels={sortLabels} />
       ),
-      cell: ({ row }) => (
+      cell: ({ row }) => !can("api_client.manage") ? null : (
         <code className="text-xs text-muted-foreground">{row.original.key_preview ?? "tnc_••••••••"}</code>
       ),
       meta: { label: t("apiClients.token") },
@@ -388,7 +390,7 @@ export default function ApiClients() {
           >
             <CircleHelp className="size-4" />
           </Button>
-          <Button onClick={start}><Plus className="size-4" /> {t("apiClients.new")}</Button>
+          {can("api_client.manage") && <Button onClick={start}><Plus className="size-4" /> {t("apiClients.new")}</Button>}
         </div>
       </div>
 
@@ -404,6 +406,7 @@ export default function ApiClients() {
             clearLabel={t("dataTable.clearFilters")}
             columnsLabel={t("dataTable.columns")}
             emptyLabel={t("dataTable.noResults")}
+            resetLabel={t("dataTable.resetPreferences")}
             facets={[
               { columnId: "status", multiple: true, options: ["active", "expired", "revoked"].map((value) => ({ value, label: formatStatus(value, t) })), title: t("apiClients.filterStatus") },
               { columnId: "scopes", multiple: true, options: ["tenant:identify", "resource:resolve", "events:read"].map((value) => ({ value, label: value })), title: t("apiClients.filterScope") },

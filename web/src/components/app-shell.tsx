@@ -1,25 +1,15 @@
 import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Boxes,
-  BarChart3,
-  Building2,
   Eye,
   EyeOff,
   KeyRound,
   Layers,
-  LayoutDashboard,
   LogIn,
   LogOut,
   Monitor,
-  HeartPulse,
   Moon,
   Sun,
-  ScrollText,
-  Settings,
-  ShieldCheck,
-  Webhook,
-  type LucideIcon,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -61,19 +51,9 @@ import {
 import { LOCALE_OPTIONS, LOCALE_STORAGE_KEY, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-
-const NAV: Array<{ exact?: boolean; icon: LucideIcon; labelKey: TranslationKey; to: string }> = [
-  { exact: true, icon: LayoutDashboard, labelKey: "nav.overview", to: "/" },
-  { icon: Building2, labelKey: "nav.tenants", to: "/tenants" },
-  { icon: Boxes, labelKey: "nav.definitions", to: "/resource-definitions" },
-  { icon: KeyRound, labelKey: "nav.apiClients", to: "/api-clients" },
-  { icon: BarChart3, labelKey: "nav.usage", to: "/usage" },
-  { icon: ScrollText, labelKey: "nav.audit", to: "/audit-events" },
-  { icon: ShieldCheck, labelKey: "nav.sessions", to: "/security/sessions" },
-  { icon: Settings, labelKey: "nav.settings", to: "/operations/settings" },
-  { icon: Webhook, labelKey: "nav.integrations", to: "/integrations/webhooks" },
-  { icon: HeartPulse, labelKey: "nav.health", to: "/operations/health" },
-];
+import { AdminCapabilitiesProvider } from "@/lib/admin-capabilities";
+import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
+import { visibleNavGroups } from "@/lib/admin-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setLocale, t } = useI18n();
@@ -173,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const currentPageLabel = pageLabel(pathname, t);
+  const permissions = authConfig?.mode === "oidc" ? adminSession?.permissions ?? [] : ALL_ADMIN_PERMISSIONS;
 
   function saveAdminToken(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -227,6 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <AdminCapabilitiesProvider permissions={permissions}>
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
@@ -242,10 +224,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>{t("nav.management")}</SidebarGroupLabel>
+          {visibleNavGroups(new Set(permissions)).map((group) => <SidebarGroup key={group.labelKey}>
+            <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>
             <SidebarMenu>
-              {NAV.map((item) => {
+              {group.items.map((item) => {
                 const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
                 const Icon = item.icon;
                 const label = t(item.labelKey);
@@ -263,7 +245,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 );
               })}
             </SidebarMenu>
-          </SidebarGroup>
+          </SidebarGroup>)}
         </SidebarContent>
 
         <SidebarFooter>
@@ -292,6 +274,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
+    </AdminCapabilitiesProvider>
   );
 }
 

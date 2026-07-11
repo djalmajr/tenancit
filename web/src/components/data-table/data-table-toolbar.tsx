@@ -12,6 +12,7 @@ export function DataTableToolbar<TData>({
   columnsLabel,
   emptyLabel,
   facets = [],
+  resetLabel,
   searchLabel,
   table,
 }: {
@@ -20,6 +21,7 @@ export function DataTableToolbar<TData>({
   columnsLabel: string;
   emptyLabel: string;
   facets?: Array<{ columnId: string; multiple?: boolean; options: FacetOption[]; title: string }>;
+  resetLabel: string;
   searchLabel: string;
   table: Table<TData>;
 }) {
@@ -28,6 +30,6 @@ export function DataTableToolbar<TData>({
     <Input className="h-8 w-full sm:w-64" onChange={(event) => table.setGlobalFilter(event.target.value)} placeholder={searchLabel} value={(table.getState().globalFilter as string) ?? ""} />
     {facets.map((facet) => { const column = table.getColumn(facet.columnId); return column ? <DataTableFacetedFilter clearLabel={clearLabel} column={column} emptyLabel={emptyLabel} key={facet.columnId} multiple={facet.multiple} options={facet.options} title={facet.title} /> : null; })}
     {filtered && <Button className="border-dashed" onClick={() => { table.resetColumnFilters(); table.setGlobalFilter(""); }} variant="outline"><X />{clearLabel}</Button>}
-    <div className="ml-auto flex items-center gap-2">{children}<DataTableViewOptions label={columnsLabel} table={table} /></div>
+    <div className="ml-auto flex items-center gap-2">{children}<DataTableViewOptions label={columnsLabel} resetLabel={resetLabel} table={table} /></div>
   </div>;
 }

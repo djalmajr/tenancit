@@ -26,6 +26,25 @@ interface UseDataTableProps<TData> {
   visibilityStorageKey?: string;
 }
 
+type StoredPreferences = {
+  columnVisibility?: VisibilityState;
+  pageSize?: number;
+  sorting?: SortingState;
+  version: 1;
+};
+
+function loadPreferences(key?: string): Partial<StoredPreferences> {
+  if (!key || typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) ?? "null") as StoredPreferences | VisibilityState | null;
+    if (!parsed) return {};
+    if ("version" in parsed && parsed.version === 1) return parsed;
+    return { columnVisibility: parsed as VisibilityState };
+  } catch {
+    return {};
+  }
+}
+
 function isGlobalFilterUpdater(value: unknown): value is (current: string) => unknown {
   return typeof value === "function";
 }
@@ -37,28 +56,28 @@ export function useDataTable<TData>({
   initialState,
   visibilityStorageKey,
 }: UseDataTableProps<TData>) {
+  const preferences = React.useMemo(() => loadPreferences(visibilityStorageKey), [visibilityStorageKey]);
   const [globalFilter, setGlobalFilter] = React.useState(initialState?.globalFilter ?? "");
   const [pagination, setPagination] = React.useState<PaginationState>(
-    initialState?.pagination ?? {
+    initialState?.pagination ? {
+      ...initialState.pagination,
+      pageSize: preferences.pageSize ?? initialState.pagination.pageSize,
+    } : {
       pageIndex: 0,
-      pageSize: PAGE_SIZE_OPTIONS[0] ?? 5,
+      pageSize: preferences.pageSize ?? PAGE_SIZE_OPTIONS[0] ?? 5,
     },
   );
-  const [sorting, setSorting] = React.useState<SortingState>(initialState?.sorting ?? []);
+  const [sorting, setSorting] = React.useState<SortingState>(preferences.sorting ?? initialState?.sorting ?? []);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
-    if (!visibilityStorageKey || typeof window === "undefined") return initialState?.columnVisibility ?? {};
-    try {
-      const stored = window.localStorage.getItem(visibilityStorageKey);
-      return stored ? { ...initialState?.columnVisibility, ...JSON.parse(stored) as VisibilityState } : initialState?.columnVisibility ?? {};
-    } catch {
-      return {};
-    }
+    return { ...initialState?.columnVisibility, ...preferences.columnVisibility };
   });
 
   React.useEffect(() => {
-    if (visibilityStorageKey) window.localStorage.setItem(visibilityStorageKey, JSON.stringify(columnVisibility));
-  }, [columnVisibility, visibilityStorageKey]);
+    if (visibilityStorageKey) window.localStorage.setItem(visibilityStorageKey, JSON.stringify({
+      columnVisibility, pageSize: pagination.pageSize, sorting, version: 1,
+    } satisfies StoredPreferences));
+  }, [columnVisibility, pagination.pageSize, sorting, visibilityStorageKey]);
 
   const table = useReactTable({
     columns,
@@ -93,6 +112,12 @@ export function useDataTable<TData>({
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
+    initialState: {
+      columnVisibility: initialState?.columnVisibility ?? {},
+      globalFilter: initialState?.globalFilter ?? "",
+      pagination: initialState?.pagination ?? { pageIndex: 0, pageSize: PAGE_SIZE_OPTIONS[0] ?? 5 },
+      sorting: initialState?.sorting ?? [],
+    },
     state: {
       globalFilter,
       columnFilters,
