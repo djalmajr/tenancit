@@ -87,7 +87,7 @@ make build
 ----
 
 O alvo executa: build web -> cópia para `server/internal/spa/dist` -> build dos
-binários `/server` e `/migrate`. Nos três Composes a migration é um serviço
+binários `/server`, `/migrate` e `/tenancit-rewrap`. Nos três Composes a migration é um serviço
 one-shot concluído antes do servidor HTTP.
 
 ==== Regenerar sqlc

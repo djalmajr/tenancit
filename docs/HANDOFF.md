@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `bf10246` mais deploy/continuidade validado nesta sessão
-- **Entrega Git anterior:** `bf10246` está em `main`; push da fatia corrente vem após os gates
+- **Base observada:** `8f12edb` mais rewrap AES executável validado nesta sessão
+- **Entrega Git anterior:** `8f12edb` está em `main` e a CI `29163263968` ficou verde; push da fatia corrente vem após os gates
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -61,6 +61,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   importa o pacote de migration. Grupos PostgreSQL separam runtime, jobs e
   backup; deploy genérico usa digest, preflight, expand/contract e rollback sem
   trocar DSN/schema.
+- `/tenancit-rewrap` executa rotação AES offline com inventário/dry-run integral,
+  advisory lock, lotes `SKIP LOCKED`, CAS, retomada, OTLP e report dedicado. O
+  role PostgreSQL só atualiza cipher/nonce/version; chaves nunca são argumentos.
 - Compose preserva PostgreSQL em volume nomeado; reset destrutivo exige
   confirmação explícita; smoke, bootstrap e backup/restore locais têm runbooks.
 
@@ -95,6 +98,7 @@ outro ambiente.
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
 | Backup/restore | dump custom, 22 tabelas e tenant preservados; reports healthy |
 | Continuidade | duas réplicas: limiter global, revogação cross-replica e failover, verde |
+| Rewrap | CLI completo, clone restaurado, concorrência/falhas/retomada e retirada da chave antiga, verde |
 | Documentação | `asciidoctor -o /dev/null docs/README.adoc`, verde |
 
 Comandos canônicos:
@@ -127,7 +131,7 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
 | Identidade humana admin | [ADR 0005](adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Implementada e validada com Dex; ativação real depende do IdP |
 | Auditoria admin append-only | [Design](developers/design/admin-audit-log.md) | Principal legado, OIDC e break-glass implementados |
 | Política de API clients | [Design](developers/design/api-client-policy.md) / [ADR 0006](adr/0006-valkey-rate-limit-global.md) | Implementada; contract schema v5 |
-| Rewrap AES | [Design](developers/design/aes-key-rewrap.md) / [runbook](runbooks/aes-key-rewrap.md) / [plano 022](../plans/022-aes-key-rewrap-spike.md) | Spike concluído; job não implementado |
+| Rewrap AES | [Design](developers/design/aes-key-rewrap.md) / [runbook](runbooks/aes-key-rewrap.md) / [plano 022](../plans/022-aes-key-rewrap-spike.md) | Implementado e validado localmente; campanha real depende do alvo |
 | Trajetória e dependências | [Roadmap](business/04-escopo-e-roadmap.adoc) | Atualizado |
 
 ## Decisões externas ainda necessárias
@@ -137,8 +141,8 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
    proxies. Duas réplicas estão provadas localmente; CIDR permanece desligado.
 3. **Auditoria:** retenção organizacional e materialização dos logins PostgreSQL
    já separados por contrato no alvo de produção.
-4. **Rewrap:** implementação do CLI/job, tamanho de lote e ensaio integral em um
-   restore representativo antes de qualquer rotação real.
+4. **Rewrap:** aprovadores, tamanho de lote e repetição do ensaio no restore do
+   alvo antes de qualquer rotação real.
 
 Essas dependências impedem afirmar que o deploy/IdP real ou a rotação AES estão
 ativados. O contrato OIDC, auditoria, governança de clients e rate limit global
@@ -151,11 +155,10 @@ O plano persistente e decomposto para essa sequência está em
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
 1. Publicar o marco de deploy/continuidade e confirmar a CI remota.
-2. Implementar e ensaiar o job de rewrap sobre um restore representativo.
-3. Escolher o primeiro alvo e validar o
+2. Implementar exportação governada/retenção da auditoria e idempotência admin.
+3. Escolher o primeiro alvo e repetir o rewrap no restore real, além de validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
-4. Implementar idempotência administrativa e exportação governada de auditoria.
 
 ## Limites conscientes desta rodada
 

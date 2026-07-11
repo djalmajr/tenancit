@@ -53,24 +53,71 @@ func New(keys map[int][]byte, current int) (*Cryptor, error) {
 
 // Encrypt seals the plaintext with the current key version and a fresh nonce.
 func (c *Cryptor) Encrypt(plaintext string) (Encrypted, error) {
+	buffer := []byte(plaintext)
+	encrypted, err := c.EncryptBytes(buffer)
+	clear(buffer)
+	return encrypted, err
+}
+
+// EncryptBytes seals a caller-owned buffer without converting it to a string.
+// Callers handling operational plaintext can zero their input after use.
+func (c *Cryptor) EncryptBytes(plaintext []byte) (Encrypted, error) {
 	aead := c.aeads[c.current]
 	nonce := make([]byte, aead.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return Encrypted{}, fmt.Errorf("crypto: nonce: %w", err)
 	}
-	ct := aead.Seal(nil, nonce, []byte(plaintext), nil)
+	ct := aead.Seal(nil, nonce, plaintext, nil)
 	return Encrypted{Cipher: ct, Nonce: nonce, KeyVersion: c.current}, nil
 }
 
 // Decrypt opens an Encrypted value using its recorded key version.
 func (c *Cryptor) Decrypt(e Encrypted) (string, error) {
+	plaintext, err := c.DecryptBytes(e)
+	if err != nil {
+		return "", err
+	}
+	value := string(plaintext)
+	clear(plaintext)
+	return value, nil
+}
+
+// DecryptBytes authenticates and opens a value into a mutable buffer.
+func (c *Cryptor) DecryptBytes(e Encrypted) ([]byte, error) {
 	aead, ok := c.aeads[e.KeyVersion]
 	if !ok {
-		return "", fmt.Errorf("crypto: unknown key version %d", e.KeyVersion)
+		return nil, fmt.Errorf("crypto: unknown key version %d", e.KeyVersion)
 	}
 	pt, err := aead.Open(nil, e.Nonce, e.Cipher, nil)
 	if err != nil {
-		return "", fmt.Errorf("crypto: open: %w", err)
+		return nil, fmt.Errorf("crypto: open: %w", err)
 	}
-	return string(pt), nil
+	return pt, nil
+}
+
+// CurrentVersion returns metadata only; key material remains private.
+func (c *Cryptor) CurrentVersion() int { return c.current }
+
+// HasVersion reports whether a version can be decrypted.
+func (c *Cryptor) HasVersion(version int) bool {
+	_, ok := c.aeads[version]
+	return ok
+}
+
+// NonceSize returns the required nonce length for a loaded key version.
+func (c *Cryptor) NonceSize(version int) (int, bool) {
+	aead, ok := c.aeads[version]
+	if !ok {
+		return 0, false
+	}
+	return aead.NonceSize(), true
+}
+
+// Overhead returns the minimum authentication overhead for a loaded version.
+func (c *Cryptor) Overhead(version int) (int, bool) {
+	aead, ok := c.aeads[version]
+	if !ok {
+		return 0, false
+	}
+	return aead.Overhead(), true
 }

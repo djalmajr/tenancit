@@ -65,6 +65,56 @@ func RecordWorkerCycle(ctx context.Context, worker, outcome string, items int, d
 	histogram.Record(ctx, duration.Seconds(), metric.WithAttributes(attributes...))
 }
 
+func RecordRewrapBatch(ctx context.Context, outcome string, rows int, duration time.Duration) {
+	outcome = boundedValue(outcome, allowedValues("success", "error", "locked"))
+	attributes := []attribute.KeyValue{attribute.String("tenancit.outcome", outcome)}
+	meter := otel.Meter("github.com/djalmajr/tenancit/server/rewrap")
+	batches, _ := meter.Int64Counter("tenancit.rewrap.batches", metric.WithUnit("{batch}"))
+	processed, _ := meter.Int64Counter("tenancit.rewrap.rows", metric.WithUnit("{row}"))
+	durationMetric, _ := meter.Float64Histogram("tenancit.rewrap.batch.duration", metric.WithUnit("s"))
+	batches.Add(ctx, 1, metric.WithAttributes(attributes...))
+	processed.Add(ctx, int64(max(0, rows)), metric.WithAttributes(attributes...))
+	durationMetric.Record(ctx, duration.Seconds(), metric.WithAttributes(attributes...))
+}
+
+func RecordRewrapCompletion(ctx context.Context, outcome string, rows, remaining int64, duration time.Duration) {
+	outcome = boundedValue(outcome, allowedValues("success", "dry_run", "error"))
+	attributes := []attribute.KeyValue{attribute.String("tenancit.outcome", outcome)}
+	meter := otel.Meter("github.com/djalmajr/tenancit/server/rewrap")
+	campaigns, _ := meter.Int64Counter("tenancit.rewrap.campaigns", metric.WithUnit("{campaign}"))
+	processed, _ := meter.Int64Counter("tenancit.rewrap.campaign.rows", metric.WithUnit("{row}"))
+	remainingMetric, _ := meter.Int64Histogram("tenancit.rewrap.rows.remaining", metric.WithUnit("{row}"))
+	durationMetric, _ := meter.Float64Histogram("tenancit.rewrap.campaign.duration", metric.WithUnit("s"))
+	campaigns.Add(ctx, 1, metric.WithAttributes(attributes...))
+	processed.Add(ctx, max(0, rows), metric.WithAttributes(attributes...))
+	remainingMetric.Record(ctx, max(0, remaining), metric.WithAttributes(attributes...))
+	durationMetric.Record(ctx, duration.Seconds(), metric.WithAttributes(attributes...))
+}
+
+func RecordRewrapRows(ctx context.Context, fromVersion, toVersion int, outcome string, rows int) {
+	outcome = boundedValue(outcome, allowedValues("success", "error", "verification_failed", "cas_conflict"))
+	attributes := []attribute.KeyValue{
+		attribute.Int("tenancit.rewrap.from_version", fromVersion),
+		attribute.Int("tenancit.rewrap.to_version", toVersion),
+		attribute.String("tenancit.outcome", outcome),
+	}
+	counter, _ := otel.Meter("github.com/djalmajr/tenancit/server/rewrap").Int64Counter("tenancit.rewrap.rows.by_version", metric.WithUnit("{row}"))
+	counter.Add(ctx, int64(max(0, rows)), metric.WithAttributes(attributes...))
+}
+
+func RecordRewrapRemaining(ctx context.Context, keyVersion int, rows int64) {
+	attributes := []attribute.KeyValue{attribute.Int("tenancit.rewrap.key_version", keyVersion)}
+	histogram, _ := otel.Meter("github.com/djalmajr/tenancit/server/rewrap").Int64Histogram("tenancit.rewrap.rows.remaining.by_version", metric.WithUnit("{row}"))
+	histogram.Record(ctx, max(0, rows), metric.WithAttributes(attributes...))
+}
+
+func RecordRewrapFailure(ctx context.Context, reason string) {
+	reason = boundedValue(reason, allowedValues("campaign_locked", "invalid_config", "safety_evidence", "malformed", "missing_key", "authentication", "verification", "cas_conflict", "no_progress", "canceled", "internal"))
+	attributes := []attribute.KeyValue{attribute.String("tenancit.rewrap.failure_reason", reason)}
+	counter, _ := otel.Meter("github.com/djalmajr/tenancit/server/rewrap").Int64Counter("tenancit.rewrap.failures", metric.WithUnit("{failure}"))
+	counter.Add(ctx, 1, metric.WithAttributes(attributes...))
+}
+
 func allowedValues(values ...string) map[string]struct{} {
 	allowed := make(map[string]struct{}, len(values))
 	for _, value := range values {

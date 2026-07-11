@@ -13,10 +13,14 @@ Nomes estáveis:
 - `tenancit.security.decisions`;
 - `tenancit.dependency.operations`, `duration`;
 - `tenancit.worker.cycles`, `items`, `duration`.
+- `tenancit.rewrap.batches`, `rows.by_version`, `rows.remaining.by_version`,
+  `failures`, `campaigns` e durações de lote/campanha.
 
 Dimensões aceitas são fechadas e de baixa cardinalidade: método, route template,
 status HTTP, boundary, outcome, component, operation e worker. Valores fora das
 allowlists viram `other`.
+No comando offline, versões numéricas de origem/alvo e classes fechadas de falha
+são permitidas; `job_id` e IDs de linha não entram nas métricas.
 
 ## Dados proibidos
 

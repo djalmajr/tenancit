@@ -69,8 +69,12 @@ Campos marcados como `is_secret` são cifrados com AES-256-GCM. Variáveis:
   staged antes do cutover e incluem versões anteriores ou futuras à corrente.
 |===
 
-O schema já guarda `key_version` em `tenant_resource_values`. A rotação
-operacional automática ainda não faz parte do escopo atual.
+O schema guarda `key_version` em `tenant_resource_values`. O comando offline
+`tenancit-rewrap` autentica todos os ciphertexts em dry-run e recriptografa por
+lotes com lock, `SKIP LOCKED`, CAS e buffers apagáveis. Ele exige backup/restore
+fresh, login PostgreSQL mínimo e confirmação UUID; não existe endpoint de
+rotação. O procedimento completo está em
+link:runbooks/aes-key-rewrap.md[Rewrap de chave AES].
 
 O fluxo identify termina antes da montagem e do decrypt de resources. Somente
 resolve e o reveal admin explícito atravessam a fronteira em que um secret passa

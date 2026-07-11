@@ -68,6 +68,11 @@ operacional futuro em `docs/runbooks/aes-key-rewrap.md`.
 
 **Never** put real key material in the design doc.
 
+> **Follow-up 2026-07-11:** a implementação integral saiu na História 07 do
+> epic 03 (`cmd/tenancit-rewrap` + `internal/rewrap`). Este plano permanece
+> `DONE` como registro do spike que definiu o contrato; o runbook atual contém
+> os comandos executáveis e os gates de campanha.
+
 ## Done criteria
 
 - [x] Design + runbook outline registrados

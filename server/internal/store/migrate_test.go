@@ -103,6 +103,19 @@ func TestRuntimeGrantsSeparateRuntimeJobsAndBackupCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if _, err := conn.Exec(ctx, `SET ROLE tenancit_rewrap`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(ctx, `SELECT id,value_cipher,nonce,key_version FROM tenant_resource_values`); err != nil {
+		t.Fatalf("rewrap cannot inventory encrypted values: %v", err)
+	}
+	if _, err := conn.Exec(ctx, `INSERT INTO tenants (slug,name) VALUES ('rewrap-write','forbidden')`); err == nil {
+		t.Fatal("rewrap role wrote domain data")
+	}
+	if _, err := conn.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+
 	if _, err := conn.Exec(ctx, `SET ROLE tenancit_jobs`); err != nil {
 		t.Fatal(err)
 	}

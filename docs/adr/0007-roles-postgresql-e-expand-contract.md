@@ -12,9 +12,9 @@ das filas que precisam manipular.
 
 ## Decisão
 
-O Tenancit terá um binário `/migrate` separado e quatro grupos NOLOGIN:
-`tenancit_runtime`, `tenancit_jobs`, `tenancit_backup` e o owner/migration
-provisionado pelo operador. O servidor HTTP não importa o pacote
+O Tenancit terá um binário `/migrate` separado e grupos NOLOGIN para
+`tenancit_runtime`, `tenancit_jobs`, `tenancit_backup` e `tenancit_rewrap`, além
+do owner/migration provisionado pelo operador. O servidor HTTP não importa o pacote
 `internal/migration`; o lint transforma essa fronteira em gate.
 
 Deploys de upgrade seguem expand/contract. A migration expand roda enquanto o

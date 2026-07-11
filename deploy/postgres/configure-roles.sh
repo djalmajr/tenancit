@@ -8,8 +8,9 @@ root_dir="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 : "${TENANCIT_RUNTIME_LOGIN:?set the pre-provisioned runtime login}"
 : "${TENANCIT_JOBS_LOGIN:?set the pre-provisioned jobs login}"
 : "${TENANCIT_BACKUP_LOGIN:?set the pre-provisioned backup login}"
+: "${TENANCIT_REWRAP_LOGIN:?set the pre-provisioned rewrap login}"
 
-for identifier in "$TENANCIT_DATABASE_NAME" "$TENANCIT_MIGRATION_LOGIN" "$TENANCIT_RUNTIME_LOGIN" "$TENANCIT_JOBS_LOGIN" "$TENANCIT_BACKUP_LOGIN"; do
+for identifier in "$TENANCIT_DATABASE_NAME" "$TENANCIT_MIGRATION_LOGIN" "$TENANCIT_RUNTIME_LOGIN" "$TENANCIT_JOBS_LOGIN" "$TENANCIT_BACKUP_LOGIN" "$TENANCIT_REWRAP_LOGIN"; do
   case "$identifier" in
     ''|*[!A-Za-z0-9_-]*) echo "PostgreSQL identifiers may contain only letters, digits, underscore, and hyphen" >&2; exit 1 ;;
   esac
@@ -21,4 +22,5 @@ exec psql "$TENANCIT_POSTGRES_ADMIN_URL" \
   -v runtime_login="$TENANCIT_RUNTIME_LOGIN" \
   -v jobs_login="$TENANCIT_JOBS_LOGIN" \
   -v backup_login="$TENANCIT_BACKUP_LOGIN" \
+  -v rewrap_login="$TENANCIT_REWRAP_LOGIN" \
   -f "$root_dir/deploy/postgres/configure-roles.sql"

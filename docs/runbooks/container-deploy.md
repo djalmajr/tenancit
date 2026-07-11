@@ -23,7 +23,7 @@ registrados para o alvo real antes de declarar produção ativa.
 
 ## Provisionar os logins PostgreSQL
 
-O operador cria quatro logins no secret manager/PostgreSQL. O repositório não
+O operador cria cinco logins no secret manager/PostgreSQL. O repositório não
 gera nem persiste senhas. Em seguida, como owner administrativo:
 
 ```bash
@@ -33,6 +33,7 @@ export TENANCIT_MIGRATION_LOGIN='tenancit_migration_prod'
 export TENANCIT_RUNTIME_LOGIN='tenancit_runtime_prod'
 export TENANCIT_JOBS_LOGIN='tenancit_jobs_prod'
 export TENANCIT_BACKUP_LOGIN='tenancit_backup_prod'
+export TENANCIT_REWRAP_LOGIN='tenancit_rewrap_prod'
 ./deploy/postgres/configure-roles.sh
 ```
 

@@ -1,7 +1,7 @@
 # Rewrap de chave AES
 
-**Status:** RASCUNHO — o job descrito aqui ainda não foi implementado. Não há
-comando de rewrap disponível na versão atual do Tenancit.
+**Status:** VALIDADO localmente em 2026-07-11; primeira campanha de produção
+continua condicionada ao alvo, janela e aprovadores.
 
 Este runbook define os controles para uma campanha futura de rotação. O desenho
 técnico está em
@@ -28,7 +28,7 @@ Em produção, operador e aprovador devem ser pessoas diferentes.
 
 ## Pré-condições
 
-- [ ] versão do Tenancit com o job de rewrap e seus testes aprovada;
+- [x] versão do Tenancit com o job de rewrap e seus testes aprovada;
 - [ ] mudança/janela registrada com `job_id`, ambiente e versão alvo;
 - [ ] nova chave AES-256 gerada no secret manager, nunca no repositório;
 - [ ] nova versão é positiva, inédita e maior que as anteriores;
@@ -120,12 +120,12 @@ se suas versões de chave continuarem disponíveis.
 
 ## 4. Dry-run obrigatório
 
-Quando o job existir, executar sua opção `--dry-run` com a mesma versão alvo e
-tamanho de lote planejados para a campanha. A sintaxe abaixo é apenas o contrato
-proposto; ela **não funciona na versão atual**:
+Execute `--dry-run` com a mesma versão alvo e tamanho de lote planejados para a
+campanha. Chaves e DSN vêm exclusivamente do ambiente injetado pelo secret
+manager:
 
 ```text
-tenancit-rewrap --dry-run --target-version <n> --batch-size <n>
+server/bin/tenancit-rewrap --dry-run --target-version <n> --batch-size <n> --max-duration <duração>
 ```
 
 O dry-run deve:
@@ -142,7 +142,7 @@ igual a zero. Capture o sumário sanitizado, nunca a saída com dados sensíveis
 ## 5. Executar por lotes
 
 1. confirme novamente health, backup, configuração e responsáveis online;
-2. inicie o job com confirmação explícita de escrita;
+2. inicie o job com `--confirm-write` e `--job-id <uuid-da-mudança>`;
 3. acompanhe batches concluídos, linhas restantes, falhas, locks, latência e
    replica lag;
 4. mantenha writers normais ativos, salvo se o teste de carga do ambiente exigir
@@ -153,6 +153,12 @@ igual a zero. Capture o sumário sanitizado, nunca a saída com dados sensíveis
 O job deve confirmar cada lote em uma transação. Cancelamento gracioso termina o
 lote atual ou faz rollback; nunca deve deixar cipher, nonce e versão parcialmente
 atualizados.
+
+Na imagem imutável, use `deploy/docker-compose.rewrap.yml`. O arquivo de
+ambiente indicado por `TENANCIT_REWRAP_ENV_FILE` deve ter modo `0600`, ser
+gerado pelo secret manager e conter `TENANCIT_REWRAP_DATABASE_URL`, keyring AES,
+URL/token/source do reporter e OTLP. Execute primeiro `rewrap-dry-run`; somente
+após aprovação execute `rewrap`.
 
 ## 6. Validar conclusão
 
@@ -239,9 +245,10 @@ antiga estiver comprometida, jamais migrar dados de volta para ela. Restore é
 - instante de retirada da chave antiga ou justificativa de retenção;
 - confirmação de que nenhum segredo foi incluído nas evidências.
 
-## Critério para validar este runbook
+## Validação realizada e gate de produção
 
-Antes da primeira produção, ensaiar integralmente em um restore representativo,
-incluindo falha no meio do lote, retomada, writer concorrente, dois processos,
-chave histórica ausente e rollback por DSN. O status deste runbook só pode mudar
-de `RASCUNHO` para `VALIDADO` depois desse ensaio com o job implementado.
+O ensaio local automatizado cobre restore clonado, falha no meio do lote,
+retomada/rerun, writer concorrente, dois processos, chave histórica ausente,
+tamper e retirada da chave antiga. O backup/restore custom foi comprovado na
+história de continuidade. Antes da primeira produção, repetir tudo no restore
+do alvo e anexar as evidências sanitizadas; sem isso, não retirar chave real.

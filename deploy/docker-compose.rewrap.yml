@@ -1,0 +1,19 @@
+services:
+  rewrap-dry-run:
+    image: "${TENANCIT_IMAGE:?set immutable image repository}@${TENANCIT_IMAGE_DIGEST:?set sha256 digest}"
+    command: ["/tenancit-rewrap", "--dry-run", "--target-version", "${TENANCIT_REWRAP_TARGET_VERSION:?set target version}", "--batch-size", "${TENANCIT_REWRAP_BATCH_SIZE:-100}", "--max-duration", "${TENANCIT_REWRAP_MAX_DURATION:-1h}"]
+    env_file:
+      - "${TENANCIT_REWRAP_ENV_FILE:?inject a mode-0600 environment file from the secret manager}"
+    restart: "no"
+
+  rewrap:
+    image: "${TENANCIT_IMAGE:?set immutable image repository}@${TENANCIT_IMAGE_DIGEST:?set sha256 digest}"
+    command: ["/tenancit-rewrap", "--confirm-write", "--target-version", "${TENANCIT_REWRAP_TARGET_VERSION:?set target version}", "--batch-size", "${TENANCIT_REWRAP_BATCH_SIZE:-100}", "--max-duration", "${TENANCIT_REWRAP_MAX_DURATION:-1h}", "--job-id", "${TENANCIT_REWRAP_JOB_ID:?set approved change UUID}"]
+    env_file:
+      - "${TENANCIT_REWRAP_ENV_FILE:?inject a mode-0600 environment file from the secret manager}"
+    restart: "no"
+
+networks:
+  default:
+    name: "${TENANCIT_NETWORK:?set pre-created ingress network}"
+    external: true

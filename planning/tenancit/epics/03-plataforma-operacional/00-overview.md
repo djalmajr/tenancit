@@ -41,7 +41,7 @@ server-side sem evidência de volume.
 | 04 | Outbox, webhooks e change feed | Consumidor recebe mudanças assinadas com retry/DLQ | XL | 01 | entregue |
 | 05 | Observabilidade e saúde operacional | Operador diagnostica dependências, jobs e SLOs sem secrets | L | 01, 04 | entregue |
 | 06 | Deploy, DB roles e continuidade | Ambiente alvo passa preflight, rollout, restore e rollback | XL | 02, 05 | entregue localmente; alvo real pendente |
-| 07 | Rewrap AES executável | Operador recriptografa em lotes com dry-run e retomada | L | 01, 05, 06 | pendente |
+| 07 | Rewrap AES executável | Operador recriptografa em lotes com dry-run e retomada | L | 01, 05, 06 | entregue localmente; campanha real pendente |
 | 08 | Auditoria, retenção e exportação | Auditor consulta/exporta trilha íntegra e limitada | L | 02, 05 | pendente |
 | 09 | Idempotência administrativa | Retry de mutação não duplica efeitos nem sucessores | L | 01, 04 | pendente |
 | 10 | Console por persona e catálogo E2E | UI cobre identidade, segurança e operação em 3 idiomas | XL | 03–09 | pendente |

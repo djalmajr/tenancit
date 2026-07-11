@@ -15,7 +15,7 @@ embed:
 	cp -r web/dist server/internal/spa/dist
 
 build-server:
-	cd server && go build -o bin/server ./cmd/server && go build -o bin/migrate ./cmd/migrate
+	cd server && go build -o bin/server ./cmd/server && go build -o bin/migrate ./cmd/migrate && go build -o bin/tenancit-rewrap ./cmd/tenancit-rewrap
 
 ## test: Go checks + web typecheck and unit tests. DB tests skip if Docker is unavailable.
 test: test-go test-web
@@ -28,9 +28,11 @@ lint-deploy:
 		deploy/postgres/configure-roles.sh scripts/test-deploy-scripts.sh \
 		scripts/report-operation.sh scripts/postgres-backup.sh scripts/postgres-restore-drill.sh \
 		scripts/test-multi-replica-continuity.sh scripts/test-postgres-roles.sh \
-		scripts/post-deploy-production-smoke.sh scripts/test-production-smoke.sh
+		scripts/post-deploy-production-smoke.sh scripts/test-production-smoke.sh \
+		scripts/test-compose-contracts.sh
 	sh ./scripts/test-deploy-scripts.sh
 	sh ./scripts/test-production-smoke.sh
+	sh ./scripts/test-compose-contracts.sh
 
 lint-go:
 	sh ./scripts/lint-go.sh

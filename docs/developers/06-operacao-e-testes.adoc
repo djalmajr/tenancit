@@ -38,6 +38,10 @@
 | Chave adicional do keyring para decriptar versões históricas ou staged em
   cutover. Não muda a versão usada para novos writes.
 
+| `TENANCIT_REWRAP_DATABASE_URL`, `TENANCIT_REWRAP_SOURCE`
+| DSN do login mínimo `tenancit_rewrap` e identificador operacional não secreto
+  do ambiente. Usados apenas pelo comando offline.
+
 | `TENANCIT_OPERATIONS_REPORT_TOKEN`, `TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION`
 | Credencial exclusiva e versionada para agentes publicarem reports de
   backup/restore/migration/rewrap. O par é opcional; quando configurado, o token

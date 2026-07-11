@@ -57,10 +57,10 @@ fronteira de secrets.
 | P2
 | Job guiado de rewrap AES
 | Recriptografia retomável permite retirar versões antigas com backup e rollback.
-| Implementar o link:developers/design/aes-key-rewrap.md[design] do
-  link:../plans/022-aes-key-rewrap-spike.md[plano 022] e ensaiar o runbook.
+| Operar o link:developers/design/aes-key-rewrap.md[design] implementado e
+  repetir o link:runbooks/aes-key-rewrap.md[runbook] no primeiro alvo.
 | Dry-run, concorrência, retomada, restore e smoke passam em banco representativo.
-| Spike concluído
+| Implementado e validado localmente; campanha real pendente
 
 | P2
 | Primeiro deploy operacional validado
@@ -74,7 +74,7 @@ fronteira de secrets.
 Sequência atual: executar o
 link:../../planning/tenancit/epics/03-plataforma-operacional/00-overview.md[epic 03],
 começando por CI/verdade documental, OIDC/RBAC e operação multi-réplica;
-implementar rewrap após backup/restore estar validado no alvo.
+repetir rewrap após backup/restore estar validado no alvo.
 
 Não são compromissos desta trajetória: multi-região, storage WORM/SIEM, HSM,
 cache distribuído genérico ou allowlist de CIDR antes de a topologia de proxies

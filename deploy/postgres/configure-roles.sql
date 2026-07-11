@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 
 SELECT format('CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT', role_name)
-FROM (VALUES ('tenancit_runtime'), ('tenancit_jobs'), ('tenancit_backup')) AS roles(role_name)
+FROM (VALUES ('tenancit_runtime'), ('tenancit_jobs'), ('tenancit_backup'), ('tenancit_rewrap')) AS roles(role_name)
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name)
 \gexec
 
@@ -51,4 +51,6 @@ SELECT format('GRANT tenancit_runtime TO %I', :'runtime_login')
 SELECT format('GRANT tenancit_jobs TO %I', :'jobs_login')
 \gexec
 SELECT format('GRANT tenancit_backup TO %I', :'backup_login')
+\gexec
+SELECT format('GRANT tenancit_rewrap TO %I', :'rewrap_login')
 \gexec

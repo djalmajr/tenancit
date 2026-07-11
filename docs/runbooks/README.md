@@ -15,7 +15,7 @@ executado de ponta a ponta no ambiente indicado.
 | [Entrega de webhooks](webhook-delivery.md) | VALIDADO | receiver Compose + assinatura E2E, 2026-07-11 |
 | [Saúde operacional e telemetria](operational-health.md) | VALIDADO | receiver OTLP/HTTP + probes e reports E2E, 2026-07-11 |
 | [Deploy imutável](container-deploy.md) | AUTOMAÇÃO LOCAL VALIDADA | roles, duas réplicas, failover, restore e scripts; alvo real pendente |
-| [Rewrap de chave AES](aes-key-rewrap.md) | RASCUNHO | aguarda implementação e ensaio do job |
+| [Rewrap de chave AES](aes-key-rewrap.md) | VALIDADO LOCALMENTE | job offline, restore clonado e falhas; alvo real pendente |
 
 Regras:
 

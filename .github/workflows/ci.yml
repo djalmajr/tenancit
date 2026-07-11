@@ -91,7 +91,7 @@ jobs:
       - name: build product
         run: make build
       - name: verify executable
-        run: test -x server/bin/server && test -x server/bin/migrate
+        run: test -x server/bin/server && test -x server/bin/migrate && test -x server/bin/tenancit-rewrap
       - name: verify deployment contracts
         run: make lint-deploy
 

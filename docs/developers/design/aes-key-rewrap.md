@@ -1,6 +1,6 @@
 # Design: rewrap de chaves AES
 
-- **Status:** Proposto; spike documental, sem job implementado
+- **Status:** Aceito e implementado; validação local concluída
 - **Data:** 2026-07-09
 - **Plano:** `plans/022-aes-key-rewrap-spike.md`
 - **Escopo:** recriptografar secrets existentes sob a chave AES corrente sem
@@ -8,7 +8,7 @@
 
 ## Resultado da decisão
 
-A primeira implementação deve ser um comando operacional offline e explícito,
+A implementação é um comando operacional offline e explícito,
 executado separadamente do servidor HTTP. O comando processa lotes curtos em
 transações independentes, seleciona linhas com `FOR UPDATE SKIP LOCKED`, abre o
 ciphertext com a chave indicada por `key_version`, cifra o mesmo plaintext com a
@@ -38,15 +38,16 @@ Somente linhas com `value_cipher IS NOT NULL` são candidatas. Valores em claro
 não podem ser modificados. Para um ciphertext válido, `nonce` e `key_version`
 também precisam existir; dados fora dessa invariante bloqueiam a campanha.
 
-## Contrato do comando futuro
+## Contrato do comando
 
-Interface recomendada, ainda não implementada:
+Interface implementada:
 
 ```text
-tenancit-rewrap \
+server/bin/tenancit-rewrap \
   --target-version <n> \
   --batch-size <n> \
   [--dry-run] \
+  [--confirm-write --job-id <uuid>] \
   [--max-duration <duration>]
 ```
 
@@ -62,7 +63,7 @@ Regras:
    grava dados.
 5. O comando exige confirmação explícita para escrita e recusa execução se o
    preflight, o backup ou a configuração das chaves não tiver evidência.
-6. O processo adquire um advisory lock de campanha. A primeira versão aceita
+6. O processo adquire um advisory lock de campanha. A implementação aceita
    um único coordenador; `SKIP LOCKED` mantém lotes seguros diante de writers e
    permite paralelismo futuro sem redesenhar a consulta.
 
@@ -192,13 +193,12 @@ linhas exigem triagem separada, mantendo a campanha fail-closed.
 
 Métricas mínimas:
 
-- `rewrap_rows_total{from_version,to_version,result}`;
-- `rewrap_rows_remaining{key_version}`;
-- `rewrap_batches_total{result}` e duração por lote;
-- `rewrap_decrypt_failures_total`;
-- `rewrap_verification_failures_total`;
-- `rewrap_cas_conflicts_total`;
-- `rewrap_locked_retries_total`;
+- `tenancit.rewrap.rows.by_version{from_version,to_version,outcome}`;
+- `tenancit.rewrap.rows.remaining.by_version{key_version}`;
+- `tenancit.rewrap.batches{outcome}` e `tenancit.rewrap.batch.duration`;
+- `tenancit.rewrap.failures{failure_reason}` para autenticação, verificação,
+  CAS, locks sem progresso e demais classes fechadas;
+- `tenancit.rewrap.campaigns`, linhas processadas/restantes e duração total;
 - duração total e timestamp do último progresso.
 
 Logs estruturados podem conter `job_id`, versão origem/destino, número do lote,
@@ -250,23 +250,26 @@ A chave antiga só pode ser removida quando:
 5. backups que ainda dependem da chave antiga tiverem política explícita de
    retenção ou expiração.
 
-## Estratégia de implementação
+## Estrutura implementada
 
-A entrega futura deve ser separada em etapas revisáveis:
+A entrega ficou separada em componentes revisáveis:
 
-1. consultas sqlc de inventário, seleção bloqueante e CAS;
-2. API do `Cryptor` para expor a versão corrente sem revelar chaves e, se
-   aprovado, operar com buffers apagáveis;
-3. serviço de rewrap independente do HTTP, com fakes e relógio injetável;
-4. CLI offline com dry-run, advisory lock, cancelamento e saída estruturada;
-5. métricas e runbook validados em banco restaurado;
-6. somente depois, avaliação de scheduler ou endpoint administrativo.
+1. API byte-oriented do `Cryptor` expõe somente metadados de versão e permite
+   apagar buffers de plaintext;
+2. `internal/rewrap` implementa inventário paginado, autenticação integral,
+   advisory lock, `SKIP LOCKED`, CAS e retomada pelo banco;
+3. `cmd/tenancit-rewrap` fornece CLI offline, cancelamento por sinal, deadline,
+   JSON sanitizado, OTLP e report operacional autenticado;
+4. `/tenancit-rewrap` integra a imagem imutável; Compose separado diferencia
+   dry-run e escrita confirmada;
+5. o login `tenancit_rewrap` possui SELECT/UPDATE apenas nas colunas cifradas e
+   leitura dos reports de segurança.
 
 Não é necessária migration de schema para o algoritmo básico. Constraints para
 fortalecer a invariante cipher/nonce/key_version podem ser uma mudança separada,
 precedida por inventário dos dados existentes.
 
-## Critérios de aceite da implementação futura
+## Critérios de aceite e evidências
 
 - dry-run percorre todas as linhas e não altera nenhum byte no banco;
 - mistura de linhas em versões antigas, alvo e valores em claro termina com
@@ -284,9 +287,15 @@ precedida por inventário dos dados existentes.
 - logs e métricas passam por teste que rejeita plaintext, cipher, nonce e chaves;
 - restore do backup é ensaiado antes da primeira campanha de produção.
 
-## Fora deste spike
+Os testes de integração cobrem dry-run byte-idêntico, lotes de tamanho um,
+rerun idempotente, chave histórica ausente, ciphertext adulterado, nonce
+malformado, evidência ausente, rollback do lote por falha injetada, advisory
+lock, timeout sem progresso, writer concorrente, clone restaurado e leitura sem
+a chave antiga após conclusão. O CLI completo publica report por credencial
+dedicada e não aceita key material em argumentos.
 
-- implementação do comando ou das queries;
+## Fora da implementação atual
+
 - execução de uma rotação real;
 - HSM, Vault Transit ou envelope encryption;
 - rotação multi-região;

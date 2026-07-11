@@ -1,8 +1,8 @@
 [#eng-arquitetura]
 === Arquitetura
 
-O Tenancit é um binário Go que combina API HTTP, painel SPA
-embutido, migrations e acesso direto ao PostgreSQL. O desenho favorece poucas
+O Tenancit é uma imagem Go com três comandos: API HTTP + painel SPA embutido,
+migration one-shot e rewrap AES offline. O desenho favorece poucas
 partes móveis: não há broker, ORM mágico ou serviço separado para o painel.
 PostgreSQL mantém domínio/sessões/auditoria e Valkey sustenta o rate limit global.
 
@@ -23,10 +23,14 @@ PostgreSQL mantém domínio/sessões/auditoria e Valkey sustenta o rate limit gl
 ----
 tenancit/
 ├── server/
-│   ├── cmd/server/              # boot, env, migrate, HTTP server
+│   ├── cmd/server/              # boot e HTTP server sem DDL
+│   ├── cmd/migrate/             # migrations one-shot
+│   ├── cmd/tenancit-rewrap/     # campanha AES offline
 │   ├── internal/httpapi/         # chi routes e handlers
 │   ├── internal/service/         # regras de domínio, cripto, resolver
-│   ├── internal/store/           # migrations, sqlc queries, db gerado
+│   ├── internal/migration/       # goose + grants, fora do runtime HTTP
+│   ├── internal/rewrap/          # preflight, lotes, CAS e reports
+│   ├── internal/store/           # sqlc queries e db gerado
 │   └── internal/spa/             # embed do build web
 ├── web/
 │   └── src/                      # painel admin
@@ -98,7 +102,8 @@ flowchart LR
   fields/values em duas queries batch constantes, sem queries por resource.
 
 | `store`
-| SQL explícito, migrations goose e código sqlc gerado.
+| SQL explícito e código sqlc gerado. Migrations ficam em pacote separado que o
+  runtime HTTP é proibido de importar.
 
 | `web`
 | Painel admin. Não é fonte de verdade de segurança; secrets e validações

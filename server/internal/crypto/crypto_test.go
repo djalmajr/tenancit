@@ -76,6 +76,31 @@ func TestCrossVersionDecrypt(t *testing.T) {
 	}
 }
 
+func TestByteAPIExposesOnlyVersionMetadataAndRoundTrips(t *testing.T) {
+	c, err := New(map[int][]byte{1: testKey()}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plaintext := []byte("mutable-operational-secret")
+	encrypted, err := c.EncryptBytes(plaintext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, err := c.DecryptBytes(encrypted)
+	if err != nil || !bytes.Equal(opened, plaintext) {
+		t.Fatalf("DecryptBytes mismatch err=%v", err)
+	}
+	if c.CurrentVersion() != 1 || !c.HasVersion(1) || c.HasVersion(2) {
+		t.Fatal("unexpected version metadata")
+	}
+	if nonceSize, ok := c.NonceSize(1); !ok || nonceSize != len(encrypted.Nonce) {
+		t.Fatalf("nonce metadata = %d, %v", nonceSize, ok)
+	}
+	if overhead, ok := c.Overhead(1); !ok || overhead <= 0 || len(encrypted.Cipher) < overhead {
+		t.Fatalf("overhead metadata = %d, %v", overhead, ok)
+	}
+}
+
 func TestFromEnvRequiresCurrentKey(t *testing.T) {
 	t.Setenv("TENANCIT_AES_KEY", "")
 	t.Setenv("TENANCIT_AES_KEY_VERSION", "")
