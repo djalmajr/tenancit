@@ -13,6 +13,7 @@ import (
 	"time"
 
 	appcrypto "github.com/djalmajr/tenancit/server/internal/crypto"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 )
 
 const maxAttempts = 8
@@ -46,16 +47,27 @@ func (w *Worker) Run(ctx context.Context, interval time.Duration) {
 }
 
 func (w *Worker) run(ctx context.Context) {
+	started := time.Now()
 	deliveries, err := w.Store.Claim(ctx, w.Now(), w.Lease, w.Batch)
 	if err != nil {
+		telemetry.RecordDependencyOperation(ctx, "outbox", "claim", "error", time.Since(started))
+		telemetry.RecordWorkerCycle(ctx, "webhook", "error", 0, time.Since(started))
 		slog.Error("claim webhook deliveries", "error_type", fmt.Sprintf("%T", err))
 		return
 	}
+	telemetry.RecordDependencyOperation(ctx, "outbox", "claim", "success", time.Since(started))
+	outcome := "success"
 	for _, delivery := range deliveries {
+		deliveryStarted := time.Now()
 		if err := w.deliver(ctx, delivery); err != nil {
+			outcome = "error"
+			telemetry.RecordDependencyOperation(ctx, "outbox", "deliver", "error", time.Since(deliveryStarted))
 			slog.Error("process webhook delivery", "delivery_id", delivery.ID, "error_type", fmt.Sprintf("%T", err))
+		} else {
+			telemetry.RecordDependencyOperation(ctx, "outbox", "deliver", "success", time.Since(deliveryStarted))
 		}
 	}
+	telemetry.RecordWorkerCycle(ctx, "webhook", outcome, len(deliveries), time.Since(started))
 }
 
 func (w *Worker) deliver(ctx context.Context, delivery Delivery) error {

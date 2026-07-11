@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -80,6 +81,7 @@ func (c *Collector) Run(ctx context.Context) {
 }
 
 func (c *Collector) flush(ctx context.Context) {
+	started := time.Now()
 	events := make([]Event, 0, len(c.events))
 	for {
 		select {
@@ -91,12 +93,14 @@ func (c *Collector) flush(ctx context.Context) {
 	}
 
 drained:
+	outcome := "success"
 	batch := aggregateEvents(events)
 	for clientID, usedAt := range batch.LastUsed {
 		if err := c.store.TouchAPIClientLastUsed(ctx, db.TouchAPIClientLastUsedParams{
 			ApiClientID: clientID,
 			UsedAt:      usedAt.UTC(),
 		}); err != nil {
+			outcome = "error"
 			slog.Error("flush API client last used", "api_client_id", clientID, "err", err)
 		}
 	}
@@ -110,9 +114,12 @@ drained:
 			Operation: key.Operation, StatusClass: key.StatusClass,
 			RequestCount: count.Requests, RateLimitedCount: count.RateLimited,
 		}); err != nil {
+			outcome = "error"
 			slog.Error("flush API client usage", "api_client_id", key.APIClientID, "err", err)
 		}
 	}
+	telemetry.RecordDependencyOperation(ctx, "usage", "flush", outcome, time.Since(started))
+	telemetry.RecordWorkerCycle(ctx, "usage", outcome, len(events), time.Since(started))
 }
 
 func aggregateEvents(events []Event) eventBatch {

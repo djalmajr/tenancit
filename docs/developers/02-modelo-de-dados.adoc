@@ -44,6 +44,10 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 | `outbox_events`, `webhook_targets`, `webhook_deliveries`, `webhook_dead_letters`
 | Eventos referenciais versionados, targets com URL/secret cifrados, estado de
   lease/retry e DLQ reprocessável.
+
+| `operational_reports`
+| Evidências append-only de backup/restore/migration/rewrap, deduplicadas por
+  source/idempotency key e classificadas por freshness sem metadata livre.
 |===
 
 ==== Invariantes

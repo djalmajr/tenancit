@@ -9,6 +9,7 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 )
 
 // apiKeyLookup resolves a key hash to a client; error if absent.
@@ -41,12 +42,14 @@ func RequireAPIKey(q apiKeyLookup, now func() time.Time) func(http.Handler) http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := bearerToken(r)
 			if token == "" {
+				telemetry.RecordSecurityDecision(r.Context(), "api_key_auth", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
 				return
 			}
 			client, err := q.GetAPIClientAuthByHash(r.Context(), service.HashAPIKey(token))
 			expired := client.ExpiresAt.Valid && !now().UTC().Before(client.ExpiresAt.Time)
 			if err != nil || client.Status != "active" || expired {
+				telemetry.RecordSecurityDecision(r.Context(), "api_key_auth", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
 				return
 			}
@@ -57,6 +60,7 @@ func RequireAPIKey(q apiKeyLookup, now func() time.Time) func(http.Handler) http
 			principal := apiClientPrincipal{
 				ID: client.ID.String(), Name: client.Name, Scopes: scopes, RPMLimit: client.RpmLimit,
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "api_key_auth", "success")
 			next.ServeHTTP(w, r.WithContext(contextWithAPIClientPrincipal(r.Context(), principal)))
 		})
 	}
@@ -67,13 +71,16 @@ func RequireAPIClientScope(scope string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			principal, ok := apiClientPrincipalFromContext(r.Context())
 			if !ok {
+				telemetry.RecordSecurityDecision(r.Context(), "api_scope", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
 				return
 			}
 			if _, allowed := principal.Scopes[scope]; !allowed {
+				telemetry.RecordSecurityDecision(r.Context(), "api_scope", "denied")
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient_scope"})
 				return
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "api_scope", "success")
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -86,6 +93,7 @@ func RequireAdminToken(adminTokenHash string) func(http.Handler) http.Handler {
 			token := bearerToken(r)
 			hash := service.HashAPIKey(token)
 			if token == "" || subtle.ConstantTimeCompare([]byte(hash), []byte(adminTokenHash)) != 1 {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid admin token"})
 				return
 			}
@@ -94,6 +102,7 @@ func RequireAdminToken(adminTokenHash string) func(http.Handler) http.Handler {
 				"primary",
 				sharedAdminPermissions[:]...,
 			)
+			telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "success")
 			next.ServeHTTP(w, r.WithContext(contextWithPrincipal(r.Context(), value)))
 		})
 	}

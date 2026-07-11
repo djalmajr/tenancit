@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -30,10 +31,12 @@ func retentionCutoffMonths(now time.Time, months int) time.Time {
 
 func RunRetention(ctx context.Context, store RetentionStore, policy RetentionPolicy, now func() time.Time, interval time.Duration) {
 	run := func() {
+		started := time.Now()
 		months := 6
 		if policy != nil {
 			configured, err := policy.UsageRetentionMonths(ctx)
 			if err != nil || configured <= 0 {
+				telemetry.RecordWorkerCycle(ctx, "usage_retention", "error", 0, time.Since(started))
 				slog.Error("load API client usage retention policy", "error_type", fmt.Sprintf("%T", err))
 				return
 			}
@@ -42,9 +45,13 @@ func RunRetention(ctx context.Context, store RetentionStore, policy RetentionPol
 		cutoff := retentionCutoffMonths(now(), months)
 		deleted, err := store.DeleteExpiredAPIClientUsage(ctx, pgtype.Date{Time: cutoff, Valid: true})
 		if err != nil {
+			telemetry.RecordDependencyOperation(ctx, "usage", "retain", "error", time.Since(started))
+			telemetry.RecordWorkerCycle(ctx, "usage_retention", "error", 0, time.Since(started))
 			slog.Error("delete expired API client usage", "err", err)
 			return
 		}
+		telemetry.RecordDependencyOperation(ctx, "usage", "retain", "success", time.Since(started))
+		telemetry.RecordWorkerCycle(ctx, "usage_retention", "success", int(deleted), time.Since(started))
 		slog.Info("API client usage retention complete", "deleted", deleted, "cutoff", cutoff.Format("2006-01-02"))
 	}
 	run()

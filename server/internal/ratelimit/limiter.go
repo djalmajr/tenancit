@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -78,7 +79,14 @@ func NewValkey(rawURL string) (*Valkey, error) {
 }
 
 func (v *Valkey) Ping(ctx context.Context) error {
-	return v.client.Ping(ctx).Err()
+	started := time.Now()
+	err := v.client.Ping(ctx).Err()
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	telemetry.RecordDependencyOperation(ctx, "valkey", "ping", outcome, time.Since(started))
+	return err
 }
 
 func (v *Valkey) Close() error { return v.client.Close() }
@@ -111,8 +119,10 @@ return {allowed, math.floor(tokens), retry, reset}
 `)
 
 func (v *Valkey) Allow(ctx context.Context, clientID string, rpm int32) (Result, error) {
+	started := time.Now()
 	values, err := tokenBucketScript.Run(ctx, v.client, []string{valkeyBucketKey(clientID)}, rpm).Slice()
 	if err != nil || len(values) != 4 {
+		telemetry.RecordDependencyOperation(ctx, "valkey", "query", "error", time.Since(started))
 		return Result{}, ErrUnavailable
 	}
 	parsed := make([]int64, 4)
@@ -126,9 +136,11 @@ func (v *Valkey) Allow(ctx context.Context, clientID string, rpm int32) (Result,
 			err = errors.New("unexpected limiter response")
 		}
 		if err != nil {
+			telemetry.RecordDependencyOperation(ctx, "valkey", "query", "error", time.Since(started))
 			return Result{}, ErrUnavailable
 		}
 	}
+	telemetry.RecordDependencyOperation(ctx, "valkey", "query", "success", time.Since(started))
 	return Result{
 		Allowed: parsed[0] == 1, Limit: rpm, Remaining: int32(parsed[1]),
 		RetryAfter: time.Duration(parsed[2]) * time.Millisecond,

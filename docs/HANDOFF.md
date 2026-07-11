@@ -1,8 +1,8 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `d73ca6e` mais outbox/webhooks/change feed validado nesta sessão
-- **Entrega Git anterior:** `d73ca6e` está em `main`; push da fatia corrente vem após os gates
+- **Base observada:** `075628f` mais observabilidade/saúde validada nesta sessão
+- **Entrega Git anterior:** `075628f` está em `main` e a CI `29160156873` ficou verde; push da fatia corrente vem após os gates
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -31,6 +31,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
   global/ETag, compare-and-set e auditoria na mesma transação.
 - Outbox transacional publica change feed `events:read` e webhooks HMAC com
   targets cifrados, SSRF defense, lease, retry, circuito, DLQ/replay e retenção.
+- OTLP/HTTP configurável exporta traces e métricas RED/USE com dimensões
+  allowlisted. `/readyz` prova PostgreSQL/Valkey/IdP sem expor configuração; o
+  console reúne probes, filas, circuitos e reports append-only com freshness.
 - Toda mutação administrativa e reveal bem-sucedidos escrevem auditoria
   append-only na mesma transação. Negativas/erros também são registrados sem
   headers, body ou query string; a consulta usa filtros exatos e cursor keyset.
@@ -76,13 +79,13 @@ outro ambiente.
 |---|---|
 | Web lint | ESLint, zero warnings |
 | Web typecheck | `tsc --noEmit`, exit 0 |
-| Web unit | 19 arquivos / 78 testes, todos verdes |
+| Web unit | 19 arquivos / 79 testes, todos verdes |
 | Go estrito | `REQUIRE_DB_TESTS=1 go test -count=1 ./...`, incluindo testcontainers, verde |
 | Produto | Docker multi-stage com lockfile frozen, SPA + binário Go, verde |
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
 | HTTP empacotado | `/` e `/healthz` 200; headers defensivos presentes; `reveal=true` com `private, no-store` |
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
-| Catálogo E2E | 19/19 testes empacotados (18 flows + receiver webhook) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
+| Catálogo E2E | 20/20 testes empacotados (18 flows + webhook + report operacional) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
 | Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
 | Browser | Vite `:5180` validado em login, dashboard, API clients, token one-shot, snippets e hard delete; console final sem erros |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
@@ -139,16 +142,14 @@ O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
-1. Publicar o marco de outbox/webhooks/change feed e confirmar a CI remota.
-2. Implementar observabilidade e saúde operacional para dependências, workers,
-   filas, circuitos e retenções.
-3. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
+1. Publicar o marco de observabilidade/saúde e confirmar a CI remota.
+2. Separar roles PostgreSQL de runtime/migration e definir retenção/partições no
    primeiro alvo.
-4. Escolher o primeiro alvo e validar o
+3. Escolher o primeiro alvo e validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
-5. Implementar idempotência administrativa e exportação governada de auditoria.
-6. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
+4. Implementar idempotência administrativa e exportação governada de auditoria.
+5. Implementar e ensaiar o job de rewrap; só depois retirar chaves históricas.
 
 ## Limites conscientes desta rodada
 

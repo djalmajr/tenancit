@@ -10,6 +10,7 @@ import { Route as auditEventsRoute } from "./audit-events";
 import { Route as sessionsRoute } from "./sessions";
 import { Route as settingsRoute } from "./settings";
 import { Route as integrationsRoute } from "./integrations";
+import { Route as operationsHealthRoute } from "./operations-health";
 
 const routes = [
   ["overview", overviewRoute],
@@ -23,6 +24,7 @@ const routes = [
   ["sessions", sessionsRoute],
   ["settings", settingsRoute],
   ["integrations", integrationsRoute],
+  ["operational health", operationsHealthRoute],
 ] as const;
 
 describe("business route loading boundary", () => {

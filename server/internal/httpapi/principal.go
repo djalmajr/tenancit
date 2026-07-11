@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 )
 
 type adminPermission string
@@ -174,13 +176,16 @@ func requireAdminPermission(permission adminPermission) func(http.Handler) http.
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			value, ok := principalFromContext(r.Context())
 			if !ok {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_permission", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid admin token"})
 				return
 			}
 			if !value.hasPermission(permission) {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_permission", "denied")
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient permission"})
 				return
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "admin_permission", "success")
 			next.ServeHTTP(w, r)
 		})
 	}

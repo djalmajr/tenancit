@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,14 +16,21 @@ type RetentionPolicy interface {
 
 func RunRetention(ctx context.Context, pool *pgxpool.Pool, policy RetentionPolicy, now func() time.Time, interval time.Duration) {
 	run := func() {
+		started := time.Now()
 		deliveryDays, eventDays, err := policy.WebhookRetention(ctx)
 		if err != nil || deliveryDays <= 0 || eventDays <= 0 {
+			telemetry.RecordWorkerCycle(ctx, "webhook_retention", "error", 0, time.Since(started))
 			slog.Error("load webhook retention policy", "error_type", fmt.Sprintf("%T", err))
 			return
 		}
 		if err := runRetentionOnce(ctx, pool, now().UTC(), deliveryDays, eventDays); err != nil {
+			telemetry.RecordDependencyOperation(ctx, "outbox", "retain", "error", time.Since(started))
+			telemetry.RecordWorkerCycle(ctx, "webhook_retention", "error", 0, time.Since(started))
 			slog.Error("apply webhook retention", "error_type", fmt.Sprintf("%T", err))
+			return
 		}
+		telemetry.RecordDependencyOperation(ctx, "outbox", "retain", "success", time.Since(started))
+		telemetry.RecordWorkerCycle(ctx, "webhook_retention", "success", 0, time.Since(started))
 	}
 	run()
 	ticker := time.NewTicker(interval)

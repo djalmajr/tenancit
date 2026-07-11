@@ -10,6 +10,7 @@ const outputDir = process.env.TENANCIT_E2E_OUTPUT_DIR ?? `../output/playwright/d
 const chromiumIgnoredTests = [
   /bootstrap\.e2e\.test\.ts/,
   ...(process.env.TENANCIT_E2E_WEBHOOK_RECEIVER_BASE_URL ? [] : [/webhook-delivery\.e2e\.test\.ts/]),
+  ...(process.env.TENANCIT_E2E_OPERATIONS_TOKEN ? [] : [/operational-health\.e2e\.test\.ts/]),
   ...(process.env.TENANCIT_E2E_AUTH_MODE === "oidc" ? [] : [/oidc-.*\.e2e\.test\.ts/]),
 ];
 

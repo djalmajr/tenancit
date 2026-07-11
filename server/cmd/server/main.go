@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,12 +19,14 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/spa"
 	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/djalmajr/tenancit/server/internal/usage"
 	"github.com/djalmajr/tenancit/server/internal/webhook"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
+	slog.SetDefault(slog.New(telemetry.NewRedactingJSONHandler(os.Stdout, nil)))
 	if err := run(); err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
@@ -51,7 +54,27 @@ func run() error {
 
 	ctx, cancelRuntime := context.WithCancel(context.Background())
 	defer cancelRuntime()
-	pool, err := pgxpool.New(ctx, dsn)
+	telemetryConfig, err := telemetry.LoadRuntimeConfig(os.Getenv)
+	if err != nil {
+		return err
+	}
+	shutdownTelemetry, err := telemetry.SetupRuntime(ctx, telemetryConfig)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(shutdownContext); err != nil {
+			slog.Error("shutdown telemetry", "error_type", fmt.Sprintf("%T", err))
+		}
+	}()
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return err
+	}
+	poolConfig.ConnConfig.Tracer = telemetry.NewPGXTracer()
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return err
 	}
@@ -63,6 +86,14 @@ func run() error {
 	}
 
 	srv := httpapi.NewServer(pool, cryptor, authConfig.LegacyToken)
+	operationsToken, operationsVersion, err := loadOperationsCredential(os.Getenv)
+	if err != nil {
+		return err
+	}
+	srv.SetOperationsReportCredential(operationsToken, operationsVersion)
+	readinessProbes := []telemetry.Probe{
+		telemetry.NewPingProbe("postgres", true, pool.Ping),
+	}
 	allowWebhookLoopback := authConfig.DevMode && strings.EqualFold(strings.TrimSpace(os.Getenv("TENANCIT_WEBHOOK_ALLOW_LOOPBACK_HTTP")), "true")
 	srv.SetWebhookTargets(webhook.NewTargetRepository(pool, cryptor, nil, nil, allowWebhookLoopback))
 	authStore := adminauth.NewPostgresSessionStore(pool)
@@ -82,6 +113,9 @@ func run() error {
 		sessions.SetPolicyProvider(srv.Settings)
 		oidcManager := adminauth.NewOIDCManager(authConfig.OIDC, provider, authStore, sessions, cryptor, nil, time.Now)
 		srv.ConfigureAdminAuth(authConfig, oidcManager, sessions)
+		readinessProbes = append(readinessProbes, telemetry.NewHTTPProbe(
+			"oidc", authConfig.OIDC.Issuer+"/.well-known/openid-configuration", false, nil,
+		))
 	}
 	limiterMode := envOr("TENANCIT_RATE_LIMIT_MODE", "valkey")
 	if limiterMode == "memory" {
@@ -103,7 +137,9 @@ func run() error {
 			return errors.Join(ratelimit.ErrUnavailable, err)
 		}
 		srv.SetRateLimiter(valkeyLimiter)
+		readinessProbes = append(readinessProbes, telemetry.NewPingProbe("valkey", true, valkeyLimiter.Ping))
 	}
+	srv.ReadinessProbes = readinessProbes
 	usageCollector := usage.NewCollector(db.New(pool), 4096, 10*time.Second)
 	srv.SetUsageRecorder(usageCollector)
 	go usageCollector.Run(ctx)
@@ -148,4 +184,16 @@ func envOr(k, def string) string {
 		return v
 	}
 	return def
+}
+
+func loadOperationsCredential(getenv func(string) string) (string, string, error) {
+	token := strings.TrimSpace(getenv("TENANCIT_OPERATIONS_REPORT_TOKEN"))
+	version := strings.TrimSpace(getenv("TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION"))
+	if token == "" && version == "" {
+		return "", "", nil
+	}
+	if len(token) < 32 || version == "" {
+		return "", "", errors.New("operations report credential requires a token with at least 32 characters and a version")
+	}
+	return token, version, nil
 }

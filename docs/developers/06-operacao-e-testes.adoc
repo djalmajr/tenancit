@@ -32,6 +32,15 @@
 | `TENANCIT_AES_KEY_V<n>`
 | Chave adicional do keyring para decriptar versões históricas ou staged em
   cutover. Não muda a versão usada para novos writes.
+
+| `TENANCIT_OPERATIONS_REPORT_TOKEN`, `TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION`
+| Credencial exclusiva e versionada para agentes publicarem reports de
+  backup/restore/migration/rewrap. O par é opcional; quando configurado, o token
+  deve ter pelo menos 32 caracteres.
+
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`
+| Habilitam exportação OTLP/HTTP. Sem endpoint, telemetria externa fica
+  desligada. HTTP sem TLS exige `OTEL_EXPORTER_OTLP_INSECURE=true` explícito.
 |===
 
 ==== Gates locais
@@ -70,6 +79,17 @@ Resposta esperada:
 ----
 {"status":"ok"}
 ----
+
+Readiness síncrona e sanitizada:
+
+[source,http]
+----
+GET /readyz
+----
+
+Retorna `503` quando uma dependência crítica está indisponível e nunca inclui
+DSN, URL, erro interno ou credencial. O contrato de dimensões, redaction, SLOs e
+reports está em link:observability.md[Observabilidade e política de redaction].
 
 ==== Operação segura
 

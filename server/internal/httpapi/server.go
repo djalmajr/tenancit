@@ -10,6 +10,7 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/service"
 	appsettings "github.com/djalmajr/tenancit/server/internal/settings"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/djalmajr/tenancit/server/internal/webhook"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -18,34 +19,40 @@ import (
 
 // Server holds dependencies shared by handlers.
 type Server struct {
-	AdminTokenHash string
-	Cryptor        *crypto.Cryptor
-	DB             *pgxpool.Pool
-	Q              *db.Queries
-	Resolver       *service.Resolver
-	Now            func() time.Time
-	Usage          usageRecorder
-	Limiter        ratelimit.Limiter
-	AdminAuth      *AdminAuthRuntime
-	AdminAuthStore *adminauth.PostgresSessionStore
-	Settings       *appsettings.Repository
-	Webhooks       *webhook.TargetRepository
+	AdminTokenHash                    string
+	Cryptor                           *crypto.Cryptor
+	DB                                *pgxpool.Pool
+	Q                                 *db.Queries
+	Resolver                          *service.Resolver
+	Now                               func() time.Time
+	Usage                             usageRecorder
+	Limiter                           ratelimit.Limiter
+	AdminAuth                         *AdminAuthRuntime
+	AdminAuthStore                    *adminauth.PostgresSessionStore
+	Settings                          *appsettings.Repository
+	Webhooks                          *webhook.TargetRepository
+	ReadinessProbes                   []telemetry.Probe
+	OperationsReportTokenHash         string
+	OperationsReportCredentialVersion string
+	TelemetryMiddleware               func(http.Handler) http.Handler
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
 func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server {
 	q := db.New(pool)
+	telemetryMiddleware, _ := telemetry.NewDefaultHTTPMiddleware()
 	return &Server{
-		AdminTokenHash: service.HashAPIKey(adminToken),
-		Cryptor:        c,
-		DB:             pool,
-		Q:              q,
-		Resolver:       service.NewResolver(q, c),
-		Now:            time.Now,
-		Usage:          discardUsageRecorder{},
-		Limiter:        ratelimit.NewMemory(time.Now),
-		Settings:       appsettings.NewRepository(pool, time.Now),
-		Webhooks:       webhook.NewTargetRepository(pool, c, nil, nil, false),
+		AdminTokenHash:      service.HashAPIKey(adminToken),
+		Cryptor:             c,
+		DB:                  pool,
+		Q:                   q,
+		Resolver:            service.NewResolver(q, c),
+		Now:                 time.Now,
+		Usage:               discardUsageRecorder{},
+		Limiter:             ratelimit.NewMemory(time.Now),
+		Settings:            appsettings.NewRepository(pool, time.Now),
+		Webhooks:            webhook.NewTargetRepository(pool, c, nil, nil, false),
+		TelemetryMiddleware: telemetryMiddleware,
 	}
 }
 
@@ -54,10 +61,15 @@ func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server
 func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	if s.TelemetryMiddleware != nil {
+		r.Use(s.TelemetryMiddleware)
+	}
 	r.Use(SecurityHeaders)
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", Health)
+	r.Get("/readyz", s.Readiness)
+	r.With(s.requireOperationsReporter).Post("/v1/operations/reports", s.createOperationalReport)
 	r.Get("/v1/auth/config", s.getAdminAuthConfig)
 
 	if s.AdminAuth != nil && s.AdminAuth.Config.Mode == adminauth.ModeOIDC {
@@ -94,6 +106,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		}
 
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/overview", s.overview)
+		ar.With(requireAdminPermission(permissionAdminRead)).Get("/operational-health", s.operationalHealth)
 		ar.With(requireAdminPermission(permissionAuditRead)).Get("/audit-events", s.listAuditEvents)
 
 		ar.With(requireAdminPermission(permissionTenantWrite)).Post("/tenants", s.createTenant)

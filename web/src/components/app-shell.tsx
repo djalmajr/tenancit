@@ -12,6 +12,7 @@ import {
   LogIn,
   LogOut,
   Monitor,
+  HeartPulse,
   Moon,
   Sun,
   ScrollText,
@@ -71,6 +72,7 @@ const NAV: Array<{ exact?: boolean; icon: LucideIcon; labelKey: TranslationKey; 
   { icon: ShieldCheck, labelKey: "nav.sessions", to: "/security/sessions" },
   { icon: Settings, labelKey: "nav.settings", to: "/operations/settings" },
   { icon: Webhook, labelKey: "nav.integrations", to: "/integrations/webhooks" },
+  { icon: HeartPulse, labelKey: "nav.health", to: "/operations/health" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

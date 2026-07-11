@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	usageevents "github.com/djalmajr/tenancit/server/internal/usage"
 	"github.com/google/uuid"
 )
@@ -27,6 +28,7 @@ func EnforceAPIClientRateLimit(
 			result, err := limiter.Allow(r.Context(), principal.ID, *principal.RPMLimit)
 			if err != nil {
 				if errors.Is(err, ratelimit.ErrUnavailable) {
+					telemetry.RecordSecurityDecision(r.Context(), "rate_limit", "unavailable")
 					writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "rate_limiter_unavailable"})
 					return
 				}
@@ -37,6 +39,7 @@ func EnforceAPIClientRateLimit(
 			w.Header().Set("RateLimit-Remaining", strconv.Itoa(int(result.Remaining)))
 			w.Header().Set("RateLimit-Reset", strconv.FormatInt(ceilSeconds(result.ResetAfter), 10))
 			if !result.Allowed {
+				telemetry.RecordSecurityDecision(r.Context(), "rate_limit", "limited")
 				retry := ceilSeconds(result.RetryAfter)
 				w.Header().Set("Retry-After", strconv.FormatInt(retry, 10))
 				if clientID, parseErr := uuid.Parse(principal.ID); parseErr == nil {
@@ -48,6 +51,7 @@ func EnforceAPIClientRateLimit(
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limited"})
 				return
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "rate_limit", "allowed")
 			next.ServeHTTP(w, r)
 		})
 	}

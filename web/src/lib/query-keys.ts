@@ -5,6 +5,7 @@ export const adminQueryKeys = {
     [...adminQueryKeys.definitions(), "detail", definitionId] as const,
   definitions: () => [...adminQueryKeys.all, "definitions"] as const,
   overview: () => [...adminQueryKeys.all, "overview"] as const,
+  operationalHealth: () => [...adminQueryKeys.all, "operational-health"] as const,
   sessions: () => [...adminQueryKeys.all, "sessions"] as const,
   settings: () => [...adminQueryKeys.all, "settings"] as const,
   webhookTargets: () => [...adminQueryKeys.all, "webhook-targets"] as const,

@@ -273,6 +273,35 @@ export interface WebhookDelivery {
 }
 export interface WebhookOverview { targets:number;pending:number;retry:number;delivered:number;dead_letter:number;open_circuits:number }
 
+export interface OperationalComponent {
+  name: string;
+  status: "healthy" | "degraded" | "unavailable";
+  latency_ms: number;
+}
+export interface OperationalReport {
+  id: string;
+  kind: "backup" | "restore" | "rewrap" | "migration";
+  source: string;
+  status: "healthy" | "degraded" | "failed";
+  effective_status: "healthy" | "degraded" | "failed" | "stale";
+  occurred_at: string;
+  fresh_until: string;
+  received_at: string;
+  credential_version: string;
+}
+export interface OperationalHealth {
+  status: "healthy" | "degraded" | "unavailable";
+  checked_at: string;
+  components: OperationalComponent[];
+  reports: OperationalReport[];
+  queues: {
+    webhook_pending: number;
+    webhook_retry: number;
+    webhook_dead_letter: number;
+    open_circuits: number;
+  };
+}
+
 export interface APIClientUsageRecord {
   day: string;
   api_client_id: string;
@@ -460,4 +489,5 @@ export const api = {
     req<WebhookDelivery[]>(`/webhook-deliveries${status ? `?status=${status}` : ""}`, { signal }),
   replayWebhookDelivery: (id: string) => req<void>(`/webhook-deliveries/${id}/replay`, { method: "POST" }),
   getWebhookOverview: (signal?: AbortSignal) => req<WebhookOverview>("/webhook-overview", { signal }),
+  getOperationalHealth: (signal?: AbortSignal) => req<OperationalHealth>("/operational-health", { signal, cache: "no-store" }),
 };

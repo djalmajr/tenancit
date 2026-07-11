@@ -5,6 +5,7 @@ describe("admin query keys", () => {
   it("namespaces every protected query below the admin root", () => {
     const keys = [
       adminQueryKeys.overview(),
+      adminQueryKeys.operationalHealth(),
       adminQueryKeys.tenants(),
       adminQueryKeys.tenant("tenant-1"),
       adminQueryKeys.tenantDomains("tenant-1"),

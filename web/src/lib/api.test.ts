@@ -199,6 +199,7 @@ describe("api client", () => {
       (signal) => api.listAdminSessions(signal),
       (signal) => api.listWebhookTargets(signal),
       (signal) => api.listWebhookDeliveries("", signal),
+      (signal) => api.getOperationalHealth(signal),
     ];
 
     for (const read of calls) {

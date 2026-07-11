@@ -43,6 +43,11 @@ explicitamente; não é usado pela SPA e possui permissões mínimas.
 | `/v1/admin/overview`
 | Métricas e cards resumidos do painel.
 
+| `GET`
+| `/v1/admin/operational-health`
+| Readiness sanitizada, filas/circuitos e reports mais recentes com status
+  efetivo por freshness.
+
 | `POST`, `GET`, `GET`, `PUT`, `DELETE`
 | `/v1/admin/tenants`, `/v1/admin/tenants/{id}`
 | CRUD principal de tenants. `DELETE` remove o tenant e, por FK `ON DELETE CASCADE`, seus domains/resources/values (204; 404 se não existir).
@@ -72,6 +77,11 @@ Webhooks administrativos usam `/v1/admin/webhook-targets` e
 `/v1/admin/webhook-deliveries`; criação devolve signing secret somente uma vez
 com `private, no-store`. Catálogo, assinatura e change feed estão em
 link:webhook-events.md[Webhooks e change feed].
+
+Agentes operacionais usam `POST /v1/operations/reports` com credencial Bearer
+própria e `Idempotency-Key`; esse endpoint não aceita sessão admin nem API key de
+consumo. Kinds são fechados em `backup|restore|rewrap|migration`, status em
+`healthy|degraded|failed`, e reports expirados aparecem como `stale` na leitura.
 
 Segredos na listagem admin são mascarados por padrão. A query
 `?reveal=true` só deve ser usada por ação explícita de operador autenticado e

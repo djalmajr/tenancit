@@ -65,6 +65,7 @@ wait_until_ready() {
 }
 
 if [ "${TENANCIT_E2E_EXTERNAL:-0}" != "1" ]; then
+  export TENANCIT_E2E_OPERATIONS_TOKEN="${TENANCIT_E2E_OPERATIONS_TOKEN:-e2e-operations-$(openssl rand -hex 16)}"
   started_stack=true
   ephemeral_stack=true
   compose up -d --build

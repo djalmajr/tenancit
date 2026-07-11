@@ -43,7 +43,7 @@ Esse fluxo usa `docker-compose.dev.yml`:
   e cache de build Go.
 
 Use `http://localhost:5180` para testar o painel. O Vite faz proxy de `/v1` e
-`/healthz` para `api-dev`, então alterações no frontend entram sem rebuild de
+`/healthz` e `/readyz` para `api-dev`, então alterações no frontend entram sem rebuild de
 imagem. Alterações no backend exigem reiniciar `api-dev`, mas não reconstruir a
 imagem final.
 

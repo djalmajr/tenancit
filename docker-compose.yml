@@ -41,6 +41,8 @@ services:
       # demo key (32 bytes, base64). Replace in real deployments.
       TENANCIT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
       TENANCIT_AES_KEY_VERSION: "1"
+      TENANCIT_OPERATIONS_REPORT_TOKEN: "tenancit_operations_report_dev_123456789"
+      TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION: "local-dev-v1"
     ports:
       - "8080:8080"
 

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/events"
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -35,6 +37,7 @@ func (s *Server) AuditAdminFailures(next http.Handler) http.Handler {
 				if route == "" {
 					route = "/v1/admin/*"
 				}
+				started := time.Now()
 				_, err := s.Q.InsertAdminAuditEvent(r.Context(), db.InsertAdminAuditEventParams{
 					RequestID: middleware.GetReqID(r.Context()), ActorKind: string(capture.value.Kind),
 					ActorSubject: capture.value.Subject, Action: "break_glass.request_succeeded",
@@ -42,7 +45,10 @@ func (s *Server) AuditAdminFailures(next http.Handler) http.Handler {
 					HttpMethod: r.Method, RouteTemplate: route, HttpStatus: int16(status), Metadata: []byte(`{}`),
 				})
 				if err != nil {
+					telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "error", time.Since(started))
 					slog.Error("break-glass audit write failed", "request_id", middleware.GetReqID(r.Context()), "status", status, "error_type", fmt.Sprintf("%T", err))
+				} else {
+					telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "success", time.Since(started))
 				}
 			}
 			return
@@ -66,6 +72,7 @@ func (s *Server) AuditAdminFailures(next http.Handler) http.Handler {
 		if route == "" {
 			route = "/v1/admin/*"
 		}
+		started := time.Now()
 		_, err := s.Q.InsertAdminAuditEvent(r.Context(), db.InsertAdminAuditEventParams{
 			RequestID: middleware.GetReqID(r.Context()), ActorKind: actorKind, ActorSubject: actorSubject,
 			ActorIssuer: actorIssuer, ActorLabel: actorLabel,
@@ -73,7 +80,10 @@ func (s *Server) AuditAdminFailures(next http.Handler) http.Handler {
 			HttpMethod: r.Method, RouteTemplate: route, HttpStatus: int16(status), Metadata: []byte(`{}`),
 		})
 		if err != nil {
+			telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "error", time.Since(started))
 			slog.Error("admin failure audit write failed", "request_id", middleware.GetReqID(r.Context()), "status", status, "error_type", fmt.Sprintf("%T", err))
+		} else {
+			telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "success", time.Since(started))
 		}
 	})
 }
@@ -88,14 +98,17 @@ func insertAdminAuditSuccess(
 	status int,
 	metadataValue any,
 ) error {
+	started := time.Now()
 	actor, ok := principalFromContext(r.Context())
 	if !ok {
 		return errors.New("admin principal missing")
 	}
 	metadata, err := json.Marshal(metadataValue)
 	if err != nil {
+		telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "error", time.Since(started))
 		return err
 	}
+	telemetry.RecordDependencyOperation(r.Context(), "audit", "insert", "success", time.Since(started))
 	_, err = q.InsertAdminAuditEvent(r.Context(), db.InsertAdminAuditEventParams{
 		RequestID: middleware.GetReqID(r.Context()), ActorKind: string(actor.Kind),
 		ActorIssuer: optionalString(actor.Issuer), ActorSubject: actor.Subject,
@@ -117,9 +130,16 @@ func insertAdminAuditSuccess(
 		RequestID: middleware.GetReqID(r.Context()), Payload: draft.Payload,
 	})
 	if err != nil {
+		telemetry.RecordDependencyOperation(r.Context(), "outbox", "insert", "error", time.Since(started))
 		return err
 	}
-	return q.EnqueueOutboxDeliveries(r.Context(), event.ID)
+	err = q.EnqueueOutboxDeliveries(r.Context(), event.ID)
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	telemetry.RecordDependencyOperation(r.Context(), "outbox", "insert", outcome, time.Since(started))
+	return err
 }
 
 func optionalString(value string) *string {

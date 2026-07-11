@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
+	"github.com/djalmajr/tenancit/server/internal/telemetry"
 )
 
 type sessionAuthenticator interface {
@@ -19,10 +20,12 @@ func RequireAdminIdentity(authenticator sessionAuthenticator, cookieName, breakG
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if token := bearerToken(r); token != "" {
 				if breakGlassTokenHash == "" || !constantTimeCredentialMatch(breakGlassTokenHash, token) {
+					telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 					writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})
 					return
 				}
 				value := newBreakGlassPrincipal(breakGlassVersion)
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "success")
 				next.ServeHTTP(w, r.WithContext(contextWithPrincipal(r.Context(), value)))
 				return
 			}
@@ -35,24 +38,29 @@ func RequireAdminSession(authenticator sessionAuthenticator, cookieName string) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if authenticator == nil || cookieName == "" {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})
 				return
 			}
 			cookie, err := r.Cookie(cookieName)
 			if err != nil || strings.TrimSpace(cookie.Value) == "" {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})
 				return
 			}
 			identity, err := authenticator.Authenticate(r.Context(), cookie.Value)
 			if err != nil {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})
 				return
 			}
 			value, err := principalFromSessionIdentity(identity)
 			if err != nil {
+				telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "denied")
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "admin_role_invalid"})
 				return
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "admin_identity", "success")
 			next.ServeHTTP(w, r.WithContext(contextWithPrincipal(r.Context(), value)))
 		})
 	}
@@ -90,14 +98,17 @@ func RequireAdminCSRF(adminOrigin string) func(http.Handler) http.Handler {
 			}
 			value, ok := principalFromContext(r.Context())
 			if ok && value.Kind == principalKindBreakGlass {
+				telemetry.RecordSecurityDecision(r.Context(), "csrf", "success")
 				next.ServeHTTP(w, r)
 				return
 			}
 			if !ok || value.Kind != principalKindOIDCUser || !sameRequestOrigin(r, adminOrigin) ||
 				!adminauth.ValidateCSRF(value.csrfTokenHash, r.Header.Get("X-CSRF-Token")) {
+				telemetry.RecordSecurityDecision(r.Context(), "csrf", "denied")
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "csrf_invalid"})
 				return
 			}
+			telemetry.RecordSecurityDecision(r.Context(), "csrf", "success")
 			next.ServeHTTP(w, r)
 		})
 	}
