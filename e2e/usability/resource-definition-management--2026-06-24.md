@@ -27,15 +27,6 @@ Nenhum achado aberto após a validação pós-fix.
 | 2 | low | 6-7 | Ativar/desativar e remover campo não exibiam confirmação textual. | Adicionado feedback textual para ações administrativas. |
 
 ## Key screens
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-definitions-list.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-new-definition-dialog-filled.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-definition-created.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-host-field-added.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-password-field-added.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-definition-inactive.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-definition-active.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-password-field-removed.png`
-- `e2e/usability/screenshots/resource-definition-management-rerun-2026-06-24-definition-card-updated.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `resource-definition-management`.

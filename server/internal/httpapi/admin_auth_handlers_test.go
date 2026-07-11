@@ -50,3 +50,18 @@ func TestAdminAuthConfigOmitsLoginForLegacyMode(t *testing.T) {
 		t.Fatal("legacy response must not advertise an OIDC login URL")
 	}
 }
+
+func TestAdminSessionResponseIsNeverStored(t *testing.T) {
+	server := &Server{}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/v1/auth/session", nil)
+
+	server.getAdminSession(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("Cache-Control = %q, want private, no-store", got)
+	}
+}

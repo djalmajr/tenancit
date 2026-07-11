@@ -33,7 +33,7 @@ opt-in e justificada por demanda, nunca efeito implícito deste epic.
 
 ## Rastreabilidade
 
-- Pesquisa: `planning/tenancit/research/reference implementation-delta-2026-07-11.md`.
+- A comparação original foi consolidada neste backlog; a evidência local foi removida da distribuição pública.
 - ADRs: 0003, 0004, 0005 e 0006.
 - Designs: auditoria, política de API clients e rewrap AES.
 - Superfícies: todas as rotas admin, `/audit-events`, `/usage` e novas telas de

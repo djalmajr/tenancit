@@ -26,14 +26,6 @@ Nenhum achado aberto após a validação pós-fix.
 | 1 | low | 5-7 | Não havia exemplo imediato de uso do header `Authorization: Bearer <token>`. | Adicionado snippet de consumo na tela de chaves. |
 
 ## Key screens
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-auth-screen.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-api-clients-list.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-new-client-dialog.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-token-generated.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-token-copied.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-client-listed.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-client-revoked.png`
-- `e2e/usability/screenshots/api-client-token-lifecycle-rerun-2026-06-24-client-reactivated.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `api-client-token-lifecycle`.

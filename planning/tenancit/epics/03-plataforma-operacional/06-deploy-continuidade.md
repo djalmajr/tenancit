@@ -5,7 +5,7 @@
 ## Contexto
 
 Transformar o plano genérico de deploy em automação portável e prova concreta
-no primeiro alvo, sem incorporar topologia do reference implementation.
+no primeiro alvo, sem incorporar topologia da implementação de referência.
 
 ## Responsabilidade, motivação e valor
 

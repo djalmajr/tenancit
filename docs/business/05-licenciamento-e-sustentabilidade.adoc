@@ -1,0 +1,21 @@
+[#prod-licenciamento]
+=== Licenciamento e sustentabilidade
+
+O código do Tenancit é público sob a
+link:../../LICENSE[O'Saasy License]. Ela preserva as permissões amplas da MIT
+para estudar, usar, modificar, distribuir e criar produtos, mas reserva ao
+licenciante original a oferta concorrente do próprio Tenancit como SaaS,
+serviço gerenciado ou cloud quando sua funcionalidade for o valor principal.
+
+Por conter uma restrição de campo de uso, esta é uma licença *source available*,
+não uma licença open source aprovada pela OSI. Documentação, site e comunicação
+do projeto devem usar essa classificação de forma consistente.
+
+O modelo de sustentabilidade pretendido não cria paywalls artificiais nos
+invariantes de segurança. O produto pode ser monetizado por hospedagem oficial,
+operação gerenciada, suporte, implantação e integrações específicas. Extensões
+podem ter distribuição e termos próprios no futuro, desde que a fronteira seja
+explícita e não retire segurança necessária do core.
+
+A separação técnica entre core e extensões está registrada no
+link:../adr/0008-fronteira-core-e-extensoes.md[ADR 0008].

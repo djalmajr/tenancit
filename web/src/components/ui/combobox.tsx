@@ -21,7 +21,7 @@ type ComboboxProps = {
   "aria-label"?: string;
 };
 
-/** reference implementation's Popover + Command combobox, adapted to the Tenancit aliases. */
+/** Popover + Command combobox adapted from the reference implementation. */
 export function Combobox({
   options, value, onValueChange, searchable = false, searchPlaceholder,
   emptyText = "—", placeholder = "…", disabled, className, triggerClassName,

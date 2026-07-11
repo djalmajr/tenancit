@@ -4,7 +4,7 @@
 aguarda a definição do primeiro alvo.
 
 Este runbook descreve o contrato portável. Ele não incorpora hostnames, CIDRs,
-secret manager, ingress ou unidades do reference implementation. Esses elementos precisam ser
+secret manager, ingress ou unidades da implementação de referência. Esses elementos precisam ser
 registrados para o alvo real antes de declarar produção ativa.
 
 ## Invariantes

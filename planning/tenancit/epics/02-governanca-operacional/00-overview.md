@@ -7,10 +7,10 @@
 O Tenancit possui API clients hash-only e revogáveis, mas ainda não oferece
 menor privilégio, expiração, limite global, telemetria ou auditoria
 administrativa. O objetivo é entregar essas capacidades com rollout
-expand/contract, preservando clients existentes e usando o reference implementation apenas
+expand/contract, preservando clients existentes e usando a implementação de referência apenas
 como referência comparativa.
 
-Ficam fora: scopes do reference implementation, `X-API-Key`, limiter local em produção,
+Ficam fora: scopes da implementação de referência, `X-API-Key`, limiter local em produção,
 defaults permissivos e auditoria best-effort.
 
 ## Rastreabilidade

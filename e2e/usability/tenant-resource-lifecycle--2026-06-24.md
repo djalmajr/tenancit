@@ -8,7 +8,7 @@
 3. O detalhe abriu na aba **Recursos** com estado vazio.
 4. **Adicionar recurso** mostrou a definition ativa disponível.
 5. Ao selecionar `Vault rerun-047968`, o formulário dinâmico exibiu `Host` e `Password`.
-6. Após preencher `vault-rerun-047968.internal` e `<synthetic-secret>`, **Salvar recurso** criou o recurso.
+6. Após preencher `vault-rerun-047968.internal` e `<secret-sintetico>`, **Salvar recurso** criou o recurso.
 7. O valor secreto permaneceu mascarado na listagem inicial.
 8. **Revelar segredos** carregou os valores claros no backend, mas a UI ainda exigiu clique explícito em **Revelar** para mostrar o segredo.
 9. **Desativar** mudou o recurso para `inativo`; **Reativar** voltou para `ativo`.
@@ -31,16 +31,6 @@ Nenhum achado aberto após a validação pós-fix.
 | 2 | low | 8 | O botão global **Revelar segredos** não explicava a segunda etapa por campo. | Copy ajustada para **Habilitar revelação de segredos** e feedback de habilitação. |
 
 ## Key screens
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-tenant-search.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-tenant-detail-empty-resources.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-dialog-fields.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-created-masked.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-secrets-loaded-still-hidden.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-secret-revealed.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-inactive.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-active.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-removed.png`
-- `e2e/usability/screenshots/tenant-resource-lifecycle-rerun-2026-06-24-resource-created-secret-badge-i18n.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `tenant-resource-lifecycle`.

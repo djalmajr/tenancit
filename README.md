@@ -3,6 +3,11 @@
 Tenancit é um control plane para configurar recursos de aplicações multi-tenant,
 com resolução autenticada, criptografia de segredos e um painel administrativo.
 
+O código é disponibilizado sob a [O'Saasy License](LICENSE): pode ser estudado,
+usado, modificado e distribuído, mas não oferecido por terceiros como um SaaS
+concorrente cuja proposta principal seja a funcionalidade do Tenancit. Por isso,
+o projeto é **source available**, não open source segundo a definição da OSI.
+
 ## Requisitos
 
 - Go 1.25
@@ -58,3 +63,7 @@ make smoke         # smoke autenticado pós-deploy, com criação e cleanup
 A documentação detalhada está em [`docs/README.adoc`](docs/README.adoc), e as
 decisões arquiteturais em [`docs/adr/`](docs/adr/). O estado executável da
 rodada está em [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
+Contribuições são bem-vindas conforme [CONTRIBUTING.md](CONTRIBUTING.md).
+Vulnerabilidades devem ser relatadas de forma privada seguindo
+[SECURITY.md](SECURITY.md).

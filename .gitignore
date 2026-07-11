@@ -15,6 +15,12 @@ node_modules/
 # operator-local (já no gitignore global, reforçado aqui)
 .ai-memory.toml
 .mcp.json
+.agents/
+.claude/
+.codex/
+
+# evidências locais podem conter valores one-shot mesmo quando sintéticos
+/e2e/usability/screenshots/
 
 # go
 *.test

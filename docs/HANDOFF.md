@@ -168,7 +168,7 @@ estão implementados e validados localmente; ainda exigem configuração do alvo
 
 O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
-baseado também na análise das novidades do reference implementation em 2026-07-11.
+baseado também na análise das novidades da implementação de referência em 2026-07-11.
 
 1. Publicar o contract final e confirmar a CI remota.
 2. Coletar cardinalidade real; reabrir paginação ao observar/projetar 500
@@ -186,7 +186,7 @@ baseado também na análise das novidades do reference implementation em 2026-07
   cardinalidade real ou prevista antes de abrir o epic de paginação.
 - A automação de deploy está validada localmente, mas o runbook não afirma
   produção ativa até existir um alvo. Não foram copiadas credenciais, CIDRs,
-  host networking ou automações específicas do reference implementation.
+  host networking ou automações específicas da implementação de referência.
 - A fixture Dex prova identidade humana; a atribuição real depende de ativar um
   IdP corporativo com mappings revisados. O modo legado continua explicitamente
   técnico e nunca é apresentado como pessoa.

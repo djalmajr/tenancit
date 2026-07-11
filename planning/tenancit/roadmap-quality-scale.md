@@ -54,18 +54,18 @@ comparativa com `<reference-project>`
   é **500 definições**; essa é a cardinalidade para reabrir o gate com telemetria
   real. Overview/API clients repetem hard triggers em 1.000.
 
-## O que aproveitar do reference implementation
+## O que aproveitar da implementação de referência
 
 | Tema pendente | Padrão comprovado ou útil | Aplicação no Tenancit |
 |---|---|---|
 | Identidade humana | Principal server-side com `id`, usuário, role e origem da autenticação; sessões opacas armazenadas por hash; expiração, revogação e rotação; autorização deny-by-default | Manter a ordem do ADR 0005: `Principal` e autorização, depois OIDC/sessão/CSRF/RBAC; break-glass como ator técnico separado |
 | Auditoria | Implementado: auditoria de login, retenção e leitura limitada. Ainda TODO no plano 041: vocabulário `actor/action/target/outcome` e separação foundation/instrumentation para ações admin | Usar o split apenas como insumo de planejamento e preservar o contrato mais forte do Tenancit: mutação + evento transacionais, reveal fail-closed e metadata tipada |
 | API clients | Token one-shot/hash-only; scopes, RPM, expiração, revogação, `last_used` e uso agregado; middleware em ordem explícita | Implementar antes de múltiplas réplicas; manter scopes fechados, TTL/RPM positivos e limiter distribuído como gate de escala |
-| Deploy | Implementado: imagem única, distroless/nonroot, automação e healthchecks com retries. Ausente no reference implementation: digest imutável, smoke funcional automatizado e rollback por digest | Adotar essas lacunas como requisitos do Tenancit, além de security context e readiness, quando o alvo for escolhido |
-| Rewrap AES | A fronteira útil é operacional: não sobrescrever secret existente e separar rotação de deploy | Não copiar algoritmo: o reference implementation não possui keyring/rewrap. O design do Tenancit continua sendo a fonte de verdade |
+| Deploy | Implementado: imagem única, distroless/nonroot, automação e healthchecks com retries. Ausente na implementação de referência: digest imutável, smoke funcional automatizado e rollback por digest | Adotar essas lacunas como requisitos do Tenancit, além de security context e readiness, quando o alvo for escolhido |
+| Rewrap AES | A fronteira útil é operacional: não sobrescrever secret existente e separar rotação de deploy | Não copiar algoritmo: a implementação de referência não possui keyring/rewrap. O design do Tenancit continua sendo a fonte de verdade |
 | React Query | QueryClient central, keys compartilhadas, invalidação explícita, polling apenas onde necessário e QueryClient isolado por teste | Criar factories de keys/hooks por domínio; não repetir arrays inline; manter secrets one-shot fora do cache |
-| Code splitting | `lazyRouteComponent`, módulo de rota fino, página pesada em import dinâmico e teste estrutural `.preload` | Aplicar por rota, mas adicionar orçamento do artefato: no reference implementation o split funcionou e ainda deixou o entry acima de 500 kB |
-| E2E | Catálogo por persona/fluxo e scoreboard separado | Manter Markdown como contrato humano e mapear cada flow para specs; o reference implementation não possui Playwright para copiar |
+| Code splitting | `lazyRouteComponent`, módulo de rota fino, página pesada em import dinâmico e teste estrutural `.preload` | Aplicar por rota, mas adicionar orçamento do artefato: na implementação de referência o split funcionou e ainda deixou o entry acima de 500 kB |
+| E2E | Catálogo por persona/fluxo e scoreboard separado | Manter Markdown como contrato humano e mapear cada flow para specs; a implementação de referência não possui Playwright para copiar |
 | Escala | Envelope explícito de dezenas/centenas e lista client-side; hook preparado para modo manual | Medir primeiro. Quando ativar paginação, filtros, sort e página devem migrar juntos para o servidor |
 
 ### Limites de transferência
@@ -74,7 +74,7 @@ Não transferir login cotidiano por bearer em `localStorage`, username/senha com
 substituto de OIDC, allowlist de rede como identidade, `X-API-Key`, scopes/TTL
 permissivos, reativação de token revogado, limiter em memória apresentado como
 global, auditoria best-effort, JSON de detalhe livre, host networking,
-credenciais/topologia do reference implementation ou secrets copiados para junto do Compose.
+credenciais/topologia da implementação de referência ou secrets copiados para junto do Compose.
 
 ## Objetivos do roadmap
 
@@ -318,7 +318,7 @@ nem edições concorrentes de `package.json`, lockfile, Makefile ou CI.
 - Reescrever todos os componentes UI ou o router para file-based routing.
 - Trocar ESLint por Biome nesta trajetória.
 - Usar Playwright para avaliações subjetivas de usabilidade.
-- Copiar autenticação, secrets, topologia ou automação específica do reference implementation.
+- Copiar autenticação, secrets, topologia ou automação específica da implementação de referência.
 
 ## Verificação do roadmap
 

@@ -4,12 +4,12 @@
 
 ## Contexto
 
-Adaptar as novas superfícies do reference implementation para permitir inventário/revogação de
+Adaptar as novas superfícies da implementação de referência para permitir inventário/revogação de
 sessões e políticas runtime não secretas, com garantias mais fortes.
 
 ## Rastreabilidade
 
-- Pesquisa reference implementation: sessões e settings.
+- Pesquisa implementação de referência: sessões e settings.
 - Nova tela `/security/sessions` e `/operations/settings`.
 
 ## Arquivos

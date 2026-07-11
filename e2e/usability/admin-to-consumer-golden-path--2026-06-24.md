@@ -28,11 +28,6 @@ Nenhum achado aberto após a validação pós-fix.
 | 2 | low | 7 | A Consumer API não tinha apoio visual no painel. | Adicionado snippet copiável de `/v1/resolve` em **Chaves de API**. |
 
 ## Key screens
-- `e2e/usability/screenshots/admin-to-consumer-golden-path-rerun-2026-06-24-definition-ready.png`
-- `e2e/usability/screenshots/admin-to-consumer-golden-path-rerun-2026-06-24-tenant-created.png`
-- `e2e/usability/screenshots/admin-to-consumer-golden-path-rerun-2026-06-24-domain-added.png`
-- `e2e/usability/screenshots/admin-to-consumer-golden-path-rerun-2026-06-24-resource-added.png`
-- `e2e/usability/screenshots/admin-to-consumer-golden-path-rerun-2026-06-24-api-client-created.png`
 
 ## Execution notes
 - Browser plugin usado para a parte administrativa do fluxo.

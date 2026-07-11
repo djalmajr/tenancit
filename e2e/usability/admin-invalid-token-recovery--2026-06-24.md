@@ -15,10 +15,6 @@
 | 1 | low | 3 | Após token inválido, a mensagem fala em token necessário, mas não confirma que o token informado foi recusado. | Trocar a cópia de recuperação para algo como **"Token inválido ou expirado. Informe um token administrativo válido."** |
 
 ## Key screens
-- `e2e/usability/screenshots/admin-invalid-token-recovery-2026-06-24-auth.png`
-- `e2e/usability/screenshots/admin-invalid-token-recovery-2026-06-24-invalid-token.png`
-- `e2e/usability/screenshots/admin-invalid-token-recovery-2026-06-24-overview.png`
-- `e2e/usability/screenshots/admin-invalid-token-recovery-2026-06-24-after-logout.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `admin-invalid-token-recovery`.

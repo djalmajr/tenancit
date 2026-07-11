@@ -47,7 +47,7 @@ func ResolveEndpoint(ctx context.Context, rawURL string, allowLoopbackHTTP bool,
 		return ResolvedEndpoint{}, errors.New("webhook hostname cannot be resolved")
 	}
 	for _, address := range addresses {
-		if allowLoopbackHTTP && endpoint.Scheme == "http" && !isPublicAddress(address) {
+		if allowLoopbackHTTP && endpoint.Scheme == "http" && address.IsLoopback() {
 			continue
 		}
 		if !isPublicAddress(address) {

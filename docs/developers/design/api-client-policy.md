@@ -81,7 +81,7 @@ hash. O pipeline da Consumer API fica:
 5. consultar o rate limiter compartilhado;
 6. executar o handler e registrar sinais operacionais sem segredo.
 
-O suporte alternativo a `X-API-Key` observado no reference implementation não deve ser copiado:
+O suporte alternativo a `X-API-Key` observado na implementação de referência não deve ser copiado:
 o contrato atual do Tenancit já usa Bearer e ampliar formas de entrada aumenta a
 superfície sem necessidade demonstrada.
 
@@ -435,9 +435,9 @@ O contract final só ocorre depois de encerrar a janela de rollback.
       de revogação do anterior.
 - [x] Hard delete não apaga agregados nem eventos históricos.
 
-## Referência comparativa: reference implementation
+## Referência comparativa: implementação de referência
 
-A inspeção do reference implementation foi somente leitura e serve como evidência comparativa,
+A inspeção da implementação de referência foi somente leitura e serve como evidência comparativa,
 não como dependência normativa do Tenancit:
 
 - `apps/apigate/api/internal/store/store.go` modela hash-only, preview, scopes,
@@ -446,7 +446,7 @@ não como dependência normativa do Tenancit:
   persiste deltas, separando o hot path do dashboard.
 - `apps/apigate/api/internal/server/auth.go` aplica validade, scope e token bucket
   por ID antes do handler, devolve `403` por scope e `429` por limite. O bucket,
-  porém, é um mapa local com mutex: adequado ao reference implementation de instância única,
+  porém, é um mapa local com mutex: adequado à implementação de referência de instância única,
   inadequado como solução final para Tenancit com múltiplas réplicas.
 - `apps/apigate/api/internal/server/admin_clients.go` usa allowlist de scopes,
   expõe token uma vez e separa soft revoke de hard delete.
@@ -456,7 +456,7 @@ não como dependência normativa do Tenancit:
 
 ### Limites de transferência
 
-Não copiar do reference implementation:
+Não copiar da implementação de referência:
 
 - nomes/prefixos de tokens, scopes de backends ou valores de RPM;
 - credenciais, env files, CIDRs, trusted proxies, IPs, topologia de borda, host

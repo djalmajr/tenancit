@@ -4,7 +4,7 @@
 
 ## Contexto
 
-Unificar as novas capacidades no padrão visual já assimilado do reference implementation,
+Unificar as novas capacidades no padrão visual já assimilado da implementação de referência,
 sem expor ações que o principal não pode executar.
 
 ## Responsabilidade, motivação e valor

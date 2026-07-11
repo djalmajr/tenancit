@@ -134,7 +134,7 @@ Wave E (spikes):   021, 022
 | Local operational baseline | Persistent volume, destructive reset guard, smoke script and validated local bootstrap/backup/restore runbooks | VALIDATED LOCALLY |
 | Human admin identity | [ADR 0005](../docs/adr/0005-identidade-humana-admin-oidc-sessoes-rbac.md): OIDC, sessions, CSRF, RBAC and break-glass | PROPOSED DESIGN |
 | API client governance | [Design](../docs/developers/design/api-client-policy.md): scopes, expiry, RPM, usage and distributed limiter | PROPOSED DESIGN |
-| First production deploy | [Runbook](../docs/runbooks/container-deploy.md) prepared without copying reference implementation-specific topology | BLOCKED ON TARGET CHOICE |
+| First production deploy | [Runbook](../docs/runbooks/container-deploy.md) prepared without copying topology from the reference implementation | BLOCKED ON TARGET CHOICE |
 
 ## How to execute
 

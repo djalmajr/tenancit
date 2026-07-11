@@ -19,17 +19,6 @@
 | 3 | resolved | 7 | O painel tem ação explícita **Sair**. | Mantido. |
 
 ## Key screens
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-pt.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-language-menu.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-en.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-es.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-theme-menu.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-login-dark.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-overview-after-login.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-overview-en.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-overview-es.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-collapsed-sidebar.png`
-- `e2e/usability/screenshots/admin-auth-overview-rerun-2026-06-24-after-logout.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `admin-auth-overview`.

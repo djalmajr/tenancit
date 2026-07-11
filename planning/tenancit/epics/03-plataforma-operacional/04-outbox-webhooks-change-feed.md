@@ -5,7 +5,7 @@
 ## Contexto
 
 Consumidores precisam reagir a mudanças sem polling agressivo. A entrega deve
-ser mais rigorosa que o dispatcher best-effort observado no reference implementation.
+ser mais rigorosa que o dispatcher best-effort observado na implementação de referência.
 
 ## Rastreabilidade
 

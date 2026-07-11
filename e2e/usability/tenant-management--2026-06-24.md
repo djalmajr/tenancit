@@ -28,13 +28,6 @@ Nenhum achado aberto após a validação pós-fix.
 | 2 | low | 4-8 | As operações dependiam apenas da mudança visual de estado. | Adicionado feedback textual para edição, adição e remoção. |
 
 ## Key screens
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-tenants-list.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-new-tenant-dialog.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-tenant-detail-created.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-tenant-edited.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-domain-added.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-tenant-search.png`
-- `e2e/usability/screenshots/tenant-management-rerun-2026-06-24-domain-removed.png`
 
 ## Execution notes
 - Browser plugin usado no fluxo `tenant-management`.

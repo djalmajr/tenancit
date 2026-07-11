@@ -68,6 +68,7 @@ func (s *Server) completeOIDCLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getAdminSession(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	value, ok := principalFromContext(r.Context())
 	if !ok || value.Kind != principalKindOIDCUser || s.AdminAuth == nil || s.AdminAuth.Sessions == nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "admin_auth_required"})

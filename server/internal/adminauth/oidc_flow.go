@@ -241,7 +241,7 @@ func safeRedirectAfter(value string) (string, error) {
 	if value == "" {
 		return "/", nil
 	}
-	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\r\n") {
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n") {
 		return "", errors.New("invalid post-login redirect")
 	}
 	return value, nil

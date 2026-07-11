@@ -117,6 +117,27 @@ func TestOIDCManagerRejectsUnmappedRoleAndNonceMismatch(t *testing.T) {
 	}
 }
 
+func TestSafeRedirectAfterRejectsExternalAndBackslashVariants(t *testing.T) {
+	for _, value := range []string{
+		"https://attacker.example/path",
+		"//attacker.example/path",
+		`/\\attacker.example/path`,
+		`/safe\\..\\attacker`,
+		"/safe\r\nLocation: https://attacker.example",
+	} {
+		if _, err := safeRedirectAfter(value); err == nil {
+			t.Fatalf("accepted unsafe post-login redirect %q", value)
+		}
+	}
+
+	for input, want := range map[string]string{"": "/", "/": "/", "/tenants?status=active": "/tenants?status=active"} {
+		got, err := safeRedirectAfter(input)
+		if err != nil || got != want {
+			t.Fatalf("safeRedirectAfter(%q) = %q, %v; want %q", input, got, err, want)
+		}
+	}
+}
+
 func TestPermissionsForRolesMatchGovernedCapabilities(t *testing.T) {
 	operator := permissionsForRoles([]Role{RoleOperator})
 	if !slices.Contains(operator, "integration.manage") || slices.Contains(operator, "settings.manage") {

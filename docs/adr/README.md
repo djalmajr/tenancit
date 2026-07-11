@@ -28,6 +28,7 @@ quando a arquitetura mudar, crie um ADR novo que supersede o anterior.
 | [0005](./0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Identidade humana administrativa com OIDC, sessões e RBAC | Aceito; em implementação |
 | [0006](./0006-valkey-rate-limit-global.md) | Valkey para rate limit global de API clients | Aceito |
 | [0007](./0007-roles-postgresql-e-expand-contract.md) | Roles PostgreSQL e deploy expand/contract | Aceito |
+| [0008](./0008-fronteira-core-e-extensoes.md) | Fronteira entre core e extensões | Aceito |
 
 ## Template
 

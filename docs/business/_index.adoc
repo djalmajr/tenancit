@@ -13,3 +13,5 @@ include::02-glossario.adoc[]
 include::03-jornadas-operacionais.adoc[]
 
 include::04-escopo-e-roadmap.adoc[]
+
+include::05-licenciamento-e-sustentabilidade.adoc[]

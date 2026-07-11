@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* O reference implementation usa apenas o subset latin da Noto Sans para manter a SPA leve. */
+/* A implementação de referência usa apenas o subset latin da Noto Sans para manter a SPA leve. */
 @font-face {
   font-family: "Noto Sans Variable";
   font-style: normal;

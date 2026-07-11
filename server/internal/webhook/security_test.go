@@ -15,9 +15,10 @@ func (r resolverStub) LookupIP(_ context.Context, _, host string) ([]net.IP, err
 
 func TestValidateEndpointRejectsSSRFAndAllowsExplicitLoopbackFixture(t *testing.T) {
 	resolver := resolverStub{
-		"public.example":  {net.ParseIP("203.0.113.10")},
-		"private.example": {net.ParseIP("10.0.0.1")},
-		"local.test":      {net.ParseIP("127.0.0.1")},
+		"public.example":     {net.ParseIP("203.0.113.10")},
+		"private.example":    {net.ParseIP("10.0.0.1")},
+		"link-local.example": {net.ParseIP("169.254.169.254")},
+		"local.test":         {net.ParseIP("127.0.0.1")},
 	}
 	for _, rawURL := range []string{
 		"http://public.example/hook", "https://private.example/hook", "https://user:pass@public.example/hook", "https://public.example/hook#fragment",
@@ -31,6 +32,11 @@ func TestValidateEndpointRejectsSSRFAndAllowsExplicitLoopbackFixture(t *testing.
 	}
 	if _, err := ValidateEndpoint(context.Background(), "http://local.test/hook", true, resolver); err != nil {
 		t.Fatalf("explicit loopback fixture rejected: %v", err)
+	}
+	for _, rawURL := range []string{"http://private.example/hook", "http://link-local.example/hook"} {
+		if _, err := ValidateEndpoint(context.Background(), rawURL, true, resolver); err == nil {
+			t.Fatalf("development loopback exception accepted non-loopback URL %q", rawURL)
+		}
 	}
 }
 

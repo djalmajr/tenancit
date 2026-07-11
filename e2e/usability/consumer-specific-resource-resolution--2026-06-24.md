@@ -19,14 +19,6 @@
 | 1 | low | 6-7 | A tela **Chaves de API** exibe snippet apenas para `/v1/resolve?hostname=...`, mas o contrato também oferece `/v1/resolve/{hostname}/resources/{definitionKey}`. | Incluir o atalho por resource key no card **Exemplo de consumo** ou em uma opção copiável secundária. |
 
 ## Key screens
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-definition-one.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-definition-two.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-tenant-created.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-domain-added.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-resource-one.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-resources-ready.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-api-token-generated.png`
-- `e2e/usability/screenshots/consumer-specific-resource-resolution-2026-06-24-api-client-revoked.png`
 
 ## Execution notes
 - Browser plugin usado para a preparação administrativa do fluxo.
