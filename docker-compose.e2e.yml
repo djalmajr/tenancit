@@ -33,6 +33,8 @@ services:
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:${TENANCIT_E2E_DB_PASSWORD}@postgres-e2e:5432/tenancit-e2e?sslmode=disable"
+      TENANCIT_ADMIN_AUTH_MODE: "legacy_shared_token"
+      TENANCIT_DEV_MODE: "true"
       TENANCIT_ADMIN_TOKEN: "${TENANCIT_E2E_ADMIN_TOKEN:?TENANCIT_E2E_ADMIN_TOKEN is required}"
       TENANCIT_VALKEY_URL: "redis://valkey-e2e:6379/0"
       TENANCIT_AES_KEY: "${TENANCIT_E2E_AES_KEY:?TENANCIT_E2E_AES_KEY is required}"

@@ -118,3 +118,71 @@ func TestRequireSecretRevealPermissionMatchesHandlerSemantics(t *testing.T) {
 		})
 	}
 }
+
+func TestOIDCPrincipalCarriesDurableIdentityAndSession(t *testing.T) {
+	got, err := newOIDCPrincipal(
+		"https://id.example.test",
+		"user-123",
+		"Ada Lovelace",
+		"session-456",
+		[]adminRole{roleViewer, roleOperator},
+	)
+	if err != nil {
+		t.Fatalf("newOIDCPrincipal: %v", err)
+	}
+	if got.Kind != principalKindOIDCUser {
+		t.Fatalf("kind=%q want %q", got.Kind, principalKindOIDCUser)
+	}
+	if got.Issuer != "https://id.example.test" || got.Subject != "user-123" {
+		t.Fatalf("durable identity=%q/%q", got.Issuer, got.Subject)
+	}
+	if got.Label != "Ada Lovelace" || got.SessionID != "session-456" {
+		t.Fatalf("display/session=%q/%q", got.Label, got.SessionID)
+	}
+	for _, permission := range []adminPermission{
+		permissionAdminRead,
+		permissionTenantWrite,
+		permissionResourceWrite,
+	} {
+		if !got.hasPermission(permission) {
+			t.Fatalf("OIDC principal missing permission %q", permission)
+		}
+	}
+	if got.hasPermission(permissionSecretReveal) {
+		t.Fatal("operator unexpectedly received secret.reveal")
+	}
+}
+
+func TestOIDCPrincipalRejectsIncompleteOrUnknownIdentity(t *testing.T) {
+	tests := []struct {
+		name    string
+		issuer  string
+		subject string
+		roles   []adminRole
+	}{
+		{name: "missing issuer", subject: "user", roles: []adminRole{roleViewer}},
+		{name: "missing subject", issuer: "https://id.example.test", roles: []adminRole{roleViewer}},
+		{name: "missing role", issuer: "https://id.example.test", subject: "user"},
+		{name: "unknown role", issuer: "https://id.example.test", subject: "user", roles: []adminRole{"owner"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := newOIDCPrincipal(tt.issuer, tt.subject, "User", "session", tt.roles); err == nil {
+				t.Fatal("expected fail-closed principal validation")
+			}
+		})
+	}
+}
+
+func TestBreakGlassPrincipalIsDistinctAndLeastPrivilege(t *testing.T) {
+	got := newBreakGlassPrincipal("primary")
+	if got.Kind != principalKindBreakGlass || got.Subject != "admin-token:primary" {
+		t.Fatalf("principal=%+v", got)
+	}
+	if !got.hasPermission(permissionAdminRead) || !got.hasPermission(permissionAuditRead) {
+		t.Fatal("break-glass principal cannot inspect recovery state")
+	}
+	if got.hasPermission(permissionTenantHardDelete) || got.hasPermission(permissionSecretReveal) {
+		t.Fatal("break-glass principal received destructive or reveal permission")
+	}
+}

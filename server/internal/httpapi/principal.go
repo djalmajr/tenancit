@@ -2,7 +2,9 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 )
 
 type adminPermission string
@@ -29,12 +31,50 @@ var sharedAdminPermissions = [...]adminPermission{
 
 type principalKind string
 
-const principalKindSharedAdminToken principalKind = "shared_admin_token"
+const (
+	principalKindSharedAdminToken principalKind = "shared_admin_token"
+	principalKindBreakGlass       principalKind = "break_glass"
+	principalKindOIDCUser         principalKind = "oidc_user"
+)
+
+type adminRole string
+
+const (
+	roleViewer        adminRole = "viewer"
+	roleOperator      adminRole = "operator"
+	roleSecurityAdmin adminRole = "security_admin"
+)
+
+var permissionsByRole = map[adminRole][]adminPermission{
+	roleViewer: {
+		permissionAdminRead,
+	},
+	roleOperator: {
+		permissionAdminRead,
+		permissionTenantWrite,
+		permissionResourceWrite,
+		permissionAPIClientManage,
+	},
+	roleSecurityAdmin: {
+		permissionAdminRead,
+		permissionAuditRead,
+		permissionAPIClientManage,
+		permissionResourceWrite,
+		permissionSecretReveal,
+		permissionTenantHardDelete,
+		permissionTenantWrite,
+	},
+}
 
 type principal struct {
-	Kind        principalKind
-	Subject     string
-	permissions map[adminPermission]struct{}
+	Kind          principalKind
+	Issuer        string
+	Subject       string
+	Label         string
+	SessionID     string
+	Roles         []adminRole
+	csrfTokenHash string
+	permissions   map[adminPermission]struct{}
 }
 
 type principalContextKey struct{}
@@ -49,6 +89,45 @@ func newPrincipal(kind principalKind, subject string, permissions ...adminPermis
 		Subject:     subject,
 		permissions: permissionSet,
 	}
+}
+
+func newOIDCPrincipal(issuer, subject, label, sessionID string, roles []adminRole) (principal, error) {
+	issuer = strings.TrimSpace(issuer)
+	subject = strings.TrimSpace(subject)
+	sessionID = strings.TrimSpace(sessionID)
+	if issuer == "" || subject == "" || sessionID == "" || len(roles) == 0 {
+		return principal{}, errors.New("OIDC principal identity, session, and roles are required")
+	}
+	permissions := make([]adminPermission, 0, len(sharedAdminPermissions))
+	seenRoles := make(map[adminRole]struct{}, len(roles))
+	normalizedRoles := make([]adminRole, 0, len(roles))
+	for _, role := range roles {
+		rolePermissions, ok := permissionsByRole[role]
+		if !ok {
+			return principal{}, errors.New("OIDC principal contains an unknown role")
+		}
+		if _, duplicate := seenRoles[role]; duplicate {
+			continue
+		}
+		seenRoles[role] = struct{}{}
+		normalizedRoles = append(normalizedRoles, role)
+		permissions = append(permissions, rolePermissions...)
+	}
+	value := newPrincipal(principalKindOIDCUser, subject, permissions...)
+	value.Issuer = issuer
+	value.Label = strings.TrimSpace(label)
+	value.SessionID = sessionID
+	value.Roles = normalizedRoles
+	return value, nil
+}
+
+func newBreakGlassPrincipal(version string) principal {
+	return newPrincipal(
+		principalKindBreakGlass,
+		"admin-token:"+strings.TrimSpace(version),
+		permissionAdminRead,
+		permissionAuditRead,
+	)
 }
 
 func (p principal) hasPermission(permission adminPermission) bool {

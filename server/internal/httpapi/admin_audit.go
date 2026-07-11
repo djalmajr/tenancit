@@ -72,11 +72,19 @@ func insertAdminAuditSuccess(
 		return err
 	}
 	_, err = q.InsertAdminAuditEvent(r.Context(), db.InsertAdminAuditEventParams{
-		RequestID: middleware.GetReqID(r.Context()),
-		ActorKind: string(actor.Kind), ActorSubject: actor.Subject,
-		Action: action, TargetType: targetType, TargetID: targetID,
+		RequestID: middleware.GetReqID(r.Context()), ActorKind: string(actor.Kind),
+		ActorIssuer: optionalString(actor.Issuer), ActorSubject: actor.Subject,
+		ActorLabel: optionalString(actor.Label),
+		Action:     action, TargetType: targetType, TargetID: targetID,
 		Result: "success", HttpMethod: r.Method, RouteTemplate: routeTemplate,
 		HttpStatus: int16(status), Metadata: metadata,
 	})
 	return err
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

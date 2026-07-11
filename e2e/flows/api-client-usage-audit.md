@@ -14,7 +14,7 @@ Relacionar atividade operacional de uma chave às ações administrativas que de
 
 ## Passos
 
-1. (`usage`) Abrir **Uso** → cards e série mensal mostram chamadas, erros e limitações sem expor secrets.
+1. (`usage`) Abrir **Uso mensal** → cards e série mensal mostram chamadas, erros e limitações sem expor secrets.
 2. (`usage`) Filtrar por chave, operação e período → apenas os agregados correspondentes permanecem.
 3. (`audit-events`) Abrir **Auditoria** → eventos exibem ator-credencial, ação, alvo, resultado e request ID.
 4. (`audit-events`) Filtrar pela ação e pelo alvo da chave → criação, edição, rotação e revogação são localizáveis.

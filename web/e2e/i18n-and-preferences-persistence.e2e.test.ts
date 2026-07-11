@@ -33,7 +33,7 @@ test("locale and theme cover every route and survive reload and logout", { tag: 
       await expect(page.getByText("Active tenants", { exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Resources", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "API Keys", exact: true })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Usage", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Monthly usage", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Audit", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
     });
@@ -47,12 +47,12 @@ test("locale and theme cover every route and survive reload and logout", { tag: 
       await page.getByRole("row").filter({ hasText: tenant.name }).click();
       await expect(page.getByRole("heading", { name: tenant.name })).toBeVisible();
       await expect(page.getByText("Consumption readiness", { exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Domains", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Resources", exact: true })).toBeVisible();
+      await expect(page.getByRole("tab", { name: "Domains", exact: true })).toBeVisible();
+      await expect(page.getByRole("tab", { name: "Resources", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
       await expect(page.locator("main")).not.toContainText(portugueseRouteText);
 
-      await page.getByRole("link", { name: "Usage", exact: true }).click();
+      await page.getByRole("link", { name: "Monthly usage", exact: true }).click();
       await expect(page.getByRole("heading", { name: "API key usage" })).toBeVisible();
       await expect(page.locator("main")).not.toContainText(portugueseRouteText);
 

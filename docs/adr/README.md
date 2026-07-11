@@ -25,7 +25,7 @@ quando a arquitetura mudar, crie um ADR novo que supersede o anterior.
 | [0002](./0002-modelo-dinamico-definition-resource-values.md) | Modelo dinâmico com definitions, resources e values | Aceito |
 | [0003](./0003-secrets-server-side-aes-gcm.md) | Secrets cifrados com AES-GCM e decrypt server-side | Aceito |
 | [0004](./0004-admin-token-e-api-clients.md) | Separação entre admin token e API clients de consumo | Aceito |
-| [0005](./0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Identidade humana administrativa com OIDC, sessões e RBAC | Proposto |
+| [0005](./0005-identidade-humana-admin-oidc-sessoes-rbac.md) | Identidade humana administrativa com OIDC, sessões e RBAC | Aceito; em implementação |
 | [0006](./0006-valkey-rate-limit-global.md) | Valkey para rate limit global de API clients | Aceito |
 
 ## Template

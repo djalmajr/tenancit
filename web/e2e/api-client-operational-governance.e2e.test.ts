@@ -85,7 +85,7 @@ test("operational governance catalog", { tag: "@full" }, async ({ page, request 
       await page.getByRole("combobox", { name: "Chave", exact: true }).click();
       await page.getByText(rateName, { exact: true }).click();
       await page.getByRole("combobox", { name: "Operação" }).click();
-      await page.getByText("identify", { exact: true }).click();
+      await page.getByRole("option", { name: "Identificação", exact: true }).click();
       await expect(page.getByText("Limitadas", { exact: true }).first()).toBeVisible();
     });
     await flowStep("api-client-usage-audit", 3, "abre auditoria com ator técnico", async () => {

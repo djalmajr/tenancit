@@ -13,6 +13,8 @@ services:
     environment:
       TENANCIT_ADDR: ":8080"
       TENANCIT_DATABASE_URL: "postgres://postgres:tenancit@postgres:5432/tenancit?sslmode=disable"
+      TENANCIT_ADMIN_AUTH_MODE: "legacy_shared_token"
+      TENANCIT_DEV_MODE: "true"
       TENANCIT_ADMIN_TOKEN: "tenancit_admin_dev"
       TENANCIT_VALKEY_URL: "redis://valkey:6379/0"
       TENANCIT_AES_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="

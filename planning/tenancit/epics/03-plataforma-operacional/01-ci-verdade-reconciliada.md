@@ -31,10 +31,10 @@ descrevem capability implementada como pendente.
 ## Tarefas
 
 - [x] Reproduzir e registrar a falha remota e o pico de containers/conexões.
-- [ ] Separar unitários de integração sem reduzir cobertura.
+- [x] Executar unitários e integração no mesmo gate sem containers concorrentes.
 - [x] Implementar isolamento por database/schema e cleanup seguro.
-- [ ] Adicionar timeout e logs úteis sem DSN/credencial.
-- [ ] Executar unit, integração, race aplicável, build e E2E crítico.
+- [x] Adicionar timeout e logs úteis sem DSN/credencial.
+- [x] Executar unit, integração, build, catálogo completo e E2E retry-zero.
 - [x] Marcar epic 02 entregue e reconciliar documentos canônicos.
 
 ## Verificação

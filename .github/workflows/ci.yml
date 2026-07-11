@@ -12,6 +12,7 @@ jobs:
   server:
     name: server (Go)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16-alpine
@@ -43,6 +44,9 @@ jobs:
       - name: coverage summary
         working-directory: server
         run: go tool cover -func=coverage.out | tail -1
+      - name: PostgreSQL diagnostics on failure
+        if: failure()
+        run: docker logs "${{ job.services.postgres.id }}" 2>&1 | tail -300
 
   web:
     name: web (SPA)

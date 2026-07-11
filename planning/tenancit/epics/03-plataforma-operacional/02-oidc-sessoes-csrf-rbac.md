@@ -30,11 +30,11 @@ mudança de privilégio revoga/reavalia sessões; break-glass não liga sozinho.
 
 ## Tarefas
 
-- [ ] Aprovar ADR e congelar contratos/config.
-- [ ] Criar schema expand e store transacional de attempts/sessions.
-- [ ] Implementar discovery/JWKS/PKCE/nonce/state e timeouts.
-- [ ] Implementar cookie, CSRF/origin, logout e revogação imediata.
-- [ ] Mapear roles para permissões deny-by-default em todas as rotas.
+- [x] Aprovar ADR e congelar contratos/config.
+- [x] Criar schema expand e store transacional de attempts/sessions.
+- [x] Implementar discovery/JWKS/PKCE/nonce/state e timeouts.
+- [x] Implementar cookie, CSRF/origin, logout e revogação imediata.
+- [x] Mapear roles para permissões deny-by-default em todas as rotas.
 - [ ] Propagar principal OIDC/break-glass à auditoria.
 - [ ] Migrar SPA e remover token/localStorage.
 - [ ] Cobrir replay, fixation, spoofing, clock boundary e IdP indisponível.
@@ -43,4 +43,3 @@ mudança de privilégio revoga/reavalia sessões; break-glass não liga sozinho.
 
 Unitários criptográficos/config; integração com Dex; matriz rota/permissão;
 Playwright login/logout/expiração/CSRF/break-glass; canários de logs e cookies.
-

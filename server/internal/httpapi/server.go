@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/djalmajr/tenancit/server/internal/adminauth"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/service"
@@ -23,6 +24,7 @@ type Server struct {
 	Now            func() time.Time
 	Usage          usageRecorder
 	Limiter        ratelimit.Limiter
+	AdminAuth      *AdminAuthRuntime
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
@@ -50,6 +52,16 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 
 	r.Get("/healthz", Health)
 
+	if s.AdminAuth != nil && s.AdminAuth.Config.Mode == adminauth.ModeOIDC {
+		r.Get("/v1/auth/login", s.startOIDCLogin)
+		r.Get("/v1/auth/callback", s.completeOIDCLogin)
+		r.With(RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName)).Get("/v1/auth/session", s.getAdminSession)
+		r.With(
+			RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName),
+			RequireAdminCSRF(s.AdminAuth.Config.AdminOrigin),
+		).Post("/v1/auth/logout", s.logoutAdminSession)
+	}
+
 	r.Group(func(cr chi.Router) {
 		cr.Use(RequireAPIKey(s.Q, s.Now))
 		cr.With(RequireAPIClientScope(service.ScopeTenantIdentify), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "identify", s.Now), RecordAPIUsage(s.Usage, "identify", s.Now)).Get("/v1/identify", s.handleIdentify)
@@ -59,7 +71,12 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 
 	r.Route("/v1/admin", func(ar chi.Router) {
 		ar.Use(s.AuditAdminFailures)
-		ar.Use(RequireAdminToken(s.AdminTokenHash))
+		if s.AdminAuth != nil && s.AdminAuth.Config.Mode == adminauth.ModeOIDC {
+			ar.Use(RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName))
+			ar.Use(RequireAdminCSRF(s.AdminAuth.Config.AdminOrigin))
+		} else {
+			ar.Use(RequireAdminToken(s.AdminTokenHash))
+		}
 
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/overview", s.overview)
 		ar.With(requireAdminPermission(permissionAuditRead)).Get("/audit-events", s.listAuditEvents)
@@ -101,6 +118,10 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		r.NotFound(staticHandler.ServeHTTP)
 	}
 	return r
+}
+
+func (s *Server) ConfigureAdminAuth(config adminauth.Config, oidc *adminauth.OIDCManager, sessions *adminauth.SessionManager) {
+	s.AdminAuth = &AdminAuthRuntime{Config: config, OIDC: oidc, Sessions: sessions}
 }
 
 func (s *Server) SetUsageRecorder(recorder usageRecorder) {

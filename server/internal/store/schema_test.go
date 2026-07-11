@@ -204,3 +204,78 @@ func TestSchema_APIClientUsageCoalescesAndNeverMovesLastUsedBackward(t *testing.
 		t.Fatalf("request_count = %d, want 5", requests)
 	}
 }
+
+func TestSchema_AdminSessionsAreHashOnlyExpiringAndRoleBound(t *testing.T) {
+	pool := testsupport.NewDB(t)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO admin_sessions (
+			token_hash, csrf_token_hash, csrf_token_cipher, csrf_nonce, csrf_key_version,
+			actor_issuer, actor_subject,
+			roles, permissions, expires_at, idle_expires_at
+		) VALUES (
+			'session-hash', 'csrf-hash', '\x0102', '\x0304', 1,
+			'https://id.example.test', 'user-1',
+			ARRAY['viewer'], ARRAY['admin.read'], now() + interval '8 hours', now() + interval '30 minutes'
+		)
+	`); err != nil {
+		t.Fatalf("insert valid admin session: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO admin_sessions (
+			token_hash, csrf_token_hash, csrf_token_cipher, csrf_nonce, csrf_key_version,
+			actor_issuer, actor_subject,
+			roles, permissions, expires_at, idle_expires_at
+		) VALUES (
+			'session-hash', 'another-csrf', '\x0102', '\x0304', 1,
+			'https://id.example.test', 'user-2',
+			ARRAY['viewer'], ARRAY['admin.read'], now() + interval '8 hours', now() + interval '30 minutes'
+		)
+	`); err == nil {
+		t.Fatal("database accepted duplicate reusable session hash")
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO admin_sessions (
+			token_hash, csrf_token_hash, csrf_token_cipher, csrf_nonce, csrf_key_version,
+			actor_issuer, actor_subject,
+			roles, permissions, expires_at, idle_expires_at
+		) VALUES (
+			'empty-role-hash', 'csrf', '\x0102', '\x0304', 1,
+			'https://id.example.test', 'user-3',
+			ARRAY[]::text[], ARRAY[]::text[], now() + interval '8 hours', now() + interval '30 minutes'
+		)
+	`); err == nil {
+		t.Fatal("database accepted a session without roles or permissions")
+	}
+}
+
+func TestSchema_OIDCLoginAttemptsAreOneTimeAndExpiring(t *testing.T) {
+	pool := testsupport.NewDB(t)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO oidc_login_attempts (
+			state_hash, nonce_hash, pkce_verifier_cipher, cipher_nonce,
+			key_version, expires_at
+		) VALUES ('state-hash', 'nonce-hash', '\x0102', '\x0304', 1, now() + interval '5 minutes')
+	`); err != nil {
+		t.Fatalf("insert OIDC login attempt: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO oidc_login_attempts (
+			state_hash, nonce_hash, pkce_verifier_cipher, cipher_nonce,
+			key_version, expires_at
+		) VALUES ('state-hash', 'other-nonce', '\x0102', '\x0304', 1, now() + interval '5 minutes')
+	`); err == nil {
+		t.Fatal("database accepted duplicate OIDC state hash")
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO oidc_login_attempts (
+			state_hash, nonce_hash, pkce_verifier_cipher, cipher_nonce,
+			key_version, expires_at
+		) VALUES ('expired-state', 'nonce', '\x0102', '\x0304', 1, now() - interval '1 second')
+	`); err == nil {
+		t.Fatal("database accepted an already expired OIDC login attempt")
+	}
+}

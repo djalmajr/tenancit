@@ -1,6 +1,6 @@
 # ADR 0005 — Identidade humana administrativa com OIDC, sessões e RBAC
 
-- **Status:** Proposto
+- **Status:** Aceito; implementação em andamento no epic 03
 - **Data:** 2026-07-09
 - **Relacionados:** [ADR 0004](./0004-admin-token-e-api-clients.md) e
   [design de auditoria administrativa](../developers/design/admin-audit-log.md)

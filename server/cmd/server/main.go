@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/djalmajr/tenancit/server/internal/adminauth"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/httpapi"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
@@ -33,9 +34,9 @@ func run() error {
 	if dsn == "" {
 		return errors.New("TENANCIT_DATABASE_URL is required")
 	}
-	adminToken := os.Getenv("TENANCIT_ADMIN_TOKEN")
-	if adminToken == "" {
-		return errors.New("TENANCIT_ADMIN_TOKEN is required")
+	authConfig, err := adminauth.LoadConfig(os.Getenv)
+	if err != nil {
+		return err
 	}
 
 	if err := store.Migrate(dsn); err != nil {
@@ -59,7 +60,22 @@ func run() error {
 		return err
 	}
 
-	srv := httpapi.NewServer(pool, cryptor, adminToken)
+	srv := httpapi.NewServer(pool, cryptor, authConfig.LegacyToken)
+	if authConfig.Mode == adminauth.ModeOIDC {
+		discoveryCtx, cancelDiscovery := context.WithTimeout(ctx, 10*time.Second)
+		provider, err := adminauth.NewProvider(discoveryCtx, authConfig.OIDC)
+		cancelDiscovery()
+		if err != nil {
+			return err
+		}
+		authStore := adminauth.NewPostgresSessionStore(pool)
+		sessions := adminauth.NewSessionManager(
+			authStore, cryptor, nil, time.Now,
+			authConfig.SessionAbsolute, authConfig.SessionIdle,
+		)
+		oidcManager := adminauth.NewOIDCManager(authConfig.OIDC, provider, authStore, sessions, cryptor, nil, time.Now)
+		srv.ConfigureAdminAuth(authConfig, oidcManager, sessions)
+	}
 	limiterMode := envOr("TENANCIT_RATE_LIMIT_MODE", "valkey")
 	if limiterMode == "memory" {
 		slog.Warn("using single-instance in-memory rate limiter")
