@@ -32,7 +32,7 @@ comparativa com `<reference-project>`
 - Tenants, definitions, API clients e cards do overview são retornados como
   listas completas. A paginação da tabela é apenas client-side.
 
-### Resultado executado em 2026-07-10
+### Resultado atualizado em 2026-07-11
 
 - O harness Playwright usa PostgreSQL tmpfs, credenciais efêmeras, portas
   dinâmicas e cleanup verificado. O catálogo cobre **15/15 flows** e **126/126
@@ -48,10 +48,11 @@ comparativa com `<reference-project>`
 - O lint cobre TypeScript type-aware, hooks, a11y, React Refresh, Vitest e
   Playwright com zero warnings; Go passa por `gofmt`, `go vet` e Staticcheck
   pinado.
-- O benchmark reproduzível mediu 100, 500, 1.000 e 5.000 registros em duas
-  rodadas. A decisão atual é **KEEP_FULL_LISTS**, pois não há volume operacional
-  declarado. O breakpoint sintético confirmado é **1.000 registros**; essa é a
-  cardinalidade para reabrir o gate com telemetria real.
+- O benchmark reproduzível foi repetido no contract atual com 100, 500, 1.000 e
+  5.000 registros em duas rodadas. A decisão continua **KEEP_FULL_LISTS**, pois
+  não há volume operacional declarado. O primeiro hard trigger repetível agora
+  é **500 definições**; essa é a cardinalidade para reabrir o gate com telemetria
+  real. Overview/API clients repetem hard triggers em 1.000.
 
 ## O que aproveitar do reference implementation
 
@@ -330,7 +331,7 @@ nem edições concorrentes de `package.json`, lockfile, Makefile ou CI.
 ## Próximo passo recomendado
 
 Coletar a cardinalidade operacional real das quatro superfícies medidas. Ao
-projetar ou observar **1.000 registros**, repetir `make benchmark-scale` com
-`TENANCIT_SCALE_OBSERVED_VOLUME=1000` e, se o gate continuar aberto, decompor um
+projetar ou observar **500 registros** em uma superfície, repetir
+`make benchmark-scale` com o volume observado e, se o gate abrir, decompor um
 epic próprio de paginação server-side. Até lá, preservar o contrato de listas
 completas e os budgets automatizados desta trajetória.

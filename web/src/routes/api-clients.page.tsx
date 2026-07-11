@@ -102,13 +102,13 @@ export default function ApiClients() {
       meta: { label: t("apiClients.name") },
     },
     {
-      accessorFn: (client) => client.key_preview ?? "tnc_••••••••",
+      accessorFn: (client) => client.key_preview,
       id: "token",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} label={t("apiClients.token")} labels={sortLabels} />
       ),
       cell: ({ row }) => !can("api_client.manage") ? null : (
-        <code className="text-xs text-muted-foreground">{row.original.key_preview ?? "tnc_••••••••"}</code>
+        <code className="text-xs text-muted-foreground">{row.original.key_preview}</code>
       ),
       meta: { label: t("apiClients.token") },
     },
@@ -137,13 +137,13 @@ export default function ApiClients() {
     {
       accessorKey: "rpm_limit",
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("apiClients.rpmLimit")} labels={sortLabels} />,
-      cell: ({ row }) => row.original.rpm_limit ?? <Badge variant="secondary">{t("apiClients.legacy")}</Badge>,
+      cell: ({ row }) => row.original.rpm_limit,
       meta: { label: t("apiClients.rpmLimit") },
     },
     {
       accessorKey: "expires_at",
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("apiClients.expiration")} labels={sortLabels} />,
-      cell: ({ row }) => row.original.expires_at?.slice(0, 10) ?? <Badge variant="secondary">{t("apiClients.legacy")}</Badge>,
+      cell: ({ row }) => row.original.expires_at.slice(0, 10),
       meta: { label: t("apiClients.expiration") },
     },
     {
@@ -168,7 +168,6 @@ export default function ApiClients() {
         const flags: string[] = [];
         const now = FILTER_REFERENCE_TIME;
         if (client.expires_at && Date.parse(client.expires_at) <= now + 30 * 24 * 60 * 60 * 1000) flags.push("expiring");
-        if (client.legacy_unbounded) flags.push("legacy");
         if (!client.last_used_at || Date.parse(client.last_used_at) < now - 30 * 24 * 60 * 60 * 1000) flags.push("inactive");
         return flags.join(",");
       },
@@ -206,7 +205,7 @@ export default function ApiClients() {
     if (!query) return true;
     return [
       client.name,
-      client.key_preview ?? "",
+      client.key_preview,
       client.status,
       formatStatus(client.status, t),
       (client.created_at ?? "").slice(0, 10),
@@ -239,10 +238,8 @@ export default function ApiClients() {
     setEditingClient(client);
     setName(client.name);
     setScopes(client.scopes as Array<"tenant:identify" | "resource:resolve" | "events:read">);
-    setRpmLimit(String(client.rpm_limit ?? 300));
-    const remainingDays = client.expires_at
-      ? Math.max(30, Math.ceil((Date.parse(client.expires_at) - Date.now()) / (24 * 60 * 60 * 1000)))
-      : 90;
+    setRpmLimit(String(client.rpm_limit));
+    const remainingDays = Math.max(30, Math.ceil((Date.parse(client.expires_at) - Date.now()) / (24 * 60 * 60 * 1000)));
     setExpirationDays(String([30, 90, 180, 365].find((days) => days >= remainingDays) ?? 365));
     setToken("");
     setError("");
@@ -410,7 +407,7 @@ export default function ApiClients() {
             facets={[
               { columnId: "status", multiple: true, options: ["active", "expired", "revoked"].map((value) => ({ value, label: formatStatus(value, t) })), title: t("apiClients.filterStatus") },
               { columnId: "scopes", multiple: true, options: ["tenant:identify", "resource:resolve", "events:read"].map((value) => ({ value, label: value })), title: t("apiClients.filterScope") },
-              { columnId: "flags", multiple: true, options: [{ value: "expiring", label: t("apiClients.expiringSoon") }, { value: "legacy", label: t("apiClients.legacy") }, { value: "inactive", label: t("apiClients.inactive") }], title: t("apiClients.filters") },
+              { columnId: "flags", multiple: true, options: [{ value: "expiring", label: t("apiClients.expiringSoon") }, { value: "inactive", label: t("apiClients.inactive") }], title: t("apiClients.filters") },
             ]}
             searchLabel={t("apiClients.search")}
             table={table}

@@ -27,7 +27,15 @@ pg_dump --dbname="$TENANCIT_BACKUP_DATABASE_URL" --format=custom --file="$dump"
 pg_restore --list "$dump" >/dev/null
 size_bytes="$(wc -c <"$dump" | tr -d ' ')"
 [ "$size_bytes" -gt 0 ] || { echo "backup is empty" >&2; exit 1; }
-checksum="$(shasum -a 256 "$dump" | awk '{print $1}')"
+if command -v shasum >/dev/null 2>&1; then
+  checksum="$(shasum -a 256 "$dump" | awk '{print $1}')"
+elif command -v sha256sum >/dev/null 2>&1; then
+  checksum="$(sha256sum "$dump" | awk '{print $1}')"
+else
+  echo "shasum or sha256sum is required" >&2
+  exit 1
+fi
+[ -n "$checksum" ] || { echo "backup checksum is empty" >&2; exit 1; }
 keep_dump=true
 
 if [ -n "${TENANCIT_OPERATIONS_BASE_URL:-}" ]; then

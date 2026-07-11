@@ -1,9 +1,10 @@
 # Handoff — Tenancit
 
 - **Snapshot:** 2026-07-11
-- **Base observada:** `a8e0aa6` mais console por persona validado nesta sessão
-- **Entrega Git anterior:** idempotência administrativa está publicada em
-  `a8e0aa6` e verde na CI (`29167446766`); a fatia corrente do console aguarda commit.
+- **Base observada:** `301b470` mais contract final validado nesta sessão
+- **Entrega Git anterior:** console por persona está publicado em `668625f`;
+  o gate de escala foi corrigido e publicado até `301b470`, verde na CI
+  (`29168210762`). O contract final aguarda o commit desta sessão.
 - **Backlog da rodada:** os 25 itens originais estão `DONE` em
   [`plans/README.md`](../plans/README.md)
 
@@ -48,6 +49,9 @@ nos ADRs e designs; contratos normativos continuam em `docs/developers/`.
 - API clients exigem scopes fechados, RPM e expiração; suportam edição, rotação
   one-shot, revogação terminal e hard delete apenas após revogar. Uso diário e
   `last_used_at` alimentam o console operacional sem armazenar tokens/hashes.
+- A migration de contract tornou preview/RPM/expiração/scopes obrigatórios. O
+  marcador transitório `legacy_unbounded` saiu da API e da SPA; o filtro e os
+  fallbacks legados não fazem parte do contrato final.
 - Rate limit global usa Valkey com operação atômica e relógio do servidor,
   retorna `429` com headers contratuais e falha fechado com `503` quando o
   limiter está indisponível. O modo em memória é somente para dev explícito.
@@ -104,11 +108,11 @@ outro ambiente.
 | Bundle/embed | seis rotas lazy; entry abaixo do budget; `make build` sincroniza `web/dist` e o embed Go |
 | HTTP empacotado | `/` e `/healthz` 200; headers defensivos presentes; `reveal=true` com `private, no-store` |
 | Smoke | health, 401s, create, identify, resolve, ETag/304 e cleanup, verde |
-| Catálogo E2E | 22/22 testes empacotados (20 flows + webhook + report operacional) + route smoke Vite; OIDC/Dex 2/2, retry-zero |
-| Escala | duas rodadas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; checkpoint em 1.000 registros reais |
+| Catálogo E2E | três stacks novas: 22/22 testes empacotados + route smoke Vite em cada run, retry-zero; OIDC/Dex 2/2 |
+| Escala | duas rodadas limpas em 100/500/1.000/5.000; `KEEP_FULL_LISTS`; primeiro checkpoint em 500 definições reais |
 | Browser | Vite `:5180` autenticado; saúde mostra PostgreSQL/Valkey e reports de backup/restore saudáveis |
 | Persistência | tenant sentinela sobreviveu a `down/up` sem remover volume |
-| Backup/restore | dump custom, 22 tabelas e tenant preservados; reports healthy |
+| Backup/restore | dump custom PostgreSQL 16, checksum obrigatório, 22 tabelas e tenant preservados; reports healthy |
 | Continuidade | duas réplicas: limiter global, revogação cross-replica e failover, verde |
 | Rewrap | CLI completo, clone restaurado, concorrência/falhas/retomada e retirada da chave antiga, verde |
 | Documentação | `asciidoctor -o /dev/null docs/README.adoc`, verde |
@@ -166,9 +170,9 @@ O plano persistente e decomposto para essa sequência está em
 [`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
 baseado também na análise das novidades do reference implementation em 2026-07-11.
 
-1. Publicar o console por persona e confirmar a CI remota.
-2. Encerrar o gate de escala/contract com nova medição reproduzível e
-   documentação consistente.
+1. Publicar o contract final e confirmar a CI remota.
+2. Coletar cardinalidade real; reabrir paginação ao observar/projetar 500
+   registros em uma superfície, conforme o relatório de escala.
 3. Escolher o primeiro alvo e repetir o rewrap no restore real, além de validar o
    [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
    backup/restore e smoke.
@@ -176,7 +180,7 @@ baseado também na análise das novidades do reference implementation em 2026-07
 ## Limites conscientes desta rodada
 
 - Paginação server-side não foi implementada: a curva sintética encontrou o
-  primeiro breakpoint confirmado em 1.000 registros, mas não há volume
+  primeiro breakpoint confirmado em 500 definições, mas não há volume
   operacional declarado que justifique mudar o contrato agora.
 - O benchmark deve ser repetido com `TENANCIT_SCALE_OBSERVED_VOLUME` igual à
   cardinalidade real ou prevista antes de abrir o epic de paginação.

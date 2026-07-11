@@ -255,13 +255,12 @@ export interface TenantResource {
 export interface ApiClient {
   id: string;
   name: string;
-  key_preview?: string;
+  key_preview: string;
   scopes: string[];
-  rpm_limit?: number;
-  expires_at?: string;
+  rpm_limit: number;
+  expires_at: string;
   last_used_at?: string;
   revoked_at?: string;
-  legacy_unbounded: boolean;
   status: string;
   created_at?: string;
   updated_at?: string;

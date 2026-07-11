@@ -19,7 +19,8 @@ sozinha o epic de paginação: a decisão aplica os triggers do roadmap no ponto
 operacional declarado. Sem uma declaração, o valor é zero e o contrato de
 listas completas é preservado.
 
-O primeiro run de referência está resumido em
-[`report-2026-07-10.md`](./report-2026-07-10.md). Ele preservou listas completas
-e registrou 1.000 itens como o próximo checkpoint objetivo para reavaliar o
-gate com telemetria operacional real.
+O run atual está resumido em
+[`report-2026-07-11.md`](./report-2026-07-11.md). Ele preservou listas completas
+e registrou 500 definições como o primeiro checkpoint objetivo para reavaliar o
+gate com telemetria operacional real. O relatório de 2026-07-10 permanece como
+histórico da curva anterior.

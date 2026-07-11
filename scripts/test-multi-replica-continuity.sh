@@ -55,8 +55,10 @@ else
 fi
 payload="$(jq -cn --arg name "continuity-$run_id" --arg expires "$expires_at" \
   '{name:$name,scopes:["tenant:identify"],rpm_limit:1,expires_at:$expires}')"
+idempotency_key="$(openssl rand -hex 16 | sed -E 's/^(.{8})(.{4})(.{4})(.{4})(.{12})$/\1-\2-\3-\4-\5/')"
 created="$(curl -fsS \
   -H "Authorization: Bearer $TENANCIT_E2E_ADMIN_TOKEN" \
+  -H "Idempotency-Key: $idempotency_key" \
   -H 'Content-Type: application/json' -d "$payload" \
   "$base_one/v1/admin/api-clients")"
 client_id="$(printf '%s' "$created" | jq -er '.client.id')"

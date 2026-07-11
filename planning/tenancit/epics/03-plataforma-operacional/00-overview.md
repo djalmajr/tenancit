@@ -54,7 +54,7 @@ opt-in e justificada por demanda, nunca efeito implícito deste epic.
 | 08 | Auditoria, retenção e exportação | Auditor consulta/exporta trilha íntegra e limitada | L | 02, 05 | entregue localmente; política/destino real pendentes |
 | 09 | Idempotência administrativa | Retry de mutação não duplica efeitos nem sucessores | L | 01, 04 | entregue localmente |
 | 10 | Console por persona e catálogo E2E | UI cobre identidade, segurança e operação em 3 idiomas | XL | 03–09 | entregue localmente |
-| 11 | Gate de escala e contract final | Decisão de paginação baseada em evidência e docs encerradas | M | 10 | pendente |
+| 11 | Gate de escala e contract final | Decisão de paginação baseada em evidência e docs encerradas | M | 10 | entregue localmente; `KEEP_FULL_LISTS` |
 
 ## Roadmap
 
@@ -89,6 +89,13 @@ auditoria podem avançar em paralelo depois que a CI estiver confiável.
 
 Ausência dessas decisões não bloqueia contratos, fixtures locais, testes e
 automação genérica; bloqueia somente declarar produção ativada/provada.
+
+## Estado do epic
+
+As onze histórias estão entregues e verificadas localmente. O epic encerra a
+implementação genérica com `KEEP_FULL_LISTS`; os gates externos acima continuam
+impedindo apenas afirmar ativação em produção, campanha real de rewrap ou
+política organizacional de retenção.
 
 ## Critérios de aceite do epic
 

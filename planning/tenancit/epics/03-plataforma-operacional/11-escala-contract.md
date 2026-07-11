@@ -30,14 +30,33 @@ Auditoria e change feed já são cursor-based por contrato.
 
 ## Tarefas
 
-- [ ] Coletar volume real/previsto e executar benchmark reproduzível.
-- [ ] Registrar decisão `KEEP_FULL_LISTS` ou `MIGRATE` por superfície.
-- [ ] Se necessário, implementar endpoints paginados sem quebrar filtros/deep links.
-- [ ] Remover compatibilidade temporária e flags cujo inventário chegou a zero.
-- [ ] Reexecutar todos os gates, restore, rollback e E2E stability.
-- [ ] Atualizar documentos e marcar histórias pelo estado real.
+- [x] Coletar volume real/previsto e executar benchmark reproduzível.
+- [x] Registrar decisão `KEEP_FULL_LISTS` ou `MIGRATE` por superfície.
+- [x] Se necessário, implementar endpoints paginados sem quebrar filtros/deep links.
+- [x] Remover compatibilidade temporária e flags cujo inventário chegou a zero.
+- [x] Reexecutar todos os gates, restore, rollback e E2E stability.
+- [x] Atualizar documentos e marcar histórias pelo estado real.
 
 ## Verificação
 
 Relatório de escala, três runs CI/E2E sem retry, deploy/restore/rollback
 evidence e auditoria de consistência documental.
+
+## Evidência entregue
+
+- Não há cardinalidade operacional de produção fornecida; o gate registra esse
+  fato como volume observado `0`, sem converter ausência de telemetria em prova
+  de folga. O benchmark limpo em `301b470` mediu 100/500/1.000/5.000, duas
+  rodadas por escala, e decidiu `KEEP_FULL_LISTS` nas quatro superfícies.
+- O primeiro hard trigger repetível apareceu em 500 definições. O relatório
+  `benchmarks/scale/report-2026-07-11.md` reduz esse checkpoint sem promover a
+  curva sintética a necessidade atual; por isso nenhum endpoint paginado foi criado.
+- O runner foi reconciliado com operations token, schema governado de API
+  clients e seletores acessíveis. A API/SPA retiraram `legacy_unbounded`; preview,
+  RPM e expiração são obrigatórios no tipo público e no contract SQL.
+- `make test-db`, `make build`, rollback/deploy contracts e continuidade com
+  duas réplicas passaram. O script de continuidade passou a enviar a chave
+  idempotente obrigatória.
+- Três stacks E2E novas passaram 22/22 + route smoke, sem retry. Backup e restore
+  com cliente PostgreSQL 16 preservaram 22 tabelas e um tenant; o backup agora
+  suporta `shasum` e `sha256sum` com checksum obrigatório.

@@ -106,16 +106,16 @@ pela API e pelo painel é calculado nesta ordem:
 - o máximo inicial é 365 dias;
 - não existe opção silenciosa “nunca expira”.
 
-Clients legados podem permanecer temporariamente com `expires_at = NULL`, mas
-são marcados como `legacy_unbounded` e precisam ser substituídos durante a
-migração. Não se atribui uma data retroativa automaticamente, pois isso poderia
-derrubar consumidores sem coordenação.
+Durante a fase expand, clients legados puderam permanecer temporariamente com
+`expires_at = NULL` e eram marcados como `legacy_unbounded`. A migration de
+contract `00005` já encerrou essa janela: o banco exige preview, RPM, expiração
+e scopes, e a API final não publica mais o marcador transitório.
 
 `revoked` deve ser terminal no modelo alvo. Se a operação precisar de uma pausa
 reversível, deve-se introduzir um estado explícito `suspended`; reativar um token
-marcado como revogado contradiz a resposta a comprometimento. O endpoint atual
-que aceita `revoked -> active` permanece somente durante a janela de
-compatibilidade e depois responde `409 client_must_rotate`.
+marcado como revogado contradiz a resposta a comprometimento. A migration de
+contract impede `revoked -> active` no banco; o lifecycle final orienta rotação
+e responde `409 client_must_rotate` quando aplicável.
 
 ## Rate limit por client
 
@@ -166,7 +166,7 @@ locais quebraria o limite justamente durante uma falha. Uma implementação
 in-memory pode existir apenas no modo local, com uma réplica, habilitação
 explícita e aviso no boot; ela não satisfaz o gate de produção.
 
-## Persistência proposta
+## Persistência implementada
 
 ### `api_clients`
 
@@ -175,8 +175,8 @@ Adicionar, sem remover os campos existentes:
 | Coluna | Tipo | Regra |
 |---|---|---|
 | `token_preview` | `text` | prefixo não secreto capturado na criação; nunca derivado do hash |
-| `rpm_limit` | `integer` | positivo para novos clients; `NULL` apenas legado durante migração |
-| `expires_at` | `timestamptz` | obrigatório para novos clients; `NULL` apenas legado |
+| `rpm_limit` | `integer` | positivo e obrigatório no contract final |
+| `expires_at` | `timestamptz` | obrigatório e posterior à criação no contract final |
 | `last_used_at` | `timestamptz` | último request que autenticou com sucesso |
 | `revoked_at` | `timestamptz` | preenchido na transição para revogado |
 | `updated_at` | `timestamptz` | mudança de nome/política/status |
@@ -290,8 +290,7 @@ Resposta de list/detail:
   "created_at": "2026-07-09T12:00:00Z",
   "updated_at": "2026-07-09T12:00:00Z",
   "expires_at": "2026-10-07T12:00:00Z",
-  "last_used_at": null,
-  "legacy_unbounded": false
+  "last_used_at": null
 }
 ```
 
@@ -332,8 +331,9 @@ Ações:
 - hard delete somente em client já revogado e em área de perigo separada.
 
 O painel alvo não oferece “reativar” para uma credencial revogada. Clients
-expirados orientam rotação, não extensão retroativa do mesmo token. Linhas
-`legacy_unbounded` recebem alerta até serem substituídas.
+expirados orientam rotação, não extensão retroativa do mesmo token. O filtro e
+o alerta `legacy_unbounded` foram removidos depois que o contract tornou esse
+estado irrepresentável.
 
 ## Migração e compatibilidade
 
@@ -382,58 +382,58 @@ O contract final só ocorre depois de encerrar a janela de rollback.
 
 ### Autenticação e scopes
 
-- [ ] Client legado continua acessando identify e resolve imediatamente após a
+- [x] Client legado continua acessando identify e resolve imediatamente após a
       migração expand.
-- [ ] Client só com `tenant:identify` recebe `200/304` em identify e `403` em
+- [x] Client só com `tenant:identify` recebe `200/304` em identify e `403` em
       todas as variantes de resolve.
-- [ ] Client só com `resource:resolve` recebe `403` em identify e pode resolver.
-- [ ] Scope vazio/desconhecido é rejeitado na criação/edição.
-- [ ] Desconhecido, revogado e expirado retornam o mesmo `401 invalid_api_key`.
-- [ ] Nenhuma resposta admin contém `key_hash`; token bruto só aparece em
+- [x] Client só com `resource:resolve` recebe `403` em identify e pode resolver.
+- [x] Scope vazio/desconhecido é rejeitado na criação/edição.
+- [x] Desconhecido, revogado e expirado retornam o mesmo `401 invalid_api_key`.
+- [x] Nenhuma resposta admin contém `key_hash`; token bruto só aparece em
       create/rotate.
 
 ### Expiração e lifecycle
 
-- [ ] Boundary `now == expires_at` já é inválida, com teste de relógio
+- [x] Boundary `now == expires_at` já é inválida, com teste de relógio
       determinístico.
-- [ ] Novos clients não podem omitir expiração nem exceder 365 dias.
-- [ ] Revogação vale na request seguinte em qualquer réplica.
-- [ ] Após o contract, client revogado não pode ser reativado; a UI orienta
+- [x] Novos clients não podem omitir expiração nem exceder 365 dias.
+- [x] Revogação vale na request seguinte em qualquer réplica.
+- [x] Após o contract, client revogado não pode ser reativado; a UI orienta
       rotação.
 
 ### Rate limit
 
-- [ ] RPM positivo é obrigatório para novos clients; `0/NULL` só existe durante
+- [x] RPM positivo é obrigatório para novos clients; `0/NULL` só existiu durante
       compatibilidade legada.
-- [ ] Ao exceder, a API retorna `429`, `Retry-After` e headers de limite
+- [x] Ao exceder, a API retorna `429`, `Retry-After` e headers de limite
       coerentes.
-- [ ] Teste com duas instâncias alternando requests prova que o total global não
+- [x] Teste com duas instâncias alternando requests prova que o total global não
       excede o bucket compartilhado.
-- [ ] Restart de uma réplica não zera o limite global.
-- [ ] Indisponibilidade do limiter retorna `503 rate_limiter_unavailable`; não há
+- [x] Restart de uma réplica não zera o limite global.
+- [x] Indisponibilidade do limiter retorna `503 rate_limiter_unavailable`; não há
       fallback silencioso in-memory.
 
 ### Uso, logs e auditoria
 
-- [ ] `last_used_at` avança para autenticação válida, inclusive handler `4xx`, e
+- [x] `last_used_at` avança para autenticação válida, inclusive handler `4xx`, e
       nunca para token inválido/sem scope.
-- [ ] Updates concorrentes usam `GREATEST` e não fazem `last_used_at` retroceder.
-- [ ] Agregados separam identify/resolve, classe HTTP e recusas `429`.
-- [ ] Job remove apenas dias anteriores à retenção de seis meses e expõe falhas.
-- [ ] Logs, métricas, usage e auditoria passam por testes-canário que procuram
+- [x] Updates concorrentes usam `GREATEST` e não fazem `last_used_at` retroceder.
+- [x] Agregados separam identify/resolve, classe HTTP e recusas `429`.
+- [x] Job remove apenas dias anteriores à retenção de seis meses e expõe falhas.
+- [x] Logs, métricas, usage e auditoria passam por testes-canário que procuram
       token, hash, header e secret values.
-- [ ] Create/update/revoke/rotate/delete gera evento admin allowlisted, sem
+- [x] Create/update/revoke/rotate/delete gera evento admin allowlisted, sem
       segredo.
 
 ### API e UI
 
-- [ ] Create/list/edit/revoke/rotate/usage respeitam os contratos acima e
+- [x] Create/list/edit/revoke/rotate/usage respeitam os contratos acima e
       retornam códigos estáveis.
-- [ ] UI explica scopes, exige RPM/expiração, mostra status efetivo e alerta
-      `legacy_unbounded`.
-- [ ] Rotação permite copiar o sucessor uma vez e apresenta claramente o prazo
+- [x] UI explica scopes, exige RPM/expiração e mostra status efetivo; o alerta
+      transitório `legacy_unbounded` foi retirado no contract.
+- [x] Rotação permite copiar o sucessor uma vez e apresenta claramente o prazo
       de revogação do anterior.
-- [ ] Hard delete não apaga agregados nem eventos históricos.
+- [x] Hard delete não apaga agregados nem eventos históricos.
 
 ## Referência comparativa: reference implementation
 
