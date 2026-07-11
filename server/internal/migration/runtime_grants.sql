@@ -23,6 +23,11 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO tenancit_runtime;
 REVOKE TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM tenancit_runtime;
 REVOKE UPDATE, DELETE ON admin_audit_events, outbox_events, operational_reports FROM tenancit_runtime;
 GRANT SELECT, INSERT ON admin_audit_events, outbox_events, operational_reports TO tenancit_runtime;
+REVOKE ALL ON audit_legal_holds, audit_partition_registry, audit_export_jobs FROM tenancit_runtime;
+GRANT SELECT, INSERT ON audit_legal_holds, audit_export_jobs TO tenancit_runtime;
+GRANT UPDATE (released_at, released_by_subject) ON audit_legal_holds TO tenancit_runtime;
+GRANT UPDATE (status, row_count, payload_cipher, nonce, key_version, failure_code, started_at, completed_at, downloaded_at) ON audit_export_jobs TO tenancit_runtime;
+GRANT SELECT ON audit_partition_registry TO tenancit_runtime;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO tenancit_backup;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO tenancit_backup;
@@ -39,6 +44,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO tenancit_jobs;
 REVOKE UPDATE, DELETE ON outbox_events, operational_reports FROM tenancit_jobs;
 GRANT SELECT, INSERT ON outbox_events, operational_reports TO tenancit_jobs;
+GRANT SELECT, INSERT, UPDATE ON audit_export_jobs TO tenancit_jobs;
+GRANT SELECT ON admin_audit_events, audit_legal_holds, audit_partition_registry, admin_settings, admin_settings_revision TO tenancit_jobs;
+GRANT EXECUTE ON FUNCTION maintain_admin_audit_partitions(timestamptz,integer,integer) TO tenancit_jobs;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenancit_runtime;

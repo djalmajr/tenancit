@@ -116,7 +116,8 @@ por exemplo:
 - `secret.reveal` para revelar credenciais;
 - `tenant.hard_delete` para exclusão irreversível;
 - `api_client.manage` para criar, revogar e reativar credenciais de consumo;
-- `audit.read` para consultar/exportar a trilha administrativa.
+- `audit.read` para consultar a trilha, `audit.export` para materializar/baixar
+  recortes e `audit.manage` para legal holds.
 
 Roles (`viewer`, `operator`, `security_admin` e futuras roles) são apenas
 conjuntos configurados dessas permissões. Rotas declaram a permissão requerida;

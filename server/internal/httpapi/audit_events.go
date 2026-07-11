@@ -32,6 +32,13 @@ type auditEventView struct {
 	Metadata json.RawMessage `json:"metadata"`
 }
 
+type auditReadMetadata struct {
+	From      time.Time `json:"from"`
+	To        time.Time `json:"to"`
+	Rows      int       `json:"rows"`
+	HasCursor bool      `json:"has_cursor"`
+}
+
 func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	from, err := auditTimeParam(r, "from", now.Add(-24*time.Hour))
@@ -55,7 +62,14 @@ func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := s.Q.ListAdminAuditEvents(r.Context(), db.ListAdminAuditEventsParams{
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin audit read", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := db.New(tx)
+	events, err := q.ListAdminAuditEvents(r.Context(), db.ListAdminAuditEventsParams{
 		FromTime: from, ToTime: to,
 		ActorKind: r.URL.Query().Get("actor_kind"), ActorSubject: r.URL.Query().Get("actor_subject"),
 		Action: r.URL.Query().Get("action"), TargetType: r.URL.Query().Get("target_type"),
@@ -65,6 +79,14 @@ func (s *Server) listAuditEvents(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		writeInternalError(w, r, "list admin audit events", err)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "audit.events_read", "audit_query", "activity", "/v1/admin/audit-events", http.StatusOK, auditReadMetadata{From: from, To: to, Rows: len(events), HasCursor: hasCursor}); err != nil {
+		writeInternalError(w, r, "audit audit read", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit audit read", err)
 		return
 	}
 	views := make([]auditEventView, 0, len(events))

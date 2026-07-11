@@ -15,7 +15,7 @@ embed:
 	cp -r web/dist server/internal/spa/dist
 
 build-server:
-	cd server && go build -o bin/server ./cmd/server && go build -o bin/migrate ./cmd/migrate && go build -o bin/tenancit-rewrap ./cmd/tenancit-rewrap
+	cd server && go build -o bin/server ./cmd/server && go build -o bin/migrate ./cmd/migrate && go build -o bin/tenancit-rewrap ./cmd/tenancit-rewrap && go build -o bin/tenancit-audit-jobs ./cmd/tenancit-audit-jobs
 
 ## test: Go checks + web typecheck and unit tests. DB tests skip if Docker is unavailable.
 test: test-go test-web

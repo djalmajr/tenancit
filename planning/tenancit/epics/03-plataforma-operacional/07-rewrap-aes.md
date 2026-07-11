@@ -7,6 +7,16 @@
 Implementar integralmente o design existente como comando offline separado do
 servidor HTTP.
 
+## Responsabilidade, motivação e valor
+
+Como o Tenancit cifra secrets que ele próprio armazena, também precisa permitir
+retirar uma chave AES antiga. Apenas trocar a chave usada por novos writes
+deixaria todo o histórico dependente do material anterior.
+
+**Ganho:** rotação real após política periódica ou suspeita de comprometimento,
+sem downtime, plaintext persistido ou perda de dados. É um job offline raro e
+controlado, não um serviço permanente ou plataforma genérica de gestão de chaves.
+
 ## Arquivos
 
 - `server/cmd/tenancit-rewrap`, serviço de campanha, queries e testes.

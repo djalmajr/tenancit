@@ -15,7 +15,7 @@ var (
 	signalOutcomes     = allowedValues("success", "allowed", "denied", "limited", "error", "unavailable")
 	dependencyNames    = allowedValues("postgres", "valkey", "oidc", "audit", "usage", "outbox")
 	dependencyOps      = allowedValues("query", "insert", "flush", "claim", "deliver", "retain", "ping")
-	workerNames        = allowedValues("usage", "usage_retention", "webhook", "webhook_retention")
+	workerNames        = allowedValues("usage", "usage_retention", "webhook", "webhook_retention", "audit_export", "audit_retention")
 )
 
 func RecordSecurityDecision(ctx context.Context, boundary, outcome string) {

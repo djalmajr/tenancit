@@ -16,6 +16,8 @@ case "$*" in
   *postgres://runtime*has_schema_privilege*) printf 'f\n' ;;
   *postgres://migration*current_user*) printf 'migration\n' ;;
   *postgres://runtime*current_user*) printf 'runtime\n' ;;
+  *postgres://jobs*has_function_privilege*) printf 't\n' ;;
+  *postgres://jobs*current_user*) printf 'jobs\n' ;;
   *"SELECT EXISTS"*) printf 't\n' ;;
   *) : ;;
 esac
@@ -41,6 +43,7 @@ export PATH="$tmpdir:$PATH"
 export TENANCIT_IMAGE="registry.invalid/tenancit"
 export TENANCIT_MIGRATION_DATABASE_URL="postgres://migration@db/tenancit?sslmode=require"
 export TENANCIT_RUNTIME_DATABASE_URL="postgres://runtime@db/tenancit?sslmode=require"
+export TENANCIT_JOBS_DATABASE_URL="postgres://jobs@db/tenancit?sslmode=require"
 export TENANCIT_PUBLIC_BASE_URL="https://tenancit.invalid"
 export TENANCIT_ADMIN_ORIGIN="https://admin.tenancit.invalid"
 export TENANCIT_OIDC_ISSUER="https://id.tenancit.invalid"
@@ -67,6 +70,7 @@ expect_failure "short digest" env TENANCIT_IMAGE_DIGEST="sha256:abc" "$root_dir/
 expect_failure "mutable tag" env TENANCIT_IMAGE_DIGEST="latest" "$root_dir/scripts/deploy-preflight.sh"
 expect_failure "plain HTTP" env TENANCIT_IMAGE_DIGEST="$valid_digest" TENANCIT_PUBLIC_BASE_URL="http://tenancit.invalid" "$root_dir/scripts/deploy-preflight.sh"
 expect_failure "shared database role" env TENANCIT_IMAGE_DIGEST="$valid_digest" TENANCIT_RUNTIME_DATABASE_URL="$TENANCIT_MIGRATION_DATABASE_URL" "$root_dir/scripts/deploy-preflight.sh"
+expect_failure "shared jobs role" env TENANCIT_IMAGE_DIGEST="$valid_digest" TENANCIT_JOBS_DATABASE_URL="$TENANCIT_RUNTIME_DATABASE_URL" "$root_dir/scripts/deploy-preflight.sh"
 expect_failure "insecure database" env TENANCIT_IMAGE_DIGEST="$valid_digest" TENANCIT_RUNTIME_DATABASE_URL="postgres://runtime@db/tenancit?sslmode=disable" "$root_dir/scripts/deploy-preflight.sh"
 
 TENANCIT_ROLLBACK_IMAGE_DIGEST="$valid_digest" "$root_dir/scripts/deploy-rollback.sh" >/dev/null

@@ -7,6 +7,16 @@
 Encerrar o epic com decisão baseada em volume observado, retirada de caminhos
 transitórios e documentação da verdade executável.
 
+## Responsabilidade, motivação e valor
+
+Esta história é um freio contra complexidade prematura. Mede cardinalidade,
+payload, latência e memória antes de decidir por paginação server-side ou novos
+contratos, e remove compatibilidades que só existiam durante migração.
+
+**Ganho:** o Tenancit escala quando a evidência justificar. `KEEP_FULL_LISTS` é
+um resultado tão válido quanto `MIGRATE`; nenhuma arquitetura entra por
+especulação.
+
 ## Arquivos
 
 - Benchmarks/gate de escala, APIs/tabelas afetadas se `MIGRATE`.
@@ -31,4 +41,3 @@ Auditoria e change feed já são cursor-based por contrato.
 
 Relatório de escala, três runs CI/E2E sem retry, deploy/restore/rollback
 evidence e auditoria de consistência documental.
-

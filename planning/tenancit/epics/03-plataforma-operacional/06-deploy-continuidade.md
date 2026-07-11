@@ -7,6 +7,18 @@
 Transformar o plano genérico de deploy em automação portável e prova concreta
 no primeiro alvo, sem incorporar topologia do reference implementation.
 
+## Responsabilidade, motivação e valor
+
+Esta história não adiciona um novo domínio ao produto. Ela protege a operação
+do próprio Tenancit, fonte crítica de configuração e secrets para vários
+aplicativos. Se seu deploy, banco ou backup falhar, o dano pode atingir todos os
+consumidores.
+
+**Ganho:** menor privilégio entre HTTP, migration, jobs, backup e rewrap;
+rollout/rollback previsíveis; restauração ensaiada; e continuidade
+multi-réplica. O Tenancit não vira uma plataforma genérica de deploy nem
+administra a infraestrutura dos recursos cadastrados.
+
 ## Arquivos
 
 - Container/Compose/manifests, migration command, scripts preflight/smoke.

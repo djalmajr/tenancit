@@ -7,6 +7,7 @@ compose_file="${TENANCIT_DEPLOY_COMPOSE_FILE:-$root_dir/deploy/docker-compose.pr
 : "${TENANCIT_IMAGE_DIGEST:?set immutable image digest}"
 : "${TENANCIT_MIGRATION_DATABASE_URL:?set migration DSN}"
 : "${TENANCIT_RUNTIME_DATABASE_URL:?set runtime DSN}"
+: "${TENANCIT_JOBS_DATABASE_URL:?set dedicated jobs DSN}"
 : "${TENANCIT_PUBLIC_BASE_URL:?set public HTTPS base URL}"
 : "${TENANCIT_ADMIN_ORIGIN:?set public HTTPS admin origin}"
 : "${TENANCIT_OIDC_ISSUER:?set HTTPS OIDC issuer}"
@@ -37,11 +38,13 @@ for secure_url in "$TENANCIT_ADMIN_ORIGIN" "$TENANCIT_OIDC_ISSUER" "$OTEL_EXPORT
   case "$secure_url" in https://*) ;; *) echo "admin origin, OIDC issuer, and OTLP endpoint must use HTTPS" >&2; exit 1 ;; esac
 done
 case "$TENANCIT_VALKEY_URL" in rediss://*) ;; *) echo "production Valkey URL must use rediss://" >&2; exit 1 ;; esac
-if [ "$TENANCIT_MIGRATION_DATABASE_URL" = "$TENANCIT_RUNTIME_DATABASE_URL" ]; then
-  echo "migration and runtime DSNs must use distinct roles" >&2
+if [ "$TENANCIT_MIGRATION_DATABASE_URL" = "$TENANCIT_RUNTIME_DATABASE_URL" ] ||
+   [ "$TENANCIT_MIGRATION_DATABASE_URL" = "$TENANCIT_JOBS_DATABASE_URL" ] ||
+   [ "$TENANCIT_RUNTIME_DATABASE_URL" = "$TENANCIT_JOBS_DATABASE_URL" ]; then
+  echo "migration, runtime and jobs DSNs must use distinct roles" >&2
   exit 1
 fi
-for database_url in "$TENANCIT_MIGRATION_DATABASE_URL" "$TENANCIT_RUNTIME_DATABASE_URL"; do
+for database_url in "$TENANCIT_MIGRATION_DATABASE_URL" "$TENANCIT_RUNTIME_DATABASE_URL" "$TENANCIT_JOBS_DATABASE_URL"; do
   case "$database_url" in
     *sslmode=require*|*sslmode=verify-ca*|*sslmode=verify-full*) ;;
     *) echo "production PostgreSQL DSNs must require TLS" >&2; exit 1 ;;
@@ -53,8 +56,10 @@ docker compose -f "$compose_file" config >/dev/null
 
 migration_user="$(psql "$TENANCIT_MIGRATION_DATABASE_URL" -Atqc 'SELECT current_user')"
 runtime_user="$(psql "$TENANCIT_RUNTIME_DATABASE_URL" -Atqc 'SELECT current_user')"
-if [ -z "$migration_user" ] || [ -z "$runtime_user" ] || [ "$migration_user" = "$runtime_user" ]; then
-  echo "migration and runtime DSNs must authenticate as distinct roles" >&2
+jobs_user="$(psql "$TENANCIT_JOBS_DATABASE_URL" -Atqc 'SELECT current_user')"
+if [ -z "$migration_user" ] || [ -z "$runtime_user" ] || [ -z "$jobs_user" ] ||
+   [ "$migration_user" = "$runtime_user" ] || [ "$migration_user" = "$jobs_user" ] || [ "$runtime_user" = "$jobs_user" ]; then
+  echo "migration, runtime and jobs DSNs must authenticate as distinct roles" >&2
   exit 1
 fi
 migration_create="$(psql "$TENANCIT_MIGRATION_DATABASE_URL" -Atqc "SELECT has_schema_privilege(current_user,'public','CREATE')")"
@@ -68,10 +73,15 @@ if [ "$runtime_create" != "f" ]; then
   exit 1
 fi
 psql "$TENANCIT_RUNTIME_DATABASE_URL" -v ON_ERROR_STOP=1 -Atqc "SELECT 1 FROM tenants LIMIT 1" >/dev/null
+jobs_maintenance="$(psql "$TENANCIT_JOBS_DATABASE_URL" -Atqc "SELECT has_function_privilege(current_user,'maintain_admin_audit_partitions(timestamptz,integer,integer)','EXECUTE')")"
+if [ "$jobs_maintenance" != "t" ]; then
+  echo "jobs role cannot execute bounded audit maintenance" >&2
+  exit 1
+fi
 backup_fresh="$(psql "$TENANCIT_RUNTIME_DATABASE_URL" -Atqc "SELECT EXISTS(SELECT 1 FROM operational_reports WHERE kind='backup' AND status='healthy' AND fresh_until>clock_timestamp())")"
 if [ "$backup_fresh" != "t" ]; then
   echo "no fresh healthy backup report" >&2
   exit 1
 fi
 
-echo "preflight ok: immutable image, distinct DB roles, runtime no-DDL, fresh backup"
+echo "preflight ok: immutable image, distinct DB roles, runtime no-DDL, jobs maintenance, fresh backup"

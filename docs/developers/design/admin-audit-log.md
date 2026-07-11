@@ -272,22 +272,25 @@ GET /v1/admin/audit-events
 Regras:
 
 - admin token pode consultar durante a transição; após OIDC, exige permissão
-  `audit.read`, separada da permissão de mutar tenants;
+  `audit.read`, separada da permissão de mutar tenants; export e legal hold
+  exigem respectivamente `audit.export` e `audit.manage`;
 - padrão de 24 horas, janela máxima de 31 dias por request e `limit` máximo 200;
 - paginação keyset por `(occurred_at, id)`, sem offset;
 - filtros são exatos; busca livre em metadata fica fora da v1;
 - resposta nunca enriquece eventos consultando tabelas atuais, pois o alvo pode
   ter sido removido;
-- exportação em massa e streaming para SIEM ficam fora do escopo;
+- exportação controlada usa job cifrado/expirável; integração SIEM/WORM fica
+  atrás de `ArchiveSink`, sem fornecedor obrigatório;
 - a própria consulta gera `audit.events_read` sem incluir resultados, apenas
   filtros allowlisted e quantidade retornada.
 
 ## Retenção, partições e volume
 
-Proposta inicial: partições mensais e retenção online de 180 dias, a confirmar
-com requisitos legais e operacionais antes da implementação. Uma rotina
-privilegiada cria partições antecipadamente e remove a partição inteira já
-expirada; a aplicação nunca executa `DELETE` linha a linha.
+Partições mensais e retenção usam `audit_retention_days`. O binário dedicado
+opera com `tenancit_jobs` e só alcança DDL por função `SECURITY DEFINER`
+allowlisted. O primeiro ciclo drena a default, cria o mês atual e três futuros;
+partições expiradas são descartadas inteiras somente sem legal hold ativo. A
+aplicação nunca executa `DELETE` linha a linha.
 
 Antes de remover uma partição, a rotina registra em uma partição vigente o
 período removido, contagem de linhas e identificador do backup. Backup e restore
@@ -325,8 +328,8 @@ voltaria a permitir ações sem eventos.
 
 ## Critérios de aceite e evidência de implementação
 
-- [ ] Migration sobe e desce em banco descartável; update/delete de evento falha.
-- [ ] Role de runtime não consegue alterar ou remover linhas de auditoria.
+- [x] Migration sobe e desce em banco descartável; update/delete de evento falha.
+- [x] Role de runtime não consegue alterar ou remover linhas de auditoria.
 - [ ] Cada endpoint mutável de `/v1/admin/*` produz exatamente um evento de
       sucesso por alvo principal.
 - [ ] Falha forçada no insert de auditoria reverte a mutação de domínio.
@@ -336,20 +339,20 @@ voltaria a permitir ações sem eventos.
 - [ ] `X-Actor-Email` não altera autoria; OIDC usa somente claims validadas.
 - [ ] O token cotidiano aparece como `shared_admin_token`; somente o modo
       emergencial explícito aparece como `break_glass`, ambos sem atribuição humana.
-- [ ] Filtros e paginação keyset são estáveis sob inserts concorrentes.
+- [x] Filtros e paginação keyset são estáveis sob inserts concorrentes.
 - [ ] Eventos permanecem consultáveis após hard delete do alvo.
-- [ ] Partição futura, retenção, backup e restore têm testes/runbook.
+- [x] Partição futura, drain da default, retenção/legal hold e roles têm testes/runbook.
 - [ ] Métricas distinguem sucesso, falha e latência de escrita sem labels de
       alta cardinalidade ou dados sensíveis.
 
 ## Não objetivos
 
 - reconstrução completa de estado ou event sourcing;
-- storage WORM, assinatura criptográfica, legal hold ou prova forense contra o
-  administrador do PostgreSQL;
+- storage WORM ou assinatura criptográfica fornecidos pelo produto e prova
+  forense contra o administrador do PostgreSQL; legal hold operacional existe;
 - auditoria de toda leitura comum;
 - UI analítica completa;
-- exportação SIEM em tempo real;
+- exportação SIEM em tempo real (o adapter opcional recebe lotes governados);
 - captura de bodies, valores secretos ou diffs genéricos;
 - implementação de login humano neste spike.
 
@@ -357,7 +360,8 @@ voltaria a permitir ações sem eventos.
 
 1. A retenção online de 180 dias atende requisitos legais e de suporte? Há
    necessidade de arquivo externo por prazo maior?
-2. Qual IdP e quais claims/grupos autorizam `audit.read`, reveal e hard delete?
+2. Qual IdP e quais claims/grupos autorizam `audit.read`, `audit.export`,
+   `audit.manage`, reveal e hard delete?
 3. O break-glass continuará com uma credencial ou precisará de IDs distintos
    para rotação sem perda de rastreabilidade?
 4. Consultas à trilha devem registrar apenas contagem/filtros ou também um
@@ -366,8 +370,8 @@ voltaria a permitir ações sem eventos.
    política de trusted proxies e tratamento de dados pessoais?
 6. Qual orçamento de latência e disponibilidade deve acionar circuit breaker
    ou modo somente leitura do admin?
-7. Existe requisito futuro de exportação para SIEM/WORM que mude a escolha de
-   partições e retenção antes da primeira migration?
+7. Qual destino SIEM/WORM e prazo organizacional devem configurar o adapter e a
+   retenção no primeiro ambiente real?
 
 ## Decisão recomendada
 

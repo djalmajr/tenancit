@@ -22,6 +22,15 @@ Ficam fora do compromisso incondicional: escolha do IdP e do ambiente de
 produção pelo operador, credenciais reais, SIEM/WORM específico e paginação
 server-side sem evidência de volume.
 
+### Fronteira do produto
+
+O Tenancit é o plano de controle que identifica tenants e armazena, protege,
+audita e entrega suas configurações. Ele observa a própria capacidade de cumprir
+essa função. Recursos cadastrados descrevem dependências dos aplicativos; o
+Tenancit não monitora por padrão a disponibilidade desses PostgreSQL, Valkey,
+Kafka ou outros serviços. Eventual `Resource Health` será iniciativa separada,
+opt-in e justificada por demanda, nunca efeito implícito deste epic.
+
 ## Rastreabilidade
 
 - Pesquisa: `planning/tenancit/research/reference implementation-delta-2026-07-11.md`.
@@ -42,7 +51,7 @@ server-side sem evidência de volume.
 | 05 | Observabilidade e saúde operacional | Operador diagnostica dependências, jobs e SLOs sem secrets | L | 01, 04 | entregue |
 | 06 | Deploy, DB roles e continuidade | Ambiente alvo passa preflight, rollout, restore e rollback | XL | 02, 05 | entregue localmente; alvo real pendente |
 | 07 | Rewrap AES executável | Operador recriptografa em lotes com dry-run e retomada | L | 01, 05, 06 | entregue localmente; campanha real pendente |
-| 08 | Auditoria, retenção e exportação | Auditor consulta/exporta trilha íntegra e limitada | L | 02, 05 | pendente |
+| 08 | Auditoria, retenção e exportação | Auditor consulta/exporta trilha íntegra e limitada | L | 02, 05 | entregue localmente; política/destino real pendentes |
 | 09 | Idempotência administrativa | Retry de mutação não duplica efeitos nem sucessores | L | 01, 04 | pendente |
 | 10 | Console por persona e catálogo E2E | UI cobre identidade, segurança e operação em 3 idiomas | XL | 03–09 | pendente |
 | 11 | Gate de escala e contract final | Decisão de paginação baseada em evidência e docs encerradas | M | 10 | pendente |

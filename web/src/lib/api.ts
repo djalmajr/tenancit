@@ -21,6 +21,7 @@ export interface AdminSession {
   label: string;
   session_id: string;
   roles: string[];
+  permissions: string[];
   csrf_token: string;
   expires_at: string;
   idle_expires_at: string;
@@ -179,6 +180,20 @@ export async function logoutAdminSession(): Promise<void> {
   setAdminSession(undefined);
 }
 
+export async function downloadAuditExport(id: string): Promise<Blob> {
+  const token = getAdminToken();
+  const session = getAdminSession();
+  const response = await fetch(`${BASE}/audit-exports/${encodeURIComponent(id)}/download`, {
+    credentials: "same-origin",
+    headers: {
+      ...(!session && token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(session ? { "X-CSRF-Token": session.csrf_token } : {}),
+    },
+  });
+  if (!response.ok) throw new ApiError(response.status);
+  return response.blob();
+}
+
 export interface Tenant {
   id: string;
   slug: string;
@@ -335,6 +350,33 @@ export interface AdminAuditPage {
   next_cursor?: string;
 }
 
+export interface AuditHealth {
+  current_month_covered: boolean;
+  future_through: string;
+  default_rows: number;
+  oldest_retained?: string;
+  active_legal_holds: number;
+}
+
+export interface AuditExportJob {
+  id: string;
+  idempotency_key: string;
+  filters: { from: string; to: string; action?: string; target_type?: string; result?: string };
+  format: "csv" | "jsonl";
+  status: "pending" | "processing" | "ready" | "failed" | "expired";
+  row_count?: number;
+  created_at: string;
+  completed_at?: string;
+  expires_at: string;
+  downloaded_at?: string;
+}
+
+export interface AuditLegalHold {
+  id: string; from: string; to: string; reason: string;
+  created_by_kind: string; created_by_subject: string; created_at: string;
+  released_at?: string; released_by_subject?: string;
+}
+
 export interface AdminSettingDefinition {
   key: string;
   type: "integer" | "enum";
@@ -465,6 +507,13 @@ export const api = {
   },
   listAuditEvents: (query: URLSearchParams, signal?: AbortSignal) =>
     req<AdminAuditPage>(`/audit-events?${query}`, { signal }),
+  getAuditHealth: (signal?: AbortSignal) => req<AuditHealth>("/audit-health", { signal }),
+  createAuditExport: (body: { filters: AuditExportJob["filters"]; format: AuditExportJob["format"] }, idempotencyKey: string) =>
+    req<AuditExportJob>("/audit-exports", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) }),
+  getAuditExport: (id: string, signal?: AbortSignal) => req<AuditExportJob>(`/audit-exports/${id}`, { signal }),
+  listAuditLegalHolds: (signal?: AbortSignal) => req<{ items: AuditLegalHold[] }>("/audit-legal-holds", { signal }),
+  createAuditLegalHold: (body: { from: string; to: string; reason: string }) => req<{ id: string }>("/audit-legal-holds", { method: "POST", body: JSON.stringify(body) }),
+  releaseAuditLegalHold: (id: string) => req<void>(`/audit-legal-holds/${id}/release`, { method: "POST" }),
 
   getSettings: (signal?: AbortSignal) => req<AdminSettingsSnapshot>("/settings", { signal }),
   updateSettings: (values: Record<string, string>, revision: number) =>

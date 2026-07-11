@@ -7,6 +7,16 @@
 Timeouts e retries não podem duplicar tenant, client sucessor, resource ou
 webhook. Implementar contrato uniforme para mutações selecionadas.
 
+## Responsabilidade, motivação e valor
+
+Uma resposta pode se perder depois do commit e ser repetida pelo navegador,
+proxy ou automação. Em operações sensíveis isso poderia criar dois tokens
+sucessores, dois recursos ou efeitos divergentes sem o operador saber qual vale.
+
+**Ganho:** retries seguros e exatamente um efeito observável nas mutações
+críticas. A aplicação é seletiva — create, rotate e provision primeiro — e não
+transforma toda leitura ou edição simples em workflow idempotente.
+
 ## Arquivos
 
 - Middleware/store de idempotency records, migration e cleanup.
@@ -32,4 +42,3 @@ mesmo envelope cifrado por janela curta, nunca criar novo sucessor.
 
 Testes concorrentes e fault injection provam um efeito; nenhum secret bruto é
 persistido fora do envelope/janela explicitamente aprovada.
-

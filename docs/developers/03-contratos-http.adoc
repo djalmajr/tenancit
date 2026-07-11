@@ -48,6 +48,22 @@ explicitamente; não é usado pela SPA e possui permissões mínimas.
 | Readiness sanitizada, filas/circuitos e reports mais recentes com status
   efetivo por freshness.
 
+| `GET`
+| `/v1/admin/audit-events`, `/v1/admin/audit-health`
+| Activity com filtros exatos/cursor keyset e saúde de partições/holds. Exigem
+  `audit.read`; cada consulta da trilha também é auditada.
+
+| `POST`, `GET`, `GET`
+| `/v1/admin/audit-exports`, `/v1/admin/audit-exports/{id}`,
+  `/v1/admin/audit-exports/{id}/download`
+| Export CSV/JSONL idempotente, cifrado, expirável e download one-shot. Exige
+  `audit.export`; janela máxima 31 dias e teto 100.000 eventos.
+
+| `GET`, `POST`, `POST`
+| `/v1/admin/audit-legal-holds`, `/v1/admin/audit-legal-holds`,
+  `/v1/admin/audit-legal-holds/{id}/release`
+| Inventário, criação e liberação auditada de legal holds; exige `audit.manage`.
+
 | `POST`, `GET`, `GET`, `PUT`, `DELETE`
 | `/v1/admin/tenants`, `/v1/admin/tenants/{id}`
 | CRUD principal de tenants. `DELETE` remove o tenant e, por FK `ON DELETE CASCADE`, seus domains/resources/values (204; 404 se não existir).

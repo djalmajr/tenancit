@@ -7,6 +7,16 @@
 Unificar as novas capacidades no padrão visual já assimilado do reference implementation,
 sem expor ações que o principal não pode executar.
 
+## Responsabilidade, motivação e valor
+
+Administrador, operador, auditor e integrador usam o mesmo Tenancit, mas buscam
+capacidades diferentes. A persona organiza navegação, linguagem e ações
+permitidas; não cria quatro produtos nem substitui a autoridade RBAC do backend.
+
+**Ganho:** menos ruído e erro humano, acessibilidade, três idiomas e prova dos
+fluxos reais no navegador. O limite é uma única aplicação adaptativa, sem
+dashboards paralelos ou personas hipotéticas sem uso.
+
 ## Arquivos
 
 - App shell, rotas security/integrations/operations/activity e query keys.
@@ -32,4 +42,3 @@ keyboard são obrigatórios.
 
 Lint/type/unit/build, Playwright Vite e produto embutido, light/dark/mobile,
 keyboard, três idiomas e matriz de permissões.
-

@@ -18,6 +18,11 @@
   owner/migration one-shot; o segundo atende HTTP sem DDL. O processo HTTP
   continua recebendo apenas `TENANCIT_DATABASE_URL` com o valor runtime.
 
+| `TENANCIT_JOBS_DATABASE_URL`
+| DSN do login mínimo `tenancit_jobs`, obrigatório para
+  `/tenancit-audit-jobs`. Separa export assíncrono e manutenção privilegiada da
+  aplicação HTTP.
+
 | `TENANCIT_ADMIN_AUTH_MODE`
 | `oidc` ou `legacy_shared_token`; obrigatório e validado no boot.
 

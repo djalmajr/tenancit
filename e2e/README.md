@@ -1,7 +1,7 @@
 # Catálogo E2E automatizado
 
-O catálogo executável preserva correspondência entre os 18 flows
-de `e2e/flows`, as specs e seus 139 passos numerados. Cada passo Markdown é
+O catálogo executável preserva correspondência entre os 19 flows
+de `e2e/flows`, as specs e seus 143 passos numerados. Cada passo Markdown é
 um `test.step` produzido por `flowStep(flowId, número, título, ação + assert)`;
 não há consolidações de passos.
 
@@ -15,6 +15,7 @@ não há consolidações de passos.
 | `api-client-governance` | `api-client-operational-governance.e2e.test.ts` | `[api-client-governance#N] título` | `full` | 1–5 |
 | `api-client-rate-limit` | `api-client-operational-governance.e2e.test.ts` | `[api-client-rate-limit#N] título` | `full` | 1–4 |
 | `api-client-usage-audit` | `api-client-operational-governance.e2e.test.ts` | `[api-client-usage-audit#N] título` | `full` | 1–4 |
+| `audit-operations` | `audit-operations.e2e.test.ts` | `[audit-operations#N] título` | `full` | 1–4 |
 | `consumer-specific-resource-resolution` | `consumer-specific-resource-resolution.e2e.test.ts` | `[consumer-specific-resource-resolution#N] título` | `pr-critical` | 1–9 |
 | `definition-deactivation-provisioning` | `definition-deactivation-provisioning.e2e.test.ts` | `[definition-deactivation-provisioning#N] título` | `full` | 1–8 |
 | `directory-search-sort-pagination` | `directory-search-sort-pagination.e2e.test.ts` | `[directory-search-sort-pagination#N] título` | `full` | 1–7 |
@@ -68,4 +69,4 @@ O checker compara frontmatter e passos Markdown, chamadas literais de
 `flowStep` nas specs e a matriz acima. Ele também protege a política de
 artefatos e rejeita matchers que recebem tokens crus. Falha para flow/passo
 ausente, duplicado, fora do intervalo, spec divergente ou drift dos totais
-18/139.
+19/143.

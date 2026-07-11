@@ -70,6 +70,10 @@ if psql "$backup_url" -v ON_ERROR_STOP=1 -c "INSERT INTO tenants(slug,name) VALU
   echo "backup role wrote domain data" >&2; exit 1
 fi
 [ "$(psql "$jobs_url" -Atqc 'SELECT count(*) FROM webhook_deliveries')" = 0 ]
+[ "$(psql "$jobs_url" -Atqc "SELECT partitions_created >= 1 FROM maintain_admin_audit_partitions(clock_timestamp(),365,1)")" = t ]
+if psql "$runtime_url" -v ON_ERROR_STOP=1 -c "SELECT * FROM maintain_admin_audit_partitions(clock_timestamp(),365,1)" >/dev/null 2>&1; then
+  echo "runtime role executed privileged audit maintenance" >&2; exit 1
+fi
 if psql "$jobs_url" -v ON_ERROR_STOP=1 -c "INSERT INTO tenants(slug,name) VALUES('forbidden','forbidden')" >/dev/null 2>&1; then
   echo "jobs role wrote domain data" >&2; exit 1
 fi

@@ -12,7 +12,8 @@ Nomes estáveis:
 - `tenancit.http.server.requests`, `duration`, `active_requests`;
 - `tenancit.security.decisions`;
 - `tenancit.dependency.operations`, `duration`;
-- `tenancit.worker.cycles`, `items`, `duration`.
+- `tenancit.worker.cycles`, `items`, `duration`; workers `audit_export` e
+  `audit_retention` cobrem materialização/expiração, partições e legal holds;
 - `tenancit.rewrap.batches`, `rows.by_version`, `rows.remaining.by_version`,
   `failures`, `campaigns` e durações de lote/campanha.
 

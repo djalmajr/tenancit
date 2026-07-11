@@ -34,6 +34,7 @@ export TENANCIT_RUNTIME_LOGIN='tenancit_runtime_prod'
 export TENANCIT_JOBS_LOGIN='tenancit_jobs_prod'
 export TENANCIT_BACKUP_LOGIN='tenancit_backup_prod'
 export TENANCIT_REWRAP_LOGIN='tenancit_rewrap_prod'
+export TENANCIT_JOBS_DATABASE_URL='postgres://tenancit_jobs_prod:...@db/tenancit?sslmode=require'
 ./deploy/postgres/configure-roles.sh
 ```
 

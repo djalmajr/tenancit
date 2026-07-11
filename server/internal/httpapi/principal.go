@@ -14,6 +14,8 @@ type adminPermission string
 const (
 	permissionAdminRead         adminPermission = "admin.read"
 	permissionAuditRead         adminPermission = "audit.read"
+	permissionAuditExport       adminPermission = "audit.export"
+	permissionAuditManage       adminPermission = "audit.manage"
 	permissionAPIClientManage   adminPermission = "api_client.manage"
 	permissionIntegrationManage adminPermission = "integration.manage"
 	permissionResourceWrite     adminPermission = "resource.write"
@@ -27,6 +29,8 @@ const (
 var sharedAdminPermissions = [...]adminPermission{
 	permissionAdminRead,
 	permissionAuditRead,
+	permissionAuditExport,
+	permissionAuditManage,
 	permissionAPIClientManage,
 	permissionIntegrationManage,
 	permissionResourceWrite,
@@ -67,6 +71,8 @@ var permissionsByRole = map[adminRole][]adminPermission{
 	roleSecurityAdmin: {
 		permissionAdminRead,
 		permissionAuditRead,
+		permissionAuditExport,
+		permissionAuditManage,
 		permissionAPIClientManage,
 		permissionIntegrationManage,
 		permissionResourceWrite,

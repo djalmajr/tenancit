@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Plus, ShieldAlert, Copy, Check, Ban, RefreshCw, CircleHelp, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,10 +66,9 @@ export default function ApiClients() {
   // constant prevents its auto-reset logic from looping during query loading.
   const clients = clientsQuery.data ?? EMPTY_API_CLIENTS;
   const visibleError = error || (clientsQuery.error ? apiErrorMessage(clientsQuery.error, t) : "");
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !token) return;
-    const frame = window.requestAnimationFrame(() => tokenFieldRef.current?.focus());
-    return () => window.cancelAnimationFrame(frame);
+    tokenFieldRef.current?.focus();
   }, [open, token]);
   const sortLabels = useMemo(() => ({
     asc: t("dataTable.sortAsc"),

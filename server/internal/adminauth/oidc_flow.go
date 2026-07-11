@@ -220,7 +220,7 @@ func permissionsForRoles(roles []Role) []string {
 	byRole := map[Role][]string{
 		RoleViewer:        {"admin.read"},
 		RoleOperator:      {"admin.read", "tenant.write", "resource.write", "api_client.manage"},
-		RoleSecurityAdmin: {"admin.read", "audit.read", "api_client.manage", "resource.write", "secret.reveal", "tenant.hard_delete", "tenant.write"},
+		RoleSecurityAdmin: {"admin.read", "audit.read", "audit.export", "audit.manage", "api_client.manage", "resource.write", "secret.reveal", "tenant.hard_delete", "tenant.write"},
 	}
 	seen := map[string]struct{}{}
 	permissions := []string{}

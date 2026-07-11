@@ -7,6 +7,22 @@
 O console precisa explicar falhas de PostgreSQL, Valkey, OIDC, outbox, uso,
 auditoria e jobs. Relatos do host são úteis, mas não substituem probes síncronos.
 
+## Responsabilidade, motivação e valor
+
+Esta história observa **o próprio Tenancit e as dependências necessárias para
+ele identificar tenants e entregar configurações**. Ela responde se o banco do
+Tenancit, seu Valkey, IdP, filas e workers estão operáveis, reduzindo falhas
+silenciosas e tempo de diagnóstico.
+
+Não testa se cada PostgreSQL, Redis, Kafka ou outro recurso cadastrado por um
+tenant está disponível. Esses registros são configurações entregues aos
+aplicativos. Monitorá-los exigiria uma capacidade futura e opt-in de
+`Resource Health`, com probes, credenciais, scheduler, histórico e alertas
+próprios; isso não será introduzido implicitamente.
+
+**Ganho:** saber se o Tenancit consegue cumprir sua função central, sem
+transformá-lo em substituto do monitoramento das aplicações clientes.
+
 ## Arquivos
 
 - Pacote telemetry, instrumentação HTTP/DB/Valkey/workers e endpoints métricos.

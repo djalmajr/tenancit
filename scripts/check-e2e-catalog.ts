@@ -7,8 +7,8 @@ const SPECS_DIR = join(ROOT, "web", "e2e");
 const README_PATH = join(ROOT, "e2e", "README.md");
 const E2E_RUNNER_PATH = join(ROOT, "scripts", "e2e.sh");
 const PLAYWRIGHT_CONFIG_PATH = join(ROOT, "web", "playwright.config.ts");
-const EXPECTED_FLOWS = 18;
-const EXPECTED_STEPS = 139;
+const EXPECTED_FLOWS = 19;
+const EXPECTED_STEPS = 143;
 
 type Flow = {
   id: string;

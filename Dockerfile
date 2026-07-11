@@ -18,12 +18,14 @@ COPY --from=web /web/dist ./internal/spa/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/server ./cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/migrate ./cmd/migrate
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/tenancit-rewrap ./cmd/tenancit-rewrap
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/tenancit-audit-jobs ./cmd/tenancit-audit-jobs
 
 # --- Stage 3: minimal runtime ---
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=server /out/server /server
 COPY --from=server /out/migrate /migrate
 COPY --from=server /out/tenancit-rewrap /tenancit-rewrap
+COPY --from=server /out/tenancit-audit-jobs /tenancit-audit-jobs
 EXPOSE 8080
 ENV TENANCIT_ADDR=:8080
 CMD ["/server"]

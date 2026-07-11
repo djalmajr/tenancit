@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
+	"github.com/djalmajr/tenancit/server/internal/auditops"
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/ratelimit"
 	"github.com/djalmajr/tenancit/server/internal/service"
@@ -35,6 +36,7 @@ type Server struct {
 	OperationsReportTokenHash         string
 	OperationsReportCredentialVersion string
 	TelemetryMiddleware               func(http.Handler) http.Handler
+	AuditExports                      *auditops.ExportRepository
 }
 
 // NewServer wires a Server from the database pool, cryptor, and admin token.
@@ -52,6 +54,7 @@ func NewServer(pool *pgxpool.Pool, c *crypto.Cryptor, adminToken string) *Server
 		Limiter:             ratelimit.NewMemory(time.Now),
 		Settings:            appsettings.NewRepository(pool, time.Now),
 		Webhooks:            webhook.NewTargetRepository(pool, c, nil, nil, false),
+		AuditExports:        auditops.NewExportRepository(pool, c, time.Now),
 		TelemetryMiddleware: telemetryMiddleware,
 	}
 }
@@ -77,6 +80,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		r.Get("/v1/auth/callback", s.completeOIDCLogin)
 		r.With(RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName)).Get("/v1/auth/session", s.getAdminSession)
 		r.With(
+			s.AuditAdminFailures,
 			RequireAdminSession(s.AdminAuth.Sessions, s.AdminAuth.Config.CookieName),
 			RequireAdminCSRF(s.AdminAuth.Config.AdminOrigin),
 		).Post("/v1/auth/logout", s.logoutAdminSession)
@@ -108,6 +112,13 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/overview", s.overview)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/operational-health", s.operationalHealth)
 		ar.With(requireAdminPermission(permissionAuditRead)).Get("/audit-events", s.listAuditEvents)
+		ar.With(requireAdminPermission(permissionAuditRead)).Get("/audit-health", s.auditHealth)
+		ar.With(requireAdminPermission(permissionAuditManage)).Get("/audit-legal-holds", s.listAuditLegalHolds)
+		ar.With(requireAdminPermission(permissionAuditManage)).Post("/audit-legal-holds", s.createAuditLegalHold)
+		ar.With(requireAdminPermission(permissionAuditManage)).Post("/audit-legal-holds/{id}/release", s.releaseAuditLegalHold)
+		ar.With(requireAdminPermission(permissionAuditExport)).Post("/audit-exports", s.createAuditExport)
+		ar.With(requireAdminPermission(permissionAuditExport)).Get("/audit-exports/{id}", s.getAuditExport)
+		ar.With(requireAdminPermission(permissionAuditExport)).Get("/audit-exports/{id}/download", s.downloadAuditExport)
 
 		ar.With(requireAdminPermission(permissionTenantWrite)).Post("/tenants", s.createTenant)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/tenants", s.listTenants)

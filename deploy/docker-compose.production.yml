@@ -34,6 +34,21 @@ services:
     restart: unless-stopped
     stop_grace_period: 15s
 
+  audit-jobs:
+    image: "${TENANCIT_IMAGE:?set immutable image repository}@${TENANCIT_IMAGE_DIGEST:?set sha256 digest}"
+    command: ["/tenancit-audit-jobs"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      TENANCIT_JOBS_DATABASE_URL: "${TENANCIT_JOBS_DATABASE_URL:?set dedicated jobs DSN}"
+      TENANCIT_AES_KEY: "${TENANCIT_AES_KEY:?inject from secret manager}"
+      TENANCIT_AES_KEY_VERSION: "${TENANCIT_AES_KEY_VERSION:?set current AES version}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:?set OTLP HTTPS endpoint}"
+      OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-tenancit}-audit-jobs"
+    restart: unless-stopped
+    stop_grace_period: 15s
+
 networks:
   default:
     name: "${TENANCIT_NETWORK:?set pre-created ingress network}"
