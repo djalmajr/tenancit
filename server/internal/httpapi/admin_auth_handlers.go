@@ -13,6 +13,18 @@ type AdminAuthRuntime struct {
 	Sessions *adminauth.SessionManager
 }
 
+func (s *Server) getAdminAuthConfig(w http.ResponseWriter, _ *http.Request) {
+	mode := adminauth.ModeLegacySharedToken
+	if s.AdminAuth != nil {
+		mode = s.AdminAuth.Config.Mode
+	}
+	response := map[string]any{"mode": mode}
+	if mode == adminauth.ModeOIDC {
+		response["login_url"] = "/v1/auth/login"
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
 func (s *Server) startOIDCLogin(w http.ResponseWriter, r *http.Request) {
 	if s.AdminAuth == nil || s.AdminAuth.OIDC == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "oidc_unavailable"})

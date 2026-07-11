@@ -44,9 +44,14 @@ import {
   ADMIN_TOKEN_CHANGE_EVENT,
   clearAdminToken,
   consumePendingAdminAuthMessage,
+  fetchAdminAuthConfig,
+  fetchAdminSession,
   getAdminToken,
+  logoutAdminSession,
   setAdminToken,
+  type AdminAuthConfig,
   type AdminAuthMessage,
+  type AdminSession,
 } from "@/lib/api";
 import { LOCALE_OPTIONS, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
 import { type ThemePreference, useTheme } from "@/lib/theme";
@@ -67,10 +72,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [authMessageKey, setAuthMessageKey] = React.useState<TranslationKey | "">("");
   const [draftAdminToken, setDraftAdminToken] = React.useState(() => getAdminToken());
   const [hasAdminToken, setHasAdminToken] = React.useState(() => Boolean(getAdminToken()));
+  const [authConfig, setAuthConfig] = React.useState<AdminAuthConfig>();
+  const [adminSession, setAdminSessionState] = React.useState<AdminSession>();
+  const [authLoadError, setAuthLoadError] = React.useState(false);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    async function loadAuthentication() {
+      try {
+        const config = await fetchAdminAuthConfig(controller.signal);
+        setAuthConfig(config);
+        if (config.mode === "oidc") {
+          clearAdminToken();
+          const session = await fetchAdminSession(controller.signal);
+          setAdminSessionState(session);
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setAuthLoadError(true);
+        }
+      }
+    }
+    void loadAuthentication();
+    return () => controller.abort();
+  }, []);
 
   React.useEffect(() => {
     function showAdminAuth(messageKey: AdminAuthMessage) {
       setAuthMessageKey(messageKey);
+      if (authConfig?.mode === "oidc") {
+        setAdminSessionState(undefined);
+        return;
+      }
       setDraftAdminToken("");
       clearAdminToken();
       setHasAdminToken(false);
@@ -84,7 +117,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           : undefined;
       const pendingMessage = consumePendingAdminAuthMessage();
       showAdminAuth(
-        messageKey === "auth.invalidToken" || messageKey === "auth.requiredAccess"
+        messageKey === "auth.invalidToken" ||
+          messageKey === "auth.requiredAccess" ||
+          messageKey === "auth.sessionExpired"
           ? messageKey
           : pendingMessage ?? "auth.requiredAccess",
       );
@@ -93,7 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const pendingMessage = consumePendingAdminAuthMessage();
     if (pendingMessage) showAdminAuth(pendingMessage);
     return () => window.removeEventListener("admin-auth-required", requestAdminAuth);
-  }, []);
+  }, [authConfig?.mode]);
 
   React.useEffect(() => {
     let remountTimer: number | undefined;
@@ -131,13 +166,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.location.reload();
   }
 
-  function logoutAdmin() {
+  async function logoutAdmin() {
+    if (authConfig?.mode === "oidc") {
+      await logoutAdminSession();
+      setAdminSessionState(undefined);
+      return;
+    }
     clearAdminToken();
     setDraftAdminToken("");
     window.location.reload();
   }
 
-  if (!hasAdminToken) {
+  if (authLoadError) {
+    return <AdminAuthUnavailableScreen />;
+  }
+
+  if (!authConfig) {
+    return <AdminAuthLoadingScreen />;
+  }
+
+  if (authConfig.mode === "oidc" && !adminSession) {
+    return (
+      <OIDCAccessScreen
+        authMessage={authMessageKey ? t(authMessageKey) : ""}
+        loginURL={authConfig.login_url ?? "/v1/auth/login"}
+        returnTo={pathname}
+      />
+    );
+  }
+
+  if (authConfig.mode === "legacy_shared_token" && !hasAdminToken) {
     return (
       <AdminAccessScreen
         authMessage={authMessageKey ? t(authMessageKey) : ""}
@@ -191,7 +249,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton aria-label={t("nav.logout")} onClick={logoutAdmin} title={t("nav.logout")} tooltip={t("nav.logout")}>
+              <SidebarMenuButton
+                aria-label={t("nav.logout")}
+                onClick={() => void logoutAdmin()}
+                title={t("nav.logout")}
+                tooltip={t("nav.logout")}
+              >
                 <LogOut />
                 <span className="group-data-[state=collapsed]:hidden">{t("nav.logout")}</span>
               </SidebarMenuButton>
@@ -209,6 +272,86 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function AdminAuthLoadingScreen() {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
+      <div aria-live="polite" className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
+        <span className="size-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+        {t("auth.loading")}
+      </div>
+    </div>
+  );
+}
+
+function AdminAuthUnavailableScreen() {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
+      <div className="w-full max-w-md rounded-md border border-border bg-background p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+              <KeyRound className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold">{t("auth.title")}</h1>
+              <p className="text-sm text-muted-foreground">{t("auth.unavailable")}</p>
+            </div>
+          </div>
+          <PreferenceControls compact />
+        </div>
+        <Button className="mt-5 w-full" onClick={() => window.location.reload()} type="button">
+          {t("auth.retry")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OIDCAccessScreen({
+  authMessage,
+  loginURL,
+  returnTo,
+}: {
+  authMessage: string;
+  loginURL: string;
+  returnTo: string;
+}) {
+  const { t } = useI18n();
+
+  function startLogin() {
+    const target = new URL(loginURL, window.location.origin);
+    target.searchParams.set("return_to", returnTo || "/");
+    window.location.assign(target.toString());
+  }
+
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
+      <div className="w-full max-w-md rounded-md border border-border bg-background p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <LogIn className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold">{t("auth.title")}</h1>
+              <p className="text-sm text-muted-foreground">
+                {authMessage || t("auth.oidcDescription")}
+              </p>
+            </div>
+          </div>
+          <PreferenceControls compact />
+        </div>
+        <Button className="mt-5 w-full" onClick={startLogin} type="button">
+          <LogIn className="size-4" />
+          {t("auth.oidcEnter")}
+        </Button>
+      </div>
+    </div>
   );
 }
 

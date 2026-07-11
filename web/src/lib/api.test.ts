@@ -4,6 +4,10 @@ import {
   REQUEST_TIMEOUT_MS,
   api,
   consumePendingAdminAuthMessage,
+  fetchAdminAuthConfig,
+  fetchAdminSession,
+  logoutAdminSession,
+  setAdminSession,
   setAdminToken,
 } from "./api";
 
@@ -20,6 +24,7 @@ function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise
 
 beforeEach(() => {
   localStorage.clear();
+  setAdminSession(undefined);
   consumePendingAdminAuthMessage();
   vi.restoreAllMocks();
 });
@@ -46,6 +51,72 @@ describe("api client", () => {
     await api.createTenant({ slug: "acme", name: "Acme" });
     const [, init] = spy.mock.calls[0];
     expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer tenancit_admin_dev");
+  });
+
+  it("discovers OIDC auth without sending a legacy credential", async () => {
+    setAdminToken("legacy-token-that-must-not-leak");
+    const spy = mockFetch(() =>
+      new Response(JSON.stringify({ mode: "oidc", login_url: "/v1/auth/login" }), { status: 200 }),
+    );
+
+    await expect(fetchAdminAuthConfig()).resolves.toEqual({
+      mode: "oidc",
+      login_url: "/v1/auth/login",
+    });
+
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/v1/auth/config");
+    expect(new Headers(init?.headers).get("Authorization")).toBeNull();
+    expect(init?.credentials).toBe("same-origin");
+  });
+
+  it("uses the in-memory CSRF token for cookie-authenticated mutations", async () => {
+    setAdminSession({
+      kind: "oidc_user",
+      issuer: "https://id.example.test",
+      subject: "user-1",
+      label: "Ada",
+      session_id: "session-1",
+      roles: ["operator"],
+      csrf_token: "csrf-token",
+      expires_at: "2026-07-11T20:00:00Z",
+      idle_expires_at: "2026-07-11T12:30:00Z",
+    });
+    const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
+
+    await api.createTenant({ slug: "acme", name: "Acme" });
+
+    const [, init] = spy.mock.calls[0];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("X-CSRF-Token")).toBe("csrf-token");
+    expect(headers.get("Authorization")).toBeNull();
+    expect(init?.credentials).toBe("same-origin");
+  });
+
+  it("loads and logs out a server-side session", async () => {
+    const session = {
+      kind: "oidc_user" as const,
+      issuer: "https://id.example.test",
+      subject: "user-1",
+      label: "Ada",
+      session_id: "session-1",
+      roles: ["operator"],
+      csrf_token: "csrf-token",
+      expires_at: "2026-07-11T20:00:00Z",
+      idle_expires_at: "2026-07-11T12:30:00Z",
+    };
+    const spy = mockFetch((url) =>
+      url === "/v1/auth/session"
+        ? new Response(JSON.stringify(session), { status: 200 })
+        : new Response(null, { status: 204 }),
+    );
+
+    await expect(fetchAdminSession()).resolves.toEqual(session);
+    await logoutAdminSession();
+
+    expect(spy.mock.calls[1][0]).toBe("/v1/auth/logout");
+    expect(spy.mock.calls[1][1]?.method).toBe("POST");
+    expect(new Headers(spy.mock.calls[1][1]?.headers).get("X-CSRF-Token")).toBe("csrf-token");
   });
 
   it("setResourceStatus PUTs to the status sub-resource", async () => {

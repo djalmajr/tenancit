@@ -61,6 +61,7 @@ func run() error {
 	}
 
 	srv := httpapi.NewServer(pool, cryptor, authConfig.LegacyToken)
+	srv.ConfigureAdminAuth(authConfig, nil, nil)
 	if authConfig.Mode == adminauth.ModeOIDC {
 		discoveryCtx, cancelDiscovery := context.WithTimeout(ctx, 10*time.Second)
 		provider, err := adminauth.NewProvider(discoveryCtx, authConfig.OIDC)

@@ -51,6 +51,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", Health)
+	r.Get("/v1/auth/config", s.getAdminAuthConfig)
 
 	if s.AdminAuth != nil && s.AdminAuth.Config.Mode == adminauth.ModeOIDC {
 		r.Get("/v1/auth/login", s.startOIDCLogin)

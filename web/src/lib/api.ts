@@ -2,9 +2,40 @@
 const BASE = "/v1/admin";
 export const ADMIN_TOKEN_KEY = "tenancitAdminToken";
 export const ADMIN_TOKEN_CHANGE_EVENT = "admin-token-change";
+export const ADMIN_SESSION_CHANGE_EVENT = "admin-session-change";
 const ADMIN_AUTH_REQUIRED_EVENT = "admin-auth-required";
 export const REQUEST_TIMEOUT_MS = 10_000;
-export type AdminAuthMessage = "auth.invalidToken" | "auth.requiredAccess";
+export type AdminAuthMessage = "auth.invalidToken" | "auth.requiredAccess" | "auth.sessionExpired";
+
+export type AdminAuthMode = "oidc" | "legacy_shared_token";
+
+export interface AdminAuthConfig {
+  mode: AdminAuthMode;
+  login_url?: string;
+}
+
+export interface AdminSession {
+  kind: "oidc_user";
+  issuer: string;
+  subject: string;
+  label: string;
+  session_id: string;
+  roles: string[];
+  csrf_token: string;
+  expires_at: string;
+  idle_expires_at: string;
+}
+
+let currentAdminSession: AdminSession | undefined;
+
+export function setAdminSession(session: AdminSession | undefined) {
+  currentAdminSession = session;
+  window.dispatchEvent(new Event(ADMIN_SESSION_CHANGE_EVENT));
+}
+
+export function getAdminSession(): AdminSession | undefined {
+  return currentAdminSession;
+}
 
 let pendingAdminAuthMessage: AdminAuthMessage | undefined;
 
@@ -62,6 +93,7 @@ export class ApiTimeoutError extends Error {
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAdminToken();
+  const session = getAdminSession();
   const controller = new AbortController();
   const upstreamSignal = init?.signal;
   let timedOut = false;
@@ -75,15 +107,25 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
   try {
     const res = await fetch(BASE + path, {
+      ...init,
+      credentials: "same-origin",
+      // headers must remain after init so callers cannot accidentally discard
+      // the authentication boundary above.
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(!session && token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(session ? { "X-CSRF-Token": session.csrf_token } : {}),
+        ...(init?.headers ?? {}),
       },
-      ...init,
       signal: controller.signal,
     });
     if (res.status === 401) {
-      notifyAdminAuthRequired("auth.invalidToken");
+      if (session) {
+        setAdminSession(undefined);
+        notifyAdminAuthRequired("auth.sessionExpired");
+      } else {
+        notifyAdminAuthRequired("auth.invalidToken");
+      }
       throw new ApiError(401);
     }
     if (!res.ok) {
@@ -105,6 +147,36 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     window.clearTimeout(timeoutID);
     upstreamSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+export async function fetchAdminAuthConfig(signal?: AbortSignal): Promise<AdminAuthConfig> {
+  const response = await fetch("/v1/auth/config", { credentials: "same-origin", signal });
+  if (!response.ok) throw new ApiError(response.status);
+  return (await response.json()) as AdminAuthConfig;
+}
+
+export async function fetchAdminSession(signal?: AbortSignal): Promise<AdminSession | undefined> {
+  const response = await fetch("/v1/auth/session", { credentials: "same-origin", signal });
+  if (response.status === 401) {
+    setAdminSession(undefined);
+    return undefined;
+  }
+  if (!response.ok) throw new ApiError(response.status);
+  const session = (await response.json()) as AdminSession;
+  setAdminSession(session);
+  return session;
+}
+
+export async function logoutAdminSession(): Promise<void> {
+  const session = getAdminSession();
+  if (!session) return;
+  const response = await fetch("/v1/auth/logout", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrf_token },
+  });
+  if (!response.ok && response.status !== 401) throw new ApiError(response.status);
+  setAdminSession(undefined);
 }
 
 export interface Tenant {

@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { ADMIN_TOKEN_CHANGE_EVENT, ADMIN_TOKEN_KEY, ApiError } from "@/lib/api";
+import { ADMIN_SESSION_CHANGE_EVENT, ADMIN_TOKEN_CHANGE_EVENT, ADMIN_TOKEN_KEY, ApiError } from "@/lib/api";
 import { adminQueryKeys } from "@/lib/query-keys";
 
 export const QUERY_STALE_TIME_MS = 30_000;
@@ -35,9 +35,11 @@ export function registerAdminQueryCacheInvalidation(queryClient: QueryClient): (
   };
 
   window.addEventListener(ADMIN_TOKEN_CHANGE_EVENT, clearCache);
+  window.addEventListener(ADMIN_SESSION_CHANGE_EVENT, clearCache);
   window.addEventListener("storage", clearCacheFromStorage);
   return () => {
     window.removeEventListener(ADMIN_TOKEN_CHANGE_EVENT, clearCache);
+    window.removeEventListener(ADMIN_SESSION_CHANGE_EVENT, clearCache);
     window.removeEventListener("storage", clearCacheFromStorage);
   };
 }
