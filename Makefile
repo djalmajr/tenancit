@@ -1,4 +1,4 @@
-.PHONY: build build-web embed build-server lint lint-go lint-deploy test test-go test-go-strict test-web test-db \
+.PHONY: build web-install build-web embed build-server lint lint-go lint-deploy test test-go test-go-strict test-web test-db \
         e2e-catalog e2e-smoke e2e-pr e2e e2e-oidc e2e-stability benchmark-scale sqlc \
         dev-server dev-web dev-compose dev-compose-up dev-compose-down tidy clean \
         docker docker-up docker-down docker-reset smoke deploy-preflight test-continuity test-postgres-roles
@@ -6,8 +6,11 @@
 ## build: web SPA -> embed into server -> Go binary
 build: build-web embed build-server
 
-build-web:
-	cd web && bun install --frozen-lockfile && bun run build
+web-install:
+	cd web && bun install --frozen-lockfile
+
+build-web: web-install
+	cd web && bun run build
 
 ## embed: copy the built SPA into the Go embed location
 embed:
@@ -20,7 +23,7 @@ build-server:
 ## test: Go checks + web typecheck and unit tests. DB tests skip if Docker is unavailable.
 test: test-go test-web
 
-lint: lint-go lint-deploy
+lint: lint-go lint-deploy web-install
 	cd web && bun run lint
 
 lint-deploy:
@@ -46,7 +49,7 @@ test-go: lint-go
 test-go-strict: lint-go
 	cd server && REQUIRE_DB_TESTS=1 go test ./...
 
-test-web:
+test-web: web-install
 	cd web && bun run lint && bun run typecheck && bun run test
 
 ## test-db: compatibility alias for the canonical strict testcontainers gate.
