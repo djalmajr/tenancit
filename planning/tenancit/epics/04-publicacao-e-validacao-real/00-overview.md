@@ -51,8 +51,8 @@ executável para validar produção e decidir paginação com evidência.
 |---|---|---|---|---|---|
 | 01 | Estabilizar o E2E de webhook | Fluxo assinado passa de forma determinística e preserva one-shot secret | M | — | DONE — 3 isoladas + catálogo completo |
 | 02 | Diagnóstico sem depender de artefatos | Falhas E2E continuam investigáveis mesmo com cota esgotada | S | 01 parcial | DONE — workflow remoto validado |
-| 03 | Confirmar a CI final | `main` passa integralmente em execuções remotas limpas | S | 01, 02 | IN PROGRESS — 2/3 runs verdes |
-| 04 | Preparar a publicação O'Saasy | Repositório pode ser tornado público sem inconsistências de licença, segurança ou metadados | M | 03 | IN PROGRESS — automações e checklist preparados |
+| 03 | Confirmar a CI final | `main` passa integralmente em execuções remotas limpas | S | 01, 02 | DONE — 3/3 runs verdes |
+| 04 | Preparar a publicação O'Saasy | Repositório pode ser tornado público sem inconsistências de licença, segurança ou metadados | M | 03 | IN PROGRESS — advisories em remediação |
 | 05 | Validar o primeiro ambiente real | IdP, topologia, continuidade, limiter e rewrap possuem evidência sanitizada | XL | 03; ambiente alvo | TODO — gate externo |
 | 06 | Reavaliar escala com cardinalidade real | Decisão `KEEP_FULL_LISTS` ou `MIGRATE` é reproduzível e baseada em volume real | M | telemetria/estimativa real | IN PROGRESS — harness verde; volume pendente |
 

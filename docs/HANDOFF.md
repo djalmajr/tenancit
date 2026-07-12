@@ -184,8 +184,8 @@ revisão jurídica externa.
   namespace descartável e o target usa loopback real.
 - Três execuções locais isoladas e catálogo completo 22/22 passaram com retry
   zero; OIDC 2/2 também passou.
-- CI remota verde em `29173148210` (`e9614d2`) e `29173276132` (`cc5e337`);
-  terceira execução ainda é necessária para fechar a história.
+- CI remota verde em `29173148210` (`e9614d2`), `29173276132` (`cc5e337`) e
+  `29173656748` (`e06460f`), sem rerun manual.
 - Upload Playwright é opt-in e não mascara o resultado quando a cota de
   artefatos está indisponível.
 - Candidato público possui O'Saasy conferida, scans limpos, templates,
@@ -193,6 +193,9 @@ revisão jurídica externa.
   de release. A visibilidade permanece privada.
 - Curva sintética 100/500/1.000/5.000 foi repetida em duas rodadas e manteve
   `KEEP_FULL_LISTS`; cardinalidade operacional real continua pendente.
+- Alertas de dependência revelaram 16 advisories concentrados em Vitest,
+  `x/crypto`, `x/net` e `go-jose`; versões corrigidas passaram `govulncheck`,
+  `bun audit`, gates locais, E2E 22/22 e OIDC 2/2 e aguardam confirmação remota.
 
 ## Limites conscientes desta rodada
 

@@ -20,3 +20,5 @@ versioning when the first public release is tagged.
 - AES-256-GCM keyring and resumable offline rewrap workflow.
 - SSRF-resistant webhook delivery, secret-safe caching and defensive HTTP headers.
 - Public disclosure policy and repository-wide secret scanning.
+- Patched Vitest, Go JOSE, `x/crypto` and `x/net` dependency advisories before
+  the first public release.

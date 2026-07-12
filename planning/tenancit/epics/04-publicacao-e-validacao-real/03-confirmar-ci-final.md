@@ -45,8 +45,8 @@ Histórias 01 e 02.
 - [x] Rodar todos os gates canônicos localmente.
 - [x] Publicar os commits candidatos.
 - [x] Acompanhar os workflows completos e investigar a primeira falha.
-- [ ] Obter três runs verdes consecutivos sem retry manual.
-- [ ] Atualizar handoff, overview e evidência da história.
+- [x] Obter três runs verdes consecutivos sem retry manual.
+- [x] Atualizar handoff, overview e evidência da história.
 
 ## Verificação
 
@@ -65,5 +65,7 @@ gh run list --branch main --limit 10
 - `e9614d2`, run `29173148210`: server, web, product e E2E verdes;
 - `cc5e337`, run `29173276132`: server, web, product e E2E verdes; Security
   `29173276159` verde; CodeQL corretamente ignorado enquanto privado.
+- `e06460f`, run `29173656748`: server, web, product e E2E verdes; Security
+  `29173656720` verde.
 
-Pendente: terceira execução consecutiva e reconciliação final do handoff.
+Três execuções consecutivas passaram sem rerun manual.

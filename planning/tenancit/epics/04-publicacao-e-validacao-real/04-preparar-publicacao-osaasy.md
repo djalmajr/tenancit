@@ -85,5 +85,12 @@ Preparação em 2026-07-11:
 - `CHANGELOG.md` e `RELEASING.md` preparam `v0.1.0`, sem criar tag ou mudar a
   visibilidade.
 
-Pendente: CI candidata, regras/recursos que só podem ser confirmados após a
-publicação e autorização explícita para mudar a visibilidade.
+Ao ativar os alertas, o GitHub identificou 16 advisories concentrados em três
+raízes. Foram atualizados Vitest para 3.2.7, `x/crypto` para 0.52.0, `x/net`
+para 0.55.0 e `go-jose/v4` para 4.1.4, com dependências transitivas compatíveis.
+`govulncheck` reportou zero vulnerabilidades alcançáveis/importadas; o único
+aviso de módulo é `x/crypto/openpgp`, pacote não importado e sem correção
+disponível. `bun audit --production` reportou zero.
+
+Pendente: confirmação remota do patch de dependências, fechamento dos alerts e
+regras/recursos que só podem ser confirmados após a publicação.
