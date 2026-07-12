@@ -67,3 +67,5 @@ rodada está em [`docs/HANDOFF.md`](docs/HANDOFF.md).
 Contribuições são bem-vindas conforme [CONTRIBUTING.md](CONTRIBUTING.md).
 Vulnerabilidades devem ser relatadas de forma privada seguindo
 [SECURITY.md](SECURITY.md).
+Mudanças relevantes são registradas no [CHANGELOG.md](CHANGELOG.md), e releases
+seguem o checklist reproduzível em [RELEASING.md](RELEASING.md).

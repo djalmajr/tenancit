@@ -1,0 +1,36 @@
+name: Feature proposal
+description: Propose a concrete product capability or extension boundary.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and users
+      description: Which user or integrator problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observable outcome
+      description: Describe behavior and acceptance signals, not only implementation.
+    validations:
+      required: true
+  - type: dropdown
+    id: boundary
+    attributes:
+      label: Suggested boundary
+      options:
+        - Core contract
+        - Adapter or extension
+        - Admin console
+        - Documentation or operations
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

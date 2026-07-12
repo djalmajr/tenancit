@@ -1,7 +1,7 @@
 [#prod-licenciamento]
 === Licenciamento e sustentabilidade
 
-O código do Tenancit é público sob a
+O código do Tenancit será disponibilizado publicamente sob a
 link:../../LICENSE[O'Saasy License]. Ela preserva as permissões amplas da MIT
 para estudar, usar, modificar, distribuir e criar produtos, mas reserva ao
 licenciante original a oferta concorrente do próprio Tenancit como SaaS,

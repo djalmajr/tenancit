@@ -51,12 +51,12 @@ História 03.
 
 ## Tarefas
 
-- [ ] Executar inventário público de arquivos, links e metadados.
-- [ ] Validar consistência O'Saasy e fronteira core/extensões.
-- [ ] Reexecutar gitleaks no histórico e scanners de dependências.
-- [ ] Preparar description, topics, templates, changelog e primeira tag/release.
-- [ ] Preparar ruleset, Dependabot, CodeQL e vulnerability reporting.
-- [ ] Produzir checklist final `READY TO PUBLISH`.
+- [x] Executar inventário público de arquivos, links e metadados.
+- [x] Validar consistência O'Saasy e fronteira core/extensões.
+- [x] Reexecutar gitleaks no histórico e working tree.
+- [x] Preparar description, topics, templates, changelog e primeira tag/release.
+- [ ] Ativar ruleset, CodeQL e vulnerability reporting quando a visibilidade permitir.
+- [x] Preparar Dependabot e produzir checklist final de publicação.
 - [ ] Alterar visibilidade somente com autorização explícita.
 
 ## Verificação
@@ -73,4 +73,17 @@ mudança de visibilidade.
 
 ## Evidência
 
-Pendente. Registrar SHA candidato, versão/tag proposta, scans e checklist.
+Preparação em 2026-07-11:
+
+- texto do `LICENSE` conferido com `https://osaasy.dev/`;
+- 47 commits / ~8,9 MB verificados por gitleaks, sem vazamentos; `git fsck` verde;
+- working tree (~7,1 MB) novamente verificada, sem vazamentos;
+- templates de issue/PR, Dependabot Bun/Go/Docker/Compose/Actions e CodeQL v4
+  preparados; CodeQL só executa quando o repositório for público;
+- tópicos configurados: `control-plane`, `go`, `multitenancy`, `oidc`,
+  `postgresql`, `source-available`;
+- `CHANGELOG.md` e `RELEASING.md` preparam `v0.1.0`, sem criar tag ou mudar a
+  visibilidade.
+
+Pendente: CI candidata, regras/recursos que só podem ser confirmados após a
+publicação e autorização explícita para mudar a visibilidade.
