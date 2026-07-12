@@ -13,7 +13,7 @@ services:
       - /var/lib/postgresql/data
 
   valkey-e2e:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:9-alpine
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
