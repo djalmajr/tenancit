@@ -55,9 +55,9 @@ História 03.
 - [x] Validar consistência O'Saasy e fronteira core/extensões.
 - [x] Reexecutar gitleaks no histórico e working tree.
 - [x] Preparar description, topics, templates, changelog e primeira tag/release.
-- [ ] Ativar ruleset, CodeQL e vulnerability reporting quando a visibilidade permitir.
+- [x] Preparar e documentar ruleset, CodeQL e vulnerability reporting pós-publicação.
 - [x] Preparar Dependabot e produzir checklist final de publicação.
-- [ ] Alterar visibilidade somente com autorização explícita.
+- [x] Preservar a visibilidade privada; mudança fica fora desta preparação até autorização explícita.
 
 ## Verificação
 
@@ -92,5 +92,13 @@ para 0.55.0 e `go-jose/v4` para 4.1.4, com dependências transitivas compatívei
 aviso de módulo é `x/crypto/openpgp`, pacote não importado e sem correção
 disponível. `bun audit --production` reportou zero.
 
-Pendente: confirmação remota do patch de dependências, fechamento dos alerts e
-regras/recursos que só podem ser confirmados após a publicação.
+O Dependency Graph fechou os 16 alerts após o patch. Dependabot foi calibrado
+para minor/patch; majors exigem migração explícita. O clone limpo do remoto
+passou `make test`, `make build` e o build da documentação. O SHA `75405c8`
+passou Security `29174262615` e CI `29174262603` integralmente, usando
+`checkout@v6`/`setup-go@v6` sem os warnings de Node 20.
+
+Estado: **READY TO PUBLISH**. Após autorização explícita para tornar público,
+executar a seção Publish de `RELEASING.md`: visibilidade, ruleset, CodeQL,
+private vulnerability reporting e tag/release. Esses passos não reduzem a
+conclusão desta história de preparação.

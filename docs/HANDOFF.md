@@ -195,7 +195,11 @@ revisão jurídica externa.
   `KEEP_FULL_LISTS`; cardinalidade operacional real continua pendente.
 - Alertas de dependência revelaram 16 advisories concentrados em Vitest,
   `x/crypto`, `x/net` e `go-jose`; versões corrigidas passaram `govulncheck`,
-  `bun audit`, gates locais, E2E 22/22 e OIDC 2/2 e aguardam confirmação remota.
+  `bun audit`, gates locais, E2E 22/22 e OIDC 2/2. O GitHub recalculou para zero
+  alerts abertos.
+- O clone limpo do remoto passou `make test`, `make build` e documentação. O
+  SHA `75405c8` passou Security `29174262615` e CI `29174262603`; o candidato
+  está `READY TO PUBLISH`, mas a visibilidade permanece privada.
 
 ## Limites conscientes desta rodada
 
