@@ -140,6 +140,12 @@ func (v *Valkey) Allow(ctx context.Context, clientID string, rpm int32) (Result,
 			return Result{}, ErrUnavailable
 		}
 	}
+	if parsed[1] < 0 || parsed[1] > math.MaxInt32 ||
+		parsed[2] < 0 || parsed[2] > math.MaxInt64/int64(time.Millisecond) ||
+		parsed[3] < 0 || parsed[3] > math.MaxInt64/int64(time.Millisecond) {
+		telemetry.RecordDependencyOperation(ctx, "valkey", "query", "error", time.Since(started))
+		return Result{}, ErrUnavailable
+	}
 	telemetry.RecordDependencyOperation(ctx, "valkey", "query", "success", time.Since(started))
 	return Result{
 		Allowed: parsed[0] == 1, Limit: rpm, Remaining: int32(parsed[1]),

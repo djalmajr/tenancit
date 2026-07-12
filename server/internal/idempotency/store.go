@@ -51,12 +51,12 @@ func NewStore(cryptor *appcrypto.Cryptor, now func() time.Time) *Store {
 }
 
 func Fingerprint(operation string, canonicalPayload []byte) [32]byte {
-	input := make([]byte, 0, len(operation)+1+len(canonicalPayload))
-	input = append(input, operation...)
-	input = append(input, 0)
-	input = append(input, canonicalPayload...)
-	result := sha256.Sum256(input)
-	clear(input)
+	digest := sha256.New()
+	_, _ = digest.Write([]byte(operation))
+	_, _ = digest.Write([]byte{0})
+	_, _ = digest.Write(canonicalPayload)
+	var result [sha256.Size]byte
+	copy(result[:], digest.Sum(nil))
 	return result
 }
 

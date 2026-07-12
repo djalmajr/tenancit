@@ -26,18 +26,19 @@ func (s *Server) listAPIClientUsage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid usage window"})
 		return
 	}
-	limit := 200
+	limit := int32(200)
 	if raw := r.URL.Query().Get("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
-		if err != nil || limit < 1 || limit > 1000 {
+		parsed, parseErr := strconv.ParseInt(raw, 10, 32)
+		if parseErr != nil || parsed < 1 || parsed > 1000 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid limit"})
 			return
 		}
+		limit = int32(parsed)
 	}
 	rows, err := s.Q.ListAPIClientUsage(r.Context(), db.ListAPIClientUsageParams{
 		ApiClientID: id,
 		FromDay:     pgtype.Date{Time: from, Valid: true}, ToDay: pgtype.Date{Time: to, Valid: true},
-		PageLimit: int32(limit),
+		PageLimit: limit,
 	})
 	if err != nil {
 		writeInternalError(w, r, "list API client usage", err)

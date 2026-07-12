@@ -6,6 +6,16 @@ versioning when the first public release is tagged.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-12
+
+### Security
+
+- Reject out-of-range Valkey counters and durations before narrowing or
+  converting them.
+- Parse API usage page limits directly at the database integer width.
+- Compute idempotency fingerprints incrementally without overflow-prone
+  allocation sizing.
+
 ## [0.1.0] - 2026-07-12
 
 ### Added
