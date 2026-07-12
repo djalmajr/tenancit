@@ -1,6 +1,6 @@
 services:
   migrate-dev:
-    image: golang:1.25-alpine
+    image: golang:1.26-alpine
     working_dir: /workspace/server
     command: >
       sh -c "apk add --no-cache git >/dev/null &&
@@ -16,7 +16,7 @@ services:
       - go-build-cache:/root/.cache/go-build
 
   api-dev:
-    image: golang:1.25-alpine
+    image: golang:1.26-alpine
     working_dir: /workspace/server
     command: >
       sh -c "apk add --no-cache git >/dev/null &&
