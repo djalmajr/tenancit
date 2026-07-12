@@ -60,5 +60,5 @@ O operador precisa disponibilizar no ambiente, sem copiá-los para este arquivo:
 ## Aprovação
 
 O registro só pode ser fechado quando owner técnico e owner operacional
-confirmarem os gates, e `docs/HANDOFF.md` registrar ambiente, digest, data,
+confirmarem os gates e este documento registrar ambiente, digest, data,
 resultados e eventuais riscos residuais sem material confidencial.

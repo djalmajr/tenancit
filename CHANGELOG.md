@@ -6,6 +6,8 @@ versioning when the first public release is tagged.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-12
+
 ### Added
 
 - Tenant, domain, resource-definition and encrypted resource control plane.

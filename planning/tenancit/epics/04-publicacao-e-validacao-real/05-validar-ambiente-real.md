@@ -23,7 +23,7 @@ esse ensaio com homologação de produção de um cliente.
 |---|---|---|
 | Runbooks em `docs/runbooks/` | Atualizar | Trocar premissas genéricas por evidência sanitizada do alvo |
 | Configuração de deploy escolhida | Adicionar em caminho próprio sem secrets | Codificar topologia reproduzível |
-| `docs/HANDOFF.md` e roadmap | Atualizar | Distinguir validado de apenas implementado |
+| Registro de validação e roadmap | Atualizar | Distinguir validado de apenas implementado |
 | História/overview | Atualizar | Persistir gates externos e resultados |
 | `docs/runbooks/first-production-validation-record.md` | Preencher | Centralizar evidência sanitizada e aceite |
 

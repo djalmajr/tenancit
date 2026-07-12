@@ -1,6 +1,6 @@
 # Roadmap: qualidade, carregamento e escala do console
 
-**Origem:** `docs/HANDOFF.md`, `docs/business/04-escopo-e-roadmap.adoc` e análise
+**Origem:** `docs/business/04-escopo-e-roadmap.adoc`, registros de validação e análise
 comparativa com `<reference-project>`
 **Tipo:** trajetória
 **Estado:** concluído até a Fase 6 em 2026-07-10

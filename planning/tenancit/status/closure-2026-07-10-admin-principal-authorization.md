@@ -48,7 +48,7 @@
 | Playwright | 17/17 testes mais route smoke 1/1, retry zero |
 | Higiene | `git diff --check` limpo; nenhum container E2E residual |
 | Browser | Vite/proxy em `:5180` exibiu dashboard autenticado após restart da API |
-| Documentação | plano e `docs/HANDOFF.md` atualizados |
+| Documentação | plano e registro de encerramento atualizados |
 
 ## Riscos remanescentes
 

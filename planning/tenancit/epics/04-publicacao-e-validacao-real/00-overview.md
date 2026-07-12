@@ -35,7 +35,7 @@ executável para validar produção e decidir paginação com evidência.
 
 ## Rastreabilidade
 
-- Estado executável: `docs/HANDOFF.md`.
+- Estado executável: este overview e `planning/tenancit/roadmap-quality-scale.md`.
 - Roadmap: `docs/business/04-escopo-e-roadmap.adoc`.
 - Licenciamento: `LICENSE`, `docs/business/05-licenciamento-e-sustentabilidade.adoc`.
 - Segurança pública: `SECURITY.md`, `.github/workflows/security.yml`.
@@ -78,7 +78,7 @@ projeção formalmente registrada.
 Ao concluir ou pausar uma história:
 
 1. atualizar seu `Estado`, checklists e seção `Evidência`;
-2. atualizar a tabela deste overview e `docs/HANDOFF.md`;
+2. atualizar a tabela deste overview e o roadmap verificável;
 3. registrar comandos, IDs/URLs de runs e decisões sem secrets;
 4. deixar explícito o próximo item executável e qualquer gate externo;
 5. não marcar história como entregue com base apenas em implementação local

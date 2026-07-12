@@ -12,7 +12,7 @@ release pública.
 ## Rastreabilidade
 
 - `.github/workflows/ci.yml`, `.github/workflows/security.yml`.
-- Baseline e comandos canônicos em `docs/HANDOFF.md`.
+- Baseline e comandos canônicos em `RELEASING.md`.
 
 ## Arquivos
 
@@ -20,7 +20,7 @@ release pública.
 |---|---|---|
 | `.github/workflows/ci.yml` | Modificar apenas se o run revelar defeito real | Manter gate obrigatório determinístico |
 | `.github/workflows/security.yml` | Revisar | Confirmar scan sem upload obrigatório |
-| `docs/HANDOFF.md` | Atualizar | Registrar SHA e evidências remotas finais |
+| GitHub Release | Atualizar | Registrar SHA e evidências remotas finais |
 | `planning/tenancit/epics/04-publicacao-e-validacao-real/*` | Atualizar | Persistir status entre sessões |
 
 ## Detalhe

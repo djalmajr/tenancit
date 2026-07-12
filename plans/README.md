@@ -5,8 +5,8 @@ Execute in the order below unless dependencies say otherwise. Each executor:
 read the plan fully before starting, honor its STOP conditions, and update
 your row when done.
 
-Current runtime evidence, design boundaries and external dependencies are in
-[`docs/HANDOFF.md`](../docs/HANDOFF.md).
+Current product boundaries and follow-ups are maintained in
+[`planning/tenancit/roadmap-quality-scale.md`](../planning/tenancit/roadmap-quality-scale.md).
 
 ## Execution order & status
 

@@ -21,7 +21,7 @@ produto simples enquanto pequeno e migrar antes que o volume degrade a UX/API.
 |---|---|---|
 | Benchmark/scripts de escala existentes | Executar/modificar se necessário | Reproduzir volume observado |
 | `planning/tenancit/roadmap-quality-scale.md` | Atualizar | Registrar dados e decisão |
-| `docs/HANDOFF.md` | Atualizar | Expor decisão operacional atual |
+| Roadmap verificável | Atualizar | Expor decisão operacional atual |
 | Novo epic de paginação | Criar somente se `MIGRATE` | Separar mudança contratual deste gate |
 
 ## Detalhe

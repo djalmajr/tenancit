@@ -60,9 +60,9 @@ make sqlc          # regenera acesso tipado ao banco
 make smoke         # smoke autenticado pós-deploy, com criação e cleanup
 ```
 
-A documentação detalhada está em [`docs/README.adoc`](docs/README.adoc), e as
-decisões arquiteturais em [`docs/adr/`](docs/adr/). O estado executável da
-rodada está em [`docs/HANDOFF.md`](docs/HANDOFF.md).
+A documentação detalhada está em [`docs/README.adoc`](docs/README.adoc), as
+decisões arquiteturais em [`docs/adr/`](docs/adr/) e o roadmap verificável em
+[`planning/tenancit/roadmap-quality-scale.md`](planning/tenancit/roadmap-quality-scale.md).
 
 Contribuições são bem-vindas conforme [CONTRIBUTING.md](CONTRIBUTING.md).
 Vulnerabilidades devem ser relatadas de forma privada seguindo

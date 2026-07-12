@@ -1,8 +1,8 @@
 # Releasing Tenancit
 
 This checklist keeps public releases reproducible and free of private material.
-The first planned public version is `v0.1.0`; creating the tag and changing
-repository visibility require explicit maintainer authorization.
+The first public version is `v0.1.0`; creating a tag and changing repository
+visibility require explicit maintainer authorization.
 
 ## Candidate
 
@@ -28,6 +28,6 @@ repository visibility require explicit maintainer authorization.
 ## After release
 
 - [ ] Confirm the security policy and issue forms are reachable anonymously.
-- [ ] Record the release URL, tag, SHA, image digest and CI evidence in
-      `docs/HANDOFF.md`.
-- [ ] Move released changelog entries out of `Unreleased`.
+- [ ] Confirm the GitHub release records its URL, tag, SHA, image digest and CI
+      evidence; durable follow-ups belong in the roadmap, not a session handoff.
+- [ ] Move released changelog entries out of `Unreleased` before tagging.

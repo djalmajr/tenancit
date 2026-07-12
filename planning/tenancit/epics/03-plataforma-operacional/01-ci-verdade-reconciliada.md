@@ -11,7 +11,7 @@ commit atual. A história entrega uma base confiável para todo o restante.
 ## Rastreabilidade
 
 - `.github/workflows/ci.yml`, `server/internal/testsupport/postgres.go`.
-- `planning/tenancit/epics/02-governanca-operacional` e `docs/HANDOFF.md`.
+- `planning/tenancit/epics/02-governanca-operacional` e `RELEASING.md`.
 
 ## Arquivos
 

@@ -40,8 +40,8 @@ divergir, o código vence; atualize o documento e registre a correção.
 
 O material em `plans/` preserva o backlog executável e o histórico desta rodada.
 Esta pasta `/docs` é o manual de leitura contínua do projeto.
-O snapshot de execução, gates e dependências externas está em
-link:HANDOFF.md[`docs/HANDOFF.md`].
+O roadmap verificável, incluindo gates e dependências externas, está em
+link:../planning/tenancit/roadmap-quality-scale.md[`planning/tenancit/roadmap-quality-scale.md`].
 ====
 
 include::business/_index.adoc[]
