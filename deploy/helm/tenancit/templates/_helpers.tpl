@@ -12,3 +12,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 {{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
 {{- end }}
+{{- define "tenancit.immutableImage" -}}
+{{- if not (regexMatch "^[^@[:space:]]+@sha256:[0-9a-f]{64}$" .) -}}
+{{- fail "personal images must use repository@sha256 followed by 64 lowercase hexadecimal characters" -}}
+{{- end -}}
+{{- . -}}
+{{- end }}

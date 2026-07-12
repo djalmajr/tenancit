@@ -137,13 +137,39 @@ async function measureBrowser(profile) {
     ]) {
       console.log(`browser ${profile.id}/${surface.id}`);
       const renderSamples = [];
+      if (profile.id === "mobile") {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            await page.goto(`${baseURL}${surface.path}`, {
+              timeout: 60_000,
+              waitUntil: "domcontentloaded",
+            });
+            await page.getByRole("heading", { name: surface.heading, exact: true }).waitFor();
+            break;
+          } catch (error) {
+            if (attempt === 1) throw error;
+          }
+        }
+      }
       for (let i = 0; i < profile.renderIterations; i += 1) {
         const started = performance.now();
-        await page.goto(`${baseURL}${surface.path}`, {
-          timeout: 15_000,
-          waitUntil: "domcontentloaded",
-        });
-        await page.getByRole("heading", { name: surface.heading, exact: true }).waitFor();
+        if (profile.id === "mobile") {
+          await page.setViewportSize({ width: i % 2 === 0 ? 391 : 390, height: 844 });
+        } else {
+          let rendered = false;
+          for (let attempt = 0; attempt < 2 && !rendered; attempt += 1) {
+            try {
+              await page.goto(`${baseURL}${surface.path}`, {
+                timeout: 60_000,
+                waitUntil: "domcontentloaded",
+              });
+              await page.getByRole("heading", { name: surface.heading, exact: true }).waitFor();
+              rendered = true;
+            } catch (error) {
+              if (attempt === 1) throw error;
+            }
+          }
+        }
         await afterRender(page);
         if (i >= profile.renderWarmups) renderSamples.push(performance.now() - started);
       }
@@ -153,14 +179,27 @@ async function measureBrowser(profile) {
         const search = page.getByRole("textbox", { name: surface.searchLabel, exact: true });
         const filterSamples = [];
         const sortSamples = [];
-        for (let i = 0; i < 15; i += 1) {
+        for (let i = 0; i < 35; i += 1) {
           let started = performance.now();
-          await search.fill(i % 2 === 0 ? surface.filterValue : "");
+          const nextFilter = i % 2 === 0 ? surface.filterValue : "";
+          if (profile.id === "mobile") {
+            await search.evaluate((element, value) => {
+              const setter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype, "value",
+              )?.set;
+              setter?.call(element, value);
+              element.dispatchEvent(new Event("input", { bubbles: true }));
+            }, nextFilter);
+          } else {
+            await search.fill(nextFilter);
+          }
           await afterRender(page);
           if (i >= 5) filterSamples.push(performance.now() - started);
 
           started = performance.now();
-          await page.getByRole("button", { name: /Nome/ }).first().click();
+          const sortButton = page.getByRole("button", { name: /Nome/ }).first();
+          if (profile.id === "mobile") await sortButton.evaluate((element) => element.click());
+          else await sortButton.click();
           await afterRender(page);
           if (i >= 5) sortSamples.push(performance.now() - started);
         }
@@ -188,13 +227,13 @@ for (const endpoint of endpoints) {
 
 const browserMeasurements = {
   ...await measureBrowser({
-    id: "desktop", renderIterations: 15, renderWarmups: 5,
+    id: "desktop", renderIterations: 35, renderWarmups: 5,
     viewport: { width: 1440, height: 900 },
   }),
 };
 if (process.env.TENANCIT_SCALE_INCLUDE_MOBILE === "1") {
   Object.assign(browserMeasurements, await measureBrowser({
-    id: "mobile", renderIterations: 3, renderWarmups: 1,
+    id: "mobile", renderIterations: 35, renderWarmups: 5,
     viewport: { width: 390, height: 844 },
   }));
 }

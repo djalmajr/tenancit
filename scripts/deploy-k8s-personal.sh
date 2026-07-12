@@ -50,13 +50,14 @@ host="${TENANCIT_PUBLIC_HOST:-tenancit.djalmajr.dev}"
 oidc_host="${TENANCIT_OIDC_HOST:-tenancit-id.djalmajr.dev}"
 pg_service="$release-postgres.$namespace.svc.cluster.local"
 valkey_service="$release-valkey.$namespace.svc.cluster.local"
-urlencode() { jq -nr --arg v "$1" '$v|@uri'; }
-admin_q="$(urlencode "$POSTGRES_ADMIN_PASSWORD")"
-migration_q="$(urlencode "$POSTGRES_MIGRATION_PASSWORD")"
-runtime_q="$(urlencode "$POSTGRES_RUNTIME_PASSWORD")"
-jobs_q="$(urlencode "$POSTGRES_JOBS_PASSWORD")"
-valkey_q="$(urlencode "$VALKEY_PASSWORD")"
-dex_hash="$(htpasswd -bnBC 10 '' "$ADMIN_PASSWORD" | tr -d ':\n')"
+urlencode() { jq -Rr @uri; }
+admin_q="$(printf '%s' "$POSTGRES_ADMIN_PASSWORD" | urlencode)"
+migration_q="$(printf '%s' "$POSTGRES_MIGRATION_PASSWORD" | urlencode)"
+runtime_q="$(printf '%s' "$POSTGRES_RUNTIME_PASSWORD" | urlencode)"
+jobs_q="$(printf '%s' "$POSTGRES_JOBS_PASSWORD" | urlencode)"
+valkey_q="$(printf '%s' "$VALKEY_PASSWORD" | urlencode)"
+dex_hash="$(printf '%s\n' "$ADMIN_PASSWORD" | htpasswd -niBC 10 '' | tr -d ':\n')"
+dex_identity_fingerprint="$(printf '%s\n%s\n%s' "$ADMIN_EMAIL" "$ADMIN_USERNAME" "$ADMIN_PASSWORD" | openssl dgst -sha256 -r | cut -d' ' -f1)"
 
 kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 dex_config="$(cat <<EOF
@@ -105,6 +106,13 @@ if kubectl -n "$namespace" get secret "$secret_name" >/dev/null 2>&1; then
   check_secret_value oidc-client-secret "$OIDC_CLIENT_SECRET"
   check_secret_value aes-key "$AES_KEY"
   check_secret_value operations-token "$OPERATIONS_TOKEN"
+  existing_dex_fingerprint="$(secret_value dex-identity-fingerprint)"
+  if [ -n "$existing_dex_fingerprint" ]; then
+    [ "$existing_dex_fingerprint" = "$dex_identity_fingerprint" ] || {
+      echo "credential drift for Dex identity; use an explicit credential-rotation procedure" >&2
+      exit 1
+    }
+  fi
 fi
 
 b64() { printf '%s' "$1" | base64 | tr -d '\n'; }
@@ -118,14 +126,15 @@ printf '%s\n' "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\"
 \"migration-database-url\":\"$(b64 "postgres://tenancit_migration:$migration_q@$pg_service:5432/tenancit?sslmode=disable")\",
 \"runtime-database-url\":\"$(b64 "postgres://tenancit_runtime_login:$runtime_q@$pg_service:5432/tenancit?sslmode=disable")\",
 \"jobs-database-url\":\"$(b64 "postgres://tenancit_jobs_login:$jobs_q@$pg_service:5432/tenancit?sslmode=disable")\",
-\"backup-database-url\":\"$(b64 "postgres://tenancit_backup_login:$(urlencode "$POSTGRES_BACKUP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable")\",
-\"rewrap-database-url\":\"$(b64 "postgres://tenancit_rewrap_login:$(urlencode "$POSTGRES_REWRAP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable")\",
+\"backup-database-url\":\"$(b64 "postgres://tenancit_backup_login:$(printf '%s' "$POSTGRES_BACKUP_PASSWORD" | urlencode)@$pg_service:5432/tenancit?sslmode=disable")\",
+\"rewrap-database-url\":\"$(b64 "postgres://tenancit_rewrap_login:$(printf '%s' "$POSTGRES_REWRAP_PASSWORD" | urlencode)@$pg_service:5432/tenancit?sslmode=disable")\",
 \"postgres-admin-url\":\"$(b64 "postgres://postgres:$admin_q@$pg_service:5432/tenancit?sslmode=disable")\",
 \"valkey-password\":\"$(b64 "$VALKEY_PASSWORD")\",
 \"valkey-url\":\"$(b64 "redis://:$valkey_q@$valkey_service:6379/0")\",
 \"oidc-client-secret\":\"$(b64 "$OIDC_CLIENT_SECRET")\",
 \"aes-key\":\"$(b64 "$AES_KEY")\",
 \"operations-token\":\"$(b64 "$OPERATIONS_TOKEN")\",
+\"dex-identity-fingerprint\":\"$(b64 "$dex_identity_fingerprint")\",
 \"dex-config\":\"$(b64 "$dex_config")\"}}" | kubectl apply -f - >/dev/null
 
 pull_secret_args=""

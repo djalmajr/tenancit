@@ -71,7 +71,8 @@ restaurou o digest `sha256:b9571461...57f1fa1`, novamente com readiness saudáve
 As imagens de PostgreSQL, Valkey e Dex também são fixadas por digest no perfil.
 Jobs one-shot de rewrap são removidos depois da coleta da evidência.
 
-O namespace aplica default-deny e libera somente tráfego interno necessário,
-DNS, HTTPS de saída e ingress do Traefik. Os CIDRs de pods/serviços do laboratório
-são parâmetros explícitos do perfil; ambientes de clientes devem fornecer os
-CIDRs da própria topologia.
+O namespace aplica default-deny e policies de ingress por componente: somente
+Traefik alcança app/Dex, app alcança PostgreSQL/Valkey/Dex e o worker alcança
+PostgreSQL. O laboratório K3s mantém egress aberto para app/worker porque o CNI
+local não aplicou de modo estável regras por ClusterIP/pod; egress deny-by-default
+por destino permanece gate da topologia de cada cliente.

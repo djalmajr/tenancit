@@ -38,3 +38,12 @@ for invalid in latest sha256:abc sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     exit 1
   fi
 done
+
+for key in personal.postgresImage personal.valkeyImage personal.dexImage; do
+  if $helm_cmd template tenancit deploy/helm/tenancit \
+    --values deploy/helm/tenancit/values-personal.yaml \
+    --set-string image.digest="$digest" --set-string "$key=example:latest" >/dev/null 2>&1; then
+    echo "mutable personal image was accepted: $key" >&2
+    exit 1
+  fi
+done

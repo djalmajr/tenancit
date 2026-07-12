@@ -73,7 +73,7 @@ spec:
       securityContext: { fsGroup: 999, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: postgres
-          image: {{ required "personal.postgresImage is required" .Values.personal.postgresImage }}
+          image: {{ include "tenancit.immutableImage" (required "personal.postgresImage is required" .Values.personal.postgresImage) }}
           env:
             - { name: POSTGRES_DB, value: tenancit }
             - { name: POSTGRES_USER, value: postgres }
@@ -129,7 +129,7 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 999, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: valkey
-          image: {{ required "personal.valkeyImage is required" .Values.personal.valkeyImage }}
+          image: {{ include "tenancit.immutableImage" (required "personal.valkeyImage is required" .Values.personal.valkeyImage) }}
           command: ["sh", "-ec", "exec valkey-server --save '' --appendonly no --requirepass \"$VALKEY_PASSWORD\""]
           env:
             - name: VALKEY_PASSWORD
@@ -168,7 +168,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: dex
-          image: {{ required "personal.dexImage is required" .Values.personal.dexImage }}
+          image: {{ include "tenancit.immutableImage" (required "personal.dexImage is required" .Values.personal.dexImage) }}
           command: ["/usr/local/bin/dex", "serve", "/etc/dex/config.yaml"]
           ports: [{ name: http, containerPort: 5556 }]
           readinessProbe: { httpGet: { path: {{ printf "%s/.well-known/openid-configuration" .Values.oidc.issuerPath | quote }}, port: http }, periodSeconds: 5 }
@@ -192,34 +192,70 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
-metadata: { name: {{ include "tenancit.fullname" . }}-allow-required }
+metadata: { name: {{ include "tenancit.fullname" . }}-app }
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: app }
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
-        - ipBlock: { cidr: {{ required "personal.podCIDR is required" .Values.personal.podCIDR }} }
         - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} }
-        - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: traefik }
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.personal.traefikNamespace }} }
       ports:
         - { protocol: TCP, port: 8080 }
-        - { protocol: TCP, port: 5556 }
-        - { protocol: TCP, port: 5432 }
-        - { protocol: TCP, port: 6379 }
   egress:
-    - to:
-        - ipBlock: { cidr: {{ required "personal.podCIDR is required" .Values.personal.podCIDR }} }
-        - ipBlock: { cidr: {{ required "personal.serviceCIDR is required" .Values.personal.serviceCIDR }} }
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-audit-jobs }
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: audit-jobs }
+  policyTypes: [Egress]
+  egress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-postgres }
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/component: app } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/component: audit-jobs } }
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-valkey }
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: valkey }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/component: app } }
+      ports: [{ protocol: TCP, port: 6379 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-dex }
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/component: dex }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/component: app } }
         - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} }
-    - to:
-        - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: kube-system }
-      ports:
-        - { protocol: UDP, port: 53 }
-        - { protocol: TCP, port: 53 }
-    - ports:
-        - { protocol: TCP, port: 443 }
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.personal.traefikNamespace }} }
+      ports: [{ protocol: TCP, port: 5556 }]
 {{- end }}

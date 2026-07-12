@@ -66,7 +66,7 @@ test -z "$(git -C "$root_dir" status --porcelain)" || dirty=1
 postgres_version="$(compose exec -T postgres-e2e psql -U postgres -d tenancit-e2e -Atc 'show server_version')"
 chromium_version="$(/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version 2>/dev/null || echo unknown)"
 
-for size in 100 250 500 1000 5000; do
+for size in ${TENANCIT_SCALE_SIZES:-100 250 500 1000 5000}; do
   compose exec -T postgres-e2e psql -U postgres -d tenancit-e2e -v size="$size" \
     < "$root_dir/benchmarks/scale/seed.sql" >/dev/null
   plans_dir="$output_dir/query-plans/$size"
