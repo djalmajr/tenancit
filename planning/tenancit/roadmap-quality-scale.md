@@ -49,10 +49,10 @@ comparativa com `<reference-project>`
   Playwright com zero warnings; Go passa por `gofmt`, `go vet` e Staticcheck
   pinado.
 - O benchmark reproduzível foi repetido no contract atual com 100, 500, 1.000 e
-  5.000 registros em duas rodadas. A decisão continua **KEEP_FULL_LISTS**, pois
-  não há volume operacional declarado. O primeiro hard trigger repetível agora
-  é **500 definições**; essa é a cardinalidade para reabrir o gate com telemetria
-  real. Overview/API clients repetem hard triggers em 1.000.
+  5.000 registros em duas rodadas. Uma projeção conservadora de 250 itens
+  administrativos para ambientes com até 50 mil usuários finais manteve
+  **KEEP_FULL_LISTS**. O primeiro hard trigger repetível é **500 definições**;
+  overview/API clients repetem hard triggers em 1.000.
 
 ## O que aproveitar da implementação de referência
 
@@ -330,8 +330,8 @@ nem edições concorrentes de `package.json`, lockfile, Makefile ou CI.
 
 ## Próximo passo recomendado
 
-Coletar a cardinalidade operacional real das quatro superfícies medidas. Ao
-projetar ou observar **500 registros** em uma superfície, repetir
+Coletar cardinalidade real após a adoção pelos clientes. Ao projetar ou observar
+**500 registros** em uma superfície, repetir
 `make benchmark-scale` com o volume observado e, se o gate abrir, decompor um
 epic próprio de paginação server-side. Até lá, preservar o contrato de listas
 completas e os budgets automatizados desta trajetória.

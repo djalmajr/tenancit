@@ -22,6 +22,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/tenancit-audit-jo
 
 # --- Stage 3: minimal runtime ---
 FROM gcr.io/distroless/static-debian12:nonroot
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.source="https://github.com/djalmajr/tenancit" \
+      org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.licenses="O'Saasy-1.0"
 COPY --from=server /out/server /server
 COPY --from=server /out/migrate /migrate
 COPY --from=server /out/tenancit-rewrap /tenancit-rewrap

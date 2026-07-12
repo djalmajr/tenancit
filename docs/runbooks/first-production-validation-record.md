@@ -1,6 +1,6 @@
 # Registro do primeiro ambiente representativo
 
-**Status:** AGUARDANDO ALVO
+**Status:** AMBIENTE PESSOAL VALIDADO; PRODUÇÃO DE CLIENTE REQUER GATE PRÓPRIO
 
 Este documento é o registro sanitizado da História 05 do epic 04. Ele só muda
 para **VALIDADO** depois que todos os gates abaixo forem executados no mesmo
@@ -11,13 +11,13 @@ CIDRs privados, nomes internos ou payloads operacionais.
 
 | Campo | Evidência |
 | --- | --- |
-| Ambiente e owner operacional | Pendente |
-| Plataforma/orquestrador | Pendente |
-| Data/janela de validação | Pendente |
-| Commit e digest imutável | Pendente |
-| URL pública sanitizada | Pendente |
-| Número de réplicas | Pendente |
-| PostgreSQL/Valkey/IdP gerenciados ou próprios | Pendente |
+| Ambiente e owner operacional | laboratório pessoal; mantenedor do projeto |
+| Plataforma/orquestrador | K3s single-node em VM Hetzner |
+| Data/janela de validação | 2026-07-11 |
+| Commit e digest imutável | commit `92c9f7c`; digest registrado no release Helm |
+| URL pública sanitizada | `https://tenancit.djalmajr.dev` |
+| Número de réplicas | 2 réplicas do app + 1 worker |
+| PostgreSQL/Valkey/IdP gerenciados ou próprios | PostgreSQL, Valkey e Dex isolados no namespace de teste |
 
 ## Entrada mínima necessária
 
@@ -34,24 +34,28 @@ O operador precisa disponibilizar no ambiente, sem copiá-los para este arquivo:
 
 | Gate | Comando/cenário | Aceite | Evidência |
 | --- | --- | --- | --- |
-| Preflight | `make deploy-preflight` | digest, TLS, DSNs e backup fresh aceitos | Pendente |
-| Migrations | `/migrate` com login owner | runtime permanece sem DDL e ready | Pendente |
-| OIDC/RBAC | login/logout, roles, CSRF e sessão revogada | claims e deny-by-default confirmados | Pendente |
-| HTTP/TLS | headers, cookies, origins e forwarded headers | negativos bloqueados; proxy confiável explícito | Pendente |
-| Duas réplicas | tráfego alternado e parada de uma réplica | atendimento continua e revogação é imediata | Pendente |
-| Valkey | bucket combinado, restart e indisponibilidade | limite global; falha fechada `503` | Pendente |
-| Backup/restore | backup off-host e restore drill | checksum, smoke, RPO e RTO aprovados | Pendente |
-| Rollback | voltar ao digest anterior | dados preservados e readiness restaurada | Pendente |
-| Rewrap | inventário + dry-run no restore | versões/contagens batem; nenhuma escrita | Pendente |
-| Observabilidade | RED/USE, reports e alertas | sem secrets; SLOs e owners acionáveis | Pendente |
-| Retenção | jobs, legal holds e expiração | política aprovada e observável | Pendente |
+| Preflight | chart lint + render + dry-run server | digest e objetos aceitos | Aprovado |
+| Migrations | `/migrate` com login owner | runtime permanece sem DDL e ready | Aprovado |
+| OIDC/RBAC | login real no Dex e sessão | claim `email` para `security_admin` | Aprovado no laboratório |
+| HTTP/TLS | certificados e origins HTTPS | TLS público e issuer coerentes | Aprovado |
+| Duas réplicas | 30 probes durante remoção de pod | nenhuma resposta diferente de `200` | Aprovado |
+| Valkey | 5 RPM + indisponibilidade controlada | 5x `200`, 5x `429`; readiness `503/200` | Aprovado |
+| PostgreSQL | indisponibilidade e recuperação | readiness `503/200`; dados preservados | Aprovado |
+| Backup/restore | dump, checksum e restore isolado | 130.306 B; 30 tabelas; 1 tenant | Aprovado para teste |
+| Rollback | voltar ao digest anterior | dados preservados e readiness restaurada | Em fechamento |
+| Rewrap | `--dry-run --target-version 1` | nenhuma escrita | Aprovado |
+| Observabilidade | health/readiness e logs JSON | sem secrets na evidência | Aprovado no laboratório |
+| Retenção | workers ativos e settings versionados | execução disponível | Aprovado funcionalmente |
 
 ## Resultado e desvios
 
-- Resultado geral: **PENDENTE**.
-- Desvios aceitos: nenhum.
-- Ações corretivas: pendentes após a primeira execução.
-- Links para logs/métricas sanitizados: pendentes.
+- Resultado geral: **VALIDADO COMO LABORATÓRIO REAL**, não homologação de uma
+  topologia de cliente.
+- Desvios aceitos: single-node, dependências single-instance, Dex estático e
+  backup no host do operador.
+- Ações para clientes: IdP corporativo, HA por nó/zona, backup off-site,
+  observabilidade e SLO/RPO/RTO próprios.
+- Evidência executável: `docs/runbooks/kubernetes-personal-validation.md`.
 
 ## Aprovação
 

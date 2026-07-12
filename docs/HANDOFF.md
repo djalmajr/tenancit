@@ -160,9 +160,9 @@ prefixo único e executa cleanup; não use tokens de produção em logs ou ticke
 4. **Rewrap:** aprovadores, tamanho de lote e repetição do ensaio no restore do
    alvo antes de qualquer rotação real.
 
-Essas dependências impedem afirmar que o deploy/IdP real ou a rotação AES estão
-ativados. O contrato OIDC, auditoria, governança de clients e rate limit global
-estão implementados e validados localmente; ainda exigem configuração do alvo.
+O laboratório K3s pessoal agora comprova deploy/IdP/TLS/continuidade e rewrap em
+um alvo real de teste. Isso não substitui as decisões de IdP corporativo, HA,
+backup off-site, observabilidade e SLO/RPO/RTO de cada ambiente de cliente.
 
 ## Próxima sequência recomendada
 
@@ -173,10 +173,9 @@ preparação pública O'Saasy, validação do primeiro ambiente real e o gate de
 cardinalidade. A verificação de licença é interna/documental e não depende de
 revisão jurídica externa.
 
-1. Estabilizar o E2E de webhook e impedir que a cota de artefatos mascare falhas.
-2. Confirmar três execuções remotas verdes e preparar o candidato público.
-3. Quando houver alvo, validar IdP/topologia/continuidade/rewrap e coletar
-   cardinalidade real antes de reabrir paginação.
+1. Publicar o repositório somente mediante autorização explícita.
+2. Revalidar os gates operacionais na topologia de cada cliente.
+3. Reabrir paginação apenas ao projetar ou observar 500 itens administrativos.
 
 ### Progresso do epic 04
 
@@ -191,8 +190,8 @@ revisão jurídica externa.
 - Candidato público possui O'Saasy conferida, scans limpos, templates,
   Dependabot, CodeQL condicionado ao repositório público, changelog e checklist
   de release. A visibilidade permanece privada.
-- Curva sintética 100/500/1.000/5.000 foi repetida em duas rodadas e manteve
-  `KEEP_FULL_LISTS`; cardinalidade operacional real continua pendente.
+- Curva 100/500/1.000/5.000 com projeção administrativa 250 foi repetida em
+  duas rodadas e manteve `KEEP_FULL_LISTS`.
 - Alertas de dependência revelaram 16 advisories concentrados em Vitest,
   `x/crypto`, `x/net` e `go-jose`; versões corrigidas passaram `govulncheck`,
   `bun audit`, gates locais, E2E 22/22 e OIDC 2/2. O GitHub recalculou para zero
@@ -200,20 +199,15 @@ revisão jurídica externa.
 - O clone limpo do remoto passou `make test`, `make build` e documentação. O
   SHA `75405c8` passou Security `29174262615` e CI `29174262603`; o candidato
   está `READY TO PUBLISH`, mas a visibilidade permanece privada.
-- A busca por primeiro ambiente real encontrou apenas um laboratório legado que
-  não atende aos contratos atuais; o contexto Kubernetes local estava
-  indisponível. A História 05 aguarda indicação de um alvo representativo.
+- O K3s pessoal recebeu chart por digest, TLS público, Dex, PostgreSQL, Valkey,
+  duas réplicas e worker. Login OIDC, 30/30 probes durante remoção de réplica,
+  rate limit 5x `200` + 5x `429`, falhas controladas, restore e rewrap passaram.
 
 ## Limites conscientes desta rodada
 
-- Paginação server-side não foi implementada: a curva sintética encontrou o
-  primeiro breakpoint confirmado em 500 definições, mas não há volume
-  operacional declarado que justifique mudar o contrato agora.
-- O benchmark deve ser repetido com `TENANCIT_SCALE_OBSERVED_VOLUME` igual à
-  cardinalidade real ou prevista antes de abrir o epic de paginação.
-- A automação de deploy está validada localmente, mas o runbook não afirma
-  produção ativa até existir um alvo. Não foram copiadas credenciais, CIDRs,
-  host networking ou automações específicas da implementação de referência.
-- A fixture Dex prova identidade humana; a atribuição real depende de ativar um
-  IdP corporativo com mappings revisados. O modo legado continua explicitamente
-  técnico e nunca é apresentado como pessoa.
+- Paginação server-side não foi implementada: a projeção 250 permanece abaixo
+  do breakpoint 500, embora throughput de consumo precise de teste por cliente.
+- O cluster pessoal é single-node e suas dependências são single-instance; ele
+  não prova HA por nó/zona nem backup off-site.
+- O Dex pessoal prova identidade humana e o fluxo OIDC. Produção depende do IdP
+  corporativo e mappings revisados de cada cliente.

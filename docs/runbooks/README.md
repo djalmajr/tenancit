@@ -15,9 +15,10 @@ executado de ponta a ponta no ambiente indicado.
 | [Idempotência administrativa](admin-idempotency.md) | VALIDADO | PostgreSQL descartável, 2026-07-11 |
 | [Entrega de webhooks](webhook-delivery.md) | VALIDADO | receiver Compose + assinatura E2E, 2026-07-11 |
 | [Saúde operacional e telemetria](operational-health.md) | VALIDADO | receiver OTLP/HTTP + probes e reports E2E, 2026-07-11 |
-| [Deploy imutável](container-deploy.md) | AUTOMAÇÃO LOCAL VALIDADA | roles, duas réplicas, failover, restore e scripts; alvo real pendente |
+| [Deploy imutável](container-deploy.md) | VALIDADO EM LABORATÓRIO REAL | K3s pessoal, imagem por digest, 2026-07-11 |
+| [Validação Kubernetes pessoal](kubernetes-personal-validation.md) | VALIDADO | K3s pessoal, 2026-07-11 |
 | [Rewrap de chave AES](aes-key-rewrap.md) | VALIDADO LOCALMENTE | job offline, restore clonado e falhas; alvo real pendente |
-| [Registro do primeiro ambiente](first-production-validation-record.md) | AGUARDANDO ALVO | checklist sanitizado do epic 04 |
+| [Registro do primeiro ambiente](first-production-validation-record.md) | LABORATÓRIO VALIDADO | produção de cliente mantém gates próprios |
 
 Regras:
 

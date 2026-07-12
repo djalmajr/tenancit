@@ -46,8 +46,8 @@ fi
 digest_hex="${TENANCIT_IMAGE_DIGEST#sha256:}"
 case "$digest_hex" in *[!0-9a-f]*) echo "invalid TENANCIT_IMAGE_DIGEST characters" >&2; exit 1;; esac
 
-host="${TENANCIT_PUBLIC_HOST:-tenancit.167.235.206.217.nip.io}"
-oidc_host="${TENANCIT_OIDC_HOST:-tenancit-id.167.235.206.217.nip.io}"
+host="${TENANCIT_PUBLIC_HOST:-tenancit.djalmajr.dev}"
+oidc_host="${TENANCIT_OIDC_HOST:-tenancit-id.djalmajr.dev}"
 pg_service="$release-postgres.$namespace.svc.cluster.local"
 valkey_service="$release-valkey.$namespace.svc.cluster.local"
 urlencode() { jq -nr --arg v "$1" '$v|@uri'; }
@@ -107,7 +107,7 @@ kubectl -n "$namespace" create secret generic "$secret_name" \
 
 pull_secret_args=""
 if command -v docker-credential-desktop >/dev/null 2>&1; then
-  ghcr_credential="$(printf '{\"ServerURL\":\"https://ghcr.io\"}' | docker-credential-desktop get 2>/dev/null || true)"
+  ghcr_credential="$(printf 'https://ghcr.io' | docker-credential-desktop get 2>/dev/null || true)"
   if [ -n "$ghcr_credential" ]; then
     ghcr_user="$(printf '%s' "$ghcr_credential" | jq -r '.Username // empty')"
     ghcr_token="$(printf '%s' "$ghcr_credential" | jq -r '.Secret // empty')"

@@ -32,6 +32,7 @@ jobs:
         id: build
         with:
           context: .
+          build-args: VCS_REF=${{ github.sha }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
@@ -42,4 +43,3 @@ jobs:
         run: |
           printf '### Published image\n\n`ghcr.io/%s@%s`\n' \
             "$GITHUB_REPOSITORY" "${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
-

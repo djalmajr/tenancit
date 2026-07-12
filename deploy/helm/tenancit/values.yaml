@@ -28,7 +28,8 @@ resources:
 
 personal:
   enabled: false
+  createAcmeIssuer: true
+  acmeEmail: admin@example.invalid
   storageClassName: local-path
   postgresStorage: 5Gi
   dexStorage: 256Mi
-

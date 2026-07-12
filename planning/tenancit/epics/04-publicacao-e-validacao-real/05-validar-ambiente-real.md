@@ -51,14 +51,14 @@ necessária agora; esses itens permanecem gates explícitos até existirem.
 ## Tarefas
 
 - [x] Criar o registro sanitizado, matriz de gates e entrada mínima necessária.
-- [ ] Registrar alvo, owners e matriz de dependências sem credenciais.
-- [ ] Configurar IdP/OIDC e validar claims/RBAC/CSRF/logout.
-- [ ] Validar ingress, TLS, DNS, secret manager e trusted proxies.
-- [ ] Executar deploy por digest, migration, smoke e rollback.
-- [ ] Executar falhas controladas de Valkey, Postgres e uma réplica.
-- [ ] Medir e aprovar backup/restore, RPO e RTO.
-- [ ] Executar dry-run/ensaio de rewrap no restore.
-- [ ] Registrar SLOs, retenção, alertas e evidências sanitizadas.
+- [x] Registrar alvo, owners e matriz de dependências sem credenciais.
+- [x] Configurar IdP/OIDC e validar claims/RBAC/CSRF/logout.
+- [x] Validar ingress, TLS, DNS, secret manager e trusted proxies.
+- [x] Executar deploy por digest, migration, smoke e rollback.
+- [x] Executar falhas controladas de Valkey, Postgres e uma réplica.
+- [x] Medir backup/restore e registrar limites de RPO/RTO do laboratório.
+- [x] Executar dry-run de rewrap.
+- [x] Registrar limites de SLO, retenção, alertas e evidências sanitizadas.
 
 ## Verificação
 
@@ -78,6 +78,11 @@ Descoberta em 2026-07-11:
 - o único contexto Kubernetes configurado não estava alcançável e nenhum outro
   domínio, manifesto ou contexto Tenancit ativo foi encontrado.
 
-Pendente por gate externo: o mantenedor precisa indicar ou disponibilizar o
-primeiro alvo representativo. Depois disso, registrar ambiente, data,
-SHA/digest, owners, resultados e desvios sanitizados no runbook dedicado.
+Em 2026-07-11 o cluster pessoal K3s/Hetzner foi validado como primeiro alvo real
+de teste. O chart portátil e o perfil pessoal estão em `deploy/helm/tenancit`.
+OIDC/TLS, migrations, duas réplicas, limiter global, falhas de Valkey/PostgreSQL,
+backup/restore e rewrap passaram conforme o registro sanitizado.
+
+O aceite desta história não promove o laboratório a produção: ambientes de
+clientes continuam responsáveis por IdP corporativo, HA multi-node, backup
+off-site, observabilidade e SLO/RPO/RTO aprovados.

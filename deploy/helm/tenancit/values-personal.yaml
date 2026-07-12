@@ -1,6 +1,8 @@
 personal:
   enabled: true
+  createAcmeIssuer: false
+  acmeEmail: admin@djalmajr.dev
 public:
-  host: tenancit.167.235.206.217.nip.io
-  oidcHost: tenancit-id.167.235.206.217.nip.io
-
+  host: tenancit.djalmajr.dev
+  oidcHost: tenancit-id.djalmajr.dev
+  tlsClusterIssuer: letsencrypt-dns

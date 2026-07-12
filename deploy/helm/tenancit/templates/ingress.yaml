@@ -3,7 +3,11 @@ kind: Ingress
 metadata:
   name: {{ include "tenancit.fullname" . }}
   annotations:
+    {{- if and .Values.personal.enabled .Values.personal.createAcmeIssuer }}
+    cert-manager.io/issuer: {{ printf "%s-letsencrypt" (include "tenancit.fullname" .) | quote }}
+    {{- else }}
     cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
+    {{- end }}
 spec:
   ingressClassName: traefik
   tls:
@@ -24,7 +28,11 @@ kind: Ingress
 metadata:
   name: {{ include "tenancit.fullname" . }}-oidc
   annotations:
+    {{- if .Values.personal.createAcmeIssuer }}
+    cert-manager.io/issuer: {{ printf "%s-letsencrypt" (include "tenancit.fullname" .) | quote }}
+    {{- else }}
     cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
+    {{- end }}
 spec:
   ingressClassName: traefik
   tls:
@@ -39,4 +47,3 @@ spec:
             backend:
               service: { name: {{ include "tenancit.fullname" . }}-dex, port: { name: http } }
 {{- end }}
-

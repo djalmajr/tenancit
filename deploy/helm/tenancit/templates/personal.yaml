@@ -1,4 +1,21 @@
 {{- if .Values.personal.enabled }}
+{{- if .Values.personal.createAcmeIssuer }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "tenancit.fullname" . }}-letsencrypt
+spec:
+  acme:
+    email: {{ required "personal.acmeEmail is required" .Values.personal.acmeEmail | quote }}
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: {{ include "tenancit.fullname" . }}-letsencrypt-account
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
+---
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -75,7 +92,9 @@ spec:
           ports: [{ name: postgres, containerPort: 5432 }]
           readinessProbe: { exec: { command: ["pg_isready", "-U", "postgres", "-d", "tenancit"] }, periodSeconds: 5 }
           resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }
-          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          # The official entrypoint starts as root only to set PVC ownership,
+          # then drops to the postgres user. Removing CAP_CHOWN breaks startup.
+          securityContext: { allowPrivilegeEscalation: false }
           volumeMounts:
             - { name: data, mountPath: /var/lib/postgresql/data }
             - { name: init, mountPath: /docker-entrypoint-initdb.d/01-roles.sh, subPath: 01-roles.sh }

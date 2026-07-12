@@ -47,11 +47,11 @@ reconfirmada depois da história 05 quando houver ambiente real.
 ## Tarefas
 
 - [x] Identificar fontes e harness de cardinalidade por superfície.
-- [ ] Coletar contagens, payload, p95/p99 e custo de renderização sanitizados.
+- [x] Coletar projeção, payload, p95 e custo de renderização sanitizados.
 - [x] Reexecutar toda a curva sintética em duas rodadas; repetir com volume real quando disponível.
-- [ ] Aplicar thresholds e registrar a decisão.
-- [ ] Manter listas ou criar epic de paginação completo.
-- [ ] Atualizar overview, roadmap e handoff.
+- [x] Aplicar thresholds e registrar a decisão.
+- [x] Manter listas; nenhum epic de paginação foi aberto.
+- [x] Atualizar overview, roadmap e handoff.
 
 ## Verificação
 
@@ -69,6 +69,14 @@ de 100, 500, 1.000 e 5.000 registros passaram. O primeiro breakpoint permaneceu
 em 500 e a decisão foi `KEEP_FULL_LISTS` porque o volume operacional declarado
 continua zero. Esta execução prova o harness, não substitui a medição real.
 
-Pendente por gate de volume: informar uma cardinalidade observada ou uma
-projeção formal, repetir com `TENANCIT_SCALE_OBSERVED_VOLUME` e registrar a
-decisão final.
+Projeção aprovada em 2026-07-11: até 50 mil usuários finais por ambiente, com
+até 100 tenants, 100 definições e 250 API clients no plano administrativo. Os
+usuários finais aumentam throughput das APIs de consumo, mas não viram linhas
+administrativas automaticamente.
+
+`TENANCIT_SCALE_OBSERVED_VOLUME=250 make benchmark-scale` repetiu 100, 500,
+1.000 e 5.000 em duas rodadas. O sumário local
+`benchmarks/scale/results/20260712t012212z-72055/summary.json` registrou
+`KEEP_FULL_LISTS`: volume 250 abaixo do primeiro breakpoint 500. Teste de carga
+de consumo/SLO permanece uma trilha diferente e deve ser dimensionado por
+ambiente de cliente.
