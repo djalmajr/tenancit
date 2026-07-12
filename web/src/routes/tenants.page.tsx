@@ -135,14 +135,6 @@ export default function Tenants() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("tenants.title")}</h1>
-          <p className="text-muted-foreground">{t("tenants.description")}</p>
-        </div>
-        {can("tenant.write") && <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("tenants.new")}</Button>}
-      </div>
-
       {pageError && <Alert variant="destructive"><AlertDescription>{pageError}</AlertDescription></Alert>}
 
       {tenantsQuery.isPending ? <div className="rounded-md border p-4 text-sm text-muted-foreground" role="status">{t("common.loading")}</div> : pageError && tenants.length === 0 ? null : <DataTable
@@ -157,6 +149,7 @@ export default function Tenants() {
           resetLabel={t("dataTable.resetPreferences")}
           searchLabel={t("tenants.search")}
           table={table}
+          trailing={can("tenant.write") ? <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("tenants.new")}</Button> : undefined}
         />
       </DataTable>}
 

@@ -153,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const currentPageLabel = pageLabel(pathname, t);
+  const currentPageDescription = pageDescription(pathname, t);
   const permissions = authConfig?.mode === "oidc" ? adminSession?.permissions ?? [] : ALL_ADMIN_PERMISSIONS;
 
   function saveAdminToken(event?: React.FormEvent<HTMLFormElement>) {
@@ -268,7 +269,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex h-14 items-center gap-2 border-b px-4">
           <SidebarTrigger />
-          <span className="text-sm font-medium">{currentPageLabel}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium leading-tight">{currentPageLabel}</span>
+            {currentPageDescription && (
+              <span className="truncate text-xs leading-tight text-muted-foreground">
+                {currentPageDescription}
+              </span>
+            )}
+          </div>
           <PreferenceControls className="ml-auto" />
         </header>
         <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
@@ -510,9 +518,24 @@ function pageLabel(pathname: string, t: (key: TranslationKey) => string): string
   if (pathname.startsWith("/resource-definitions")) return t("nav.definitions");
   if (pathname.startsWith("/api-clients")) return t("nav.apiClients");
   if (pathname.startsWith("/usage")) return t("nav.usage");
+  if (pathname.startsWith("/operations/health")) return t("nav.health");
   if (pathname.startsWith("/audit-events")) return t("nav.audit");
   if (pathname.startsWith("/security/sessions")) return t("nav.sessions");
   if (pathname.startsWith("/operations/settings")) return t("nav.settings");
   if (pathname.startsWith("/integrations/webhooks")) return t("nav.integrations");
+  return "";
+}
+
+function pageDescription(pathname: string, t: (key: TranslationKey) => string): string {
+  if (pathname === "/") return t("overview.description");
+  if (pathname === "/tenants") return t("tenants.description");
+  if (pathname === "/resource-definitions") return t("definitions.description");
+  if (pathname === "/api-clients") return t("apiClients.description");
+  if (pathname === "/usage") return t("usage.description");
+  if (pathname.startsWith("/operations/health")) return t("operationsHealth.description");
+  if (pathname.startsWith("/audit-events")) return t("audit.description");
+  if (pathname.startsWith("/security/sessions")) return t("sessions.description");
+  if (pathname.startsWith("/integrations/webhooks")) return t("integrations.description");
+  if (pathname.startsWith("/operations/settings")) return t("settings.description");
   return "";
 }

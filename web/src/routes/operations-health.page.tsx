@@ -25,21 +25,16 @@ export default function OperationsHealthPage() {
   const health = healthQuery.data;
   const inFlight = (health?.queues.webhook_pending ?? 0) + (health?.queues.webhook_retry ?? 0);
 
-  return <div className="space-y-8">
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{t("operationsHealth.title")}</h1>
-      <p className="text-muted-foreground">{t("operationsHealth.description")}</p>
-    </div>
-
+  return <div className="flex flex-col gap-8">
     {healthQuery.error && <Alert variant="destructive">
       <AlertDescription>{apiErrorMessage(healthQuery.error, t)}</AlertDescription>
     </Alert>}
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard icon={<Activity className="size-4" />} label={t("operationsHealth.overall")} value={t(`operationsHealth.status.${health?.status ?? "unavailable"}` as TranslationKey)} />
-      <StatCard icon={<Database className="size-4" />} label={t("operationsHealth.dependencies")} value={health?.components.length ?? 0} />
-      <StatCard icon={<RefreshCw className="size-4" />} label={t("operationsHealth.inFlight")} value={inFlight} />
-      <StatCard icon={<CircleAlert className="size-4" />} label={t("operationsHealth.deadLetters")} value={health?.queues.webhook_dead_letter ?? 0} />
+      <StatCard hint={t("operationsHealth.overallHint")} icon={<Activity className="size-4" />} label={t("operationsHealth.overall")} value={t(`operationsHealth.status.${health?.status ?? "unavailable"}` as TranslationKey)} />
+      <StatCard hint={t("operationsHealth.dependenciesHint")} icon={<Database className="size-4" />} label={t("operationsHealth.dependencies")} value={health?.components.length ?? 0} />
+      <StatCard hint={t("operationsHealth.inFlightHint")} icon={<RefreshCw className="size-4" />} label={t("operationsHealth.inFlight")} value={inFlight} />
+      <StatCard hint={t("operationsHealth.deadLettersHint")} icon={<CircleAlert className="size-4" />} label={t("operationsHealth.deadLetters")} value={health?.queues.webhook_dead_letter ?? 0} />
     </div>
 
     <Card>

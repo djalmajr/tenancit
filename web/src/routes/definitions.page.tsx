@@ -56,11 +56,7 @@ export default function Definitions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("definitions.title")}</h1>
-          <p className="text-muted-foreground">{t("definitions.description")}</p>
-        </div>
+      <div className="flex justify-end">
         {can("resource.write") && <Button onClick={() => { setError(""); setOpen(true); }}><Plus className="size-4" /> {t("definitions.new")}</Button>}
       </div>
 

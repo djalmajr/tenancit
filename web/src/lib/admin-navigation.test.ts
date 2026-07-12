@@ -19,4 +19,27 @@ describe("admin navigation", () => {
     expect(routesFor(["admin.read", "session.manage"])).toContain("/security/sessions");
     expect(routesFor(["admin.read"])).not.toContain("/audit-events");
   });
+
+  test("groups daily management, operations, and system destinations like the appliance", () => {
+    const groups = visibleNavGroups(new Set([
+      "admin.read", "integration.manage", "audit.read", "session.manage",
+    ]));
+    expect(groups.map((group) => ({
+      label: group.labelKey,
+      routes: group.items.map((item) => item.to),
+    }))).toEqual([
+      {
+        label: "nav.management",
+        routes: ["/", "/tenants", "/resource-definitions", "/api-clients", "/usage"],
+      },
+      {
+        label: "nav.operations",
+        routes: ["/operations/health", "/integrations/webhooks", "/audit-events"],
+      },
+      {
+        label: "nav.system",
+        routes: ["/security/sessions", "/operations/settings"],
+      },
+    ]);
+  });
 });

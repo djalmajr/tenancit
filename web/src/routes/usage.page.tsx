@@ -64,7 +64,6 @@ export default function UsagePage() {
   const error = queryError ? apiErrorMessage(queryError, t) : "";
 
   return <div className="flex flex-col gap-6">
-    <div><h1 className="text-2xl font-semibold tracking-tight">{t("usage.title")}</h1><p className="text-muted-foreground">{t("usage.description")}</p></div>
     <div className="flex flex-wrap items-center gap-2">
       <MonthYearNav value={stringToMonth(month)} onChange={(date) => setMonth(monthToString(date))} />
       <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -74,9 +73,9 @@ export default function UsagePage() {
     </div>
     {error && <Alert variant="destructive"><CircleAlert /><AlertTitle>{t("errors.server")}</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
     <div className="grid gap-4 sm:grid-cols-3">
-      <StatCard icon={<Activity className="size-4" />} label={t("usage.requests")} value={totals.requests} />
-      <StatCard icon={<CircleAlert className="size-4" />} label={t("usage.errors")} value={totals.errors} />
-      <StatCard icon={<Ban className="size-4" />} label={t("usage.limited")} value={totals.limited} />
+      <StatCard hint={t("usage.requestsHint")} icon={<Activity className="size-4" />} label={t("usage.requests")} value={totals.requests} />
+      <StatCard hint={t("usage.errorsHint")} icon={<CircleAlert className="size-4" />} label={t("usage.errors")} value={totals.errors} />
+      <StatCard hint={t("usage.limitedHint")} icon={<Ban className="size-4" />} label={t("usage.limited")} value={totals.limited} />
     </div>
     <Card>
       <CardContent className="pt-6">

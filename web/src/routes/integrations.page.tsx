@@ -1,12 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Activity, CircleAlert, Plus, RefreshCw, Send, Webhook } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
-import { StatCard } from "@/components/stat-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDataTable } from "@/hooks/use-data-table";
 import {
   api,
@@ -52,11 +52,6 @@ export default function IntegrationsPage() {
     queryFn: ({ signal }) => api.listWebhookDeliveries("", signal),
     refetchInterval: 30_000,
   });
-  const overviewQuery = useQuery({
-    queryKey: adminQueryKeys.webhookOverview(),
-    queryFn: ({ signal }) => api.getWebhookOverview(signal),
-    refetchInterval: 30_000,
-  });
 
   const sortLabels = useMemo(() => ({
     asc: t("dataTable.sortAsc"),
@@ -80,7 +75,6 @@ export default function IntegrationsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.webhookTargets() }),
       queryClient.invalidateQueries({ queryKey: adminQueryKeys.webhookDeliveries() }),
-      queryClient.invalidateQueries({ queryKey: adminQueryKeys.webhookOverview() }),
     ]);
   }, [queryClient]);
 
@@ -195,59 +189,45 @@ export default function IntegrationsPage() {
     visibilityStorageKey: "tenancit.webhooks.deliveries.columns",
   });
 
-  const overview = overviewQuery.data;
-  const queryError = targetsQuery.error || deliveriesQuery.error || overviewQuery.error;
+  const queryError = targetsQuery.error || deliveriesQuery.error;
 
-  return <div className="space-y-8">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("integrations.title")}</h1>
-        <p className="text-muted-foreground">{t("integrations.description")}</p>
-      </div>
-      <Button onClick={() => setCreateOpen(true)}><Plus />{t("integrations.new")}</Button>
-    </div>
-
+  return <div className="flex flex-col gap-4">
     {queryError && <Alert variant="destructive"><AlertDescription>{apiErrorMessage(queryError, t)}</AlertDescription></Alert>}
 
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard icon={<Webhook className="size-4" />} label={t("integrations.activeTargets")} value={overview?.targets ?? 0} />
-      <StatCard icon={<Activity className="size-4" />} label={t("integrations.inFlight")} value={(overview?.pending ?? 0) + (overview?.retry ?? 0)} />
-      <StatCard icon={<Send className="size-4" />} label={t("integrations.delivered")} value={overview?.delivered ?? 0} />
-      <StatCard
-        hint={overview?.open_circuits ? t("integrations.openCircuits", { count: overview.open_circuits }) : undefined}
-        icon={<CircleAlert className="size-4" />}
-        label={t("integrations.deadLetters")}
-        value={overview?.dead_letter ?? 0}
-      />
-    </div>
-
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">{t("integrations.targets")}</h2>
-      <DataTable labels={tableLabels} table={targetsTable}>
-        <DataTableToolbar
-          clearLabel={t("dataTable.clearFilters")}
-          columnsLabel={t("dataTable.columns")}
-          emptyLabel={t("integrations.emptyTargets")}
-          resetLabel={t("dataTable.resetPreferences")}
-          searchLabel={t("integrations.searchTargets")}
-          table={targetsTable}
-        />
-      </DataTable>
-    </section>
-
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">{t("integrations.deliveries")}</h2>
-      <DataTable labels={tableLabels} table={deliveriesTable}>
-        <DataTableToolbar
-          clearLabel={t("dataTable.clearFilters")}
-          columnsLabel={t("dataTable.columns")}
-          emptyLabel={t("integrations.emptyDeliveries")}
-          resetLabel={t("dataTable.resetPreferences")}
-          searchLabel={t("integrations.searchDeliveries")}
-          table={deliveriesTable}
-        />
-      </DataTable>
-    </section>
+    <Tabs className="gap-4" defaultValue="targets">
+      <TabsList>
+        <TabsTrigger value="targets">{t("integrations.targets")}</TabsTrigger>
+        <TabsTrigger value="deliveries">{t("integrations.deliveries")}</TabsTrigger>
+      </TabsList>
+      <TabsContent value="targets">
+        <DataTable labels={tableLabels} table={targetsTable}>
+          <DataTableToolbar
+            clearLabel={t("dataTable.clearFilters")}
+            columnsLabel={t("dataTable.columns")}
+            emptyLabel={t("integrations.emptyTargets")}
+            resetLabel={t("dataTable.resetPreferences")}
+            searchLabel={t("integrations.searchTargets")}
+            table={targetsTable}
+            trailing={<Button onClick={() => setCreateOpen(true)}>
+              <Plus data-icon="inline-start" />
+              {t("integrations.new")}
+            </Button>}
+          />
+        </DataTable>
+      </TabsContent>
+      <TabsContent value="deliveries">
+        <DataTable labels={tableLabels} table={deliveriesTable}>
+          <DataTableToolbar
+            clearLabel={t("dataTable.clearFilters")}
+            columnsLabel={t("dataTable.columns")}
+            emptyLabel={t("integrations.emptyDeliveries")}
+            resetLabel={t("dataTable.resetPreferences")}
+            searchLabel={t("integrations.searchDeliveries")}
+            table={deliveriesTable}
+          />
+        </DataTable>
+      </TabsContent>
+    </Tabs>
 
     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
       <DialogContent>

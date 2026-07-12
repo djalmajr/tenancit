@@ -1,6 +1,6 @@
 import {
   BarChart3, Boxes, Building2, HeartPulse, KeyRound, LayoutDashboard,
-  ScrollText, Settings, ShieldCheck, Webhook, type LucideIcon,
+  MonitorDot, ScrollText, Settings, Webhook, type LucideIcon,
 } from "lucide-react";
 import type { TranslationKey } from "@/lib/i18n";
 import type { AdminPermission } from "@/lib/admin-permissions";
@@ -13,16 +13,16 @@ export const NAV_GROUPS: Array<{ labelKey: TranslationKey; items: NavItem[] }> =
     { icon: Building2, labelKey: "nav.tenants", permission: "admin.read", to: "/tenants" },
     { icon: Boxes, labelKey: "nav.definitions", permission: "admin.read", to: "/resource-definitions" },
     { icon: KeyRound, labelKey: "nav.apiClients", permission: "admin.read", to: "/api-clients" },
+    { icon: BarChart3, labelKey: "nav.usage", permission: "admin.read", to: "/usage" },
   ] },
   { labelKey: "nav.operations", items: [
-    { icon: BarChart3, labelKey: "nav.usage", permission: "admin.read", to: "/usage" },
     { icon: HeartPulse, labelKey: "nav.health", permission: "admin.read", to: "/operations/health" },
     { icon: Webhook, labelKey: "nav.integrations", permission: "integration.manage", to: "/integrations/webhooks" },
-    { icon: Settings, labelKey: "nav.settings", permission: "admin.read", to: "/operations/settings" },
-  ] },
-  { labelKey: "nav.security", items: [
     { icon: ScrollText, labelKey: "nav.audit", permission: "audit.read", to: "/audit-events" },
-    { icon: ShieldCheck, labelKey: "nav.sessions", permission: "session.manage", to: "/security/sessions" },
+  ] },
+  { labelKey: "nav.system", items: [
+    { icon: MonitorDot, labelKey: "nav.sessions", permission: "session.manage", to: "/security/sessions" },
+    { icon: Settings, labelKey: "nav.settings", permission: "admin.read", to: "/operations/settings" },
   ] },
 ];
 

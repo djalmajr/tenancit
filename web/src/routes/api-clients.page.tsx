@@ -372,25 +372,6 @@ export default function ApiClients() {
   }
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("apiClients.title")}</h1>
-          <p className="text-muted-foreground">{t("apiClients.description")}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            aria-label={t("apiClients.help")}
-            onClick={() => setHelpOpen(true)}
-            size="icon"
-            title={t("apiClients.help")}
-            variant="ghost"
-          >
-            <CircleHelp className="size-4" />
-          </Button>
-          {can("api_client.manage") && <Button onClick={start}><Plus className="size-4" /> {t("apiClients.new")}</Button>}
-        </div>
-      </div>
-
       {visibleError && <Alert variant="destructive"><AlertDescription>{visibleError}</AlertDescription></Alert>}
 
       {clientsQuery.isPending ? (
@@ -411,7 +392,10 @@ export default function ApiClients() {
             ]}
             searchLabel={t("apiClients.search")}
             table={table}
-          />
+            trailing={can("api_client.manage") ? <Button onClick={start}><Plus className="size-4" /> {t("apiClients.new")}</Button> : undefined}
+          >
+            <Button aria-label={t("apiClients.help")} onClick={() => setHelpOpen(true)} size="icon" title={t("apiClients.help")} variant="ghost"><CircleHelp className="size-4" /></Button>
+          </DataTableToolbar>
         </DataTable>
       )}
 
