@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "tenancit.fullname" . }}
+  labels:
+    {{- include "tenancit.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tenancit.fullname" . }}
+  labels:
+    {{- include "tenancit.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "tenancit.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tenancit.fullname" . }}
+  labels:
+    {{- include "tenancit.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "tenancit.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "tenancit.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: app
+    spec:
+      serviceAccountName: {{ include "tenancit.fullname" . }}
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: migrate
+          image: {{ include "tenancit.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/migrate"]
+          env:
+            - name: TENANCIT_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: migration-database-url } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, readOnlyRootFilesystem: true }
+      containers:
+        - name: app
+          image: {{ include "tenancit.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - { name: TENANCIT_ADDR, value: ":8080" }
+            - { name: TENANCIT_ADMIN_AUTH_MODE, value: "oidc" }
+            - { name: TENANCIT_DEV_MODE, value: "false" }
+            - { name: TENANCIT_ADMIN_ORIGIN, value: "https://{{ .Values.public.host }}" }
+            - { name: TENANCIT_OIDC_ISSUER, value: "https://{{ .Values.public.oidcHost }}{{ .Values.oidc.issuerPath }}" }
+            - { name: TENANCIT_OIDC_CLIENT_ID, value: {{ .Values.oidc.clientId | quote }} }
+            - { name: TENANCIT_OIDC_ROLE_CLAIM, value: {{ .Values.oidc.roleClaim | quote }} }
+            - { name: TENANCIT_OIDC_ROLE_MAPPINGS, value: {{ .Values.oidc.roleMappings | quote }} }
+            - { name: TENANCIT_AES_KEY_VERSION, value: "1" }
+            - { name: TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION, value: "personal-v1" }
+            - name: TENANCIT_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: runtime-database-url } }
+            - name: TENANCIT_VALKEY_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: valkey-url } }
+            - name: TENANCIT_AES_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: aes-key } }
+            - name: TENANCIT_OIDC_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: oidc-client-secret } }
+            - name: TENANCIT_OPERATIONS_REPORT_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: operations-token } }
+          readinessProbe: { httpGet: { path: /readyz, port: http }, initialDelaySeconds: 5, periodSeconds: 5, timeoutSeconds: 3, failureThreshold: 12 }
+          livenessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 10, periodSeconds: 10, timeoutSeconds: 3 }
+          resources: {{ toYaml .Values.resources.app | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, readOnlyRootFilesystem: true }
+      terminationGracePeriodSeconds: 20
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tenancit.fullname" . }}-audit-jobs
+  labels:
+    {{- include "tenancit.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "tenancit.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: audit-jobs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "tenancit.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: audit-jobs
+    spec:
+      serviceAccountName: {{ include "tenancit.fullname" . }}
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: audit-jobs
+          image: {{ include "tenancit.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/tenancit-audit-jobs"]
+          env:
+            - { name: TENANCIT_AES_KEY_VERSION, value: "1" }
+            - name: TENANCIT_JOBS_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: jobs-database-url } }
+            - name: TENANCIT_AES_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: aes-key } }
+          resources: {{ toYaml .Values.resources.jobs | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, readOnlyRootFilesystem: true }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "tenancit.fullname" . }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "tenancit.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: app

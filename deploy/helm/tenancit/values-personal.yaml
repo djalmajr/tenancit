@@ -1,0 +1,6 @@
+personal:
+  enabled: true
+public:
+  host: tenancit.167.235.206.217.nip.io
+  oidcHost: tenancit-id.167.235.206.217.nip.io
+

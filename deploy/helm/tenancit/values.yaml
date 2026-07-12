@@ -1,0 +1,34 @@
+image:
+  repository: ghcr.io/djalmajr/tenancit
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+replicaCount: 2
+existingSecret: tenancit-runtime
+
+public:
+  host: tenancit.example.invalid
+  oidcHost: tenancit-id.example.invalid
+  tlsClusterIssuer: letsencrypt-prod
+
+oidc:
+  issuerPath: /dex
+  clientId: tenancit
+  roleClaim: email
+  roleMappings: '{"admin@tenancit.local":"security_admin"}'
+
+resources:
+  app:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  jobs:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 192Mi }
+
+personal:
+  enabled: false
+  storageClassName: local-path
+  postgresStorage: 5Gi
+  dexStorage: 256Mi
+

@@ -1,0 +1,166 @@
+{{- if .Values.personal.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tenancit.fullname" . }}-postgres-init
+data:
+  01-roles.sh: |
+    #!/bin/sh
+    set -eu
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+      -v migration_password="$MIGRATION_PASSWORD" \
+      -v runtime_password="$RUNTIME_PASSWORD" \
+      -v jobs_password="$JOBS_PASSWORD" \
+      -v backup_password="$BACKUP_PASSWORD" \
+      -v rewrap_password="$REWRAP_PASSWORD" <<'SQL'
+    SELECT format('CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT', role_name)
+    FROM (VALUES ('tenancit_runtime'), ('tenancit_jobs'), ('tenancit_backup'), ('tenancit_rewrap')) AS roles(role_name)
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) \gexec
+    SELECT format('CREATE ROLE tenancit_migration LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE', :'migration_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tenancit_migration') \gexec
+    SELECT format('CREATE ROLE tenancit_runtime_login LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE', :'runtime_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tenancit_runtime_login') \gexec
+    SELECT format('CREATE ROLE tenancit_jobs_login LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE', :'jobs_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tenancit_jobs_login') \gexec
+    SELECT format('CREATE ROLE tenancit_backup_login LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE', :'backup_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tenancit_backup_login') \gexec
+    SELECT format('CREATE ROLE tenancit_rewrap_login LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE', :'rewrap_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tenancit_rewrap_login') \gexec
+    ALTER DATABASE tenancit OWNER TO tenancit_migration;
+    ALTER SCHEMA public OWNER TO tenancit_migration;
+    GRANT tenancit_runtime TO tenancit_runtime_login;
+    GRANT tenancit_jobs TO tenancit_jobs_login;
+    GRANT tenancit_backup TO tenancit_backup_login;
+    GRANT tenancit_rewrap TO tenancit_rewrap_login;
+    SQL
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ include "tenancit.fullname" . }}-postgres }
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: postgres }
+  ports: [{ name: postgres, port: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: {{ include "tenancit.fullname" . }}-postgres }
+spec:
+  serviceName: {{ include "tenancit.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: postgres }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: postgres }
+    spec:
+      securityContext: { fsGroup: 999, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_DB, value: tenancit }
+            - { name: POSTGRES_USER, value: postgres }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-admin-password } }
+            - name: MIGRATION_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-migration-password } }
+            - name: RUNTIME_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-runtime-password } }
+            - name: JOBS_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-jobs-password } }
+            - name: BACKUP_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-backup-password } }
+            - name: REWRAP_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: postgres-rewrap-password } }
+          ports: [{ name: postgres, containerPort: 5432 }]
+          readinessProbe: { exec: { command: ["pg_isready", "-U", "postgres", "-d", "tenancit"] }, periodSeconds: 5 }
+          resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d/01-roles.sh, subPath: 01-roles.sh }
+      volumes:
+        - name: init
+          configMap: { name: {{ include "tenancit.fullname" . }}-postgres-init, defaultMode: 0550 }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: {{ .Values.personal.storageClassName }}
+        resources: { requests: { storage: {{ .Values.personal.postgresStorage }} } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ include "tenancit.fullname" . }}-valkey }
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: valkey }
+  ports: [{ name: valkey, port: 6379 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ include "tenancit.fullname" . }}-valkey }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: valkey }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: valkey }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 999, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: valkey
+          image: valkey/valkey:8-alpine
+          command: ["sh", "-ec", "exec valkey-server --save '' --appendonly no --requirepass \"$VALKEY_PASSWORD\""]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: valkey-password } }
+          ports: [{ name: valkey, containerPort: 6379 }]
+          readinessProbe: { exec: { command: ["sh", "-ec", "valkey-cli -a \"$VALKEY_PASSWORD\" ping | grep -q PONG"] }, periodSeconds: 5 }
+          resources: { requests: { cpu: 25m, memory: 48Mi }, limits: { cpu: 250m, memory: 192Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: {{ include "tenancit.fullname" . }}-dex }
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.personal.storageClassName }}
+  resources: { requests: { storage: {{ .Values.personal.dexStorage }} } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ include "tenancit.fullname" . }}-dex }
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: dex }
+  ports: [{ name: http, port: 5556 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ include "tenancit.fullname" . }}-dex }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: dex }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: dex }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: dex
+          image: ghcr.io/dexidp/dex:v2.44.0
+          command: ["/usr/local/bin/dex", "serve", "/etc/dex/config.yaml"]
+          ports: [{ name: http, containerPort: 5556 }]
+          readinessProbe: { httpGet: { path: {{ printf "%s/.well-known/openid-configuration" .Values.oidc.issuerPath | quote }}, port: http }, periodSeconds: 5 }
+          resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 192Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+          volumeMounts:
+            - { name: config, mountPath: /etc/dex, readOnly: true }
+            - { name: data, mountPath: /var/dex }
+      volumes:
+        - name: config
+          secret: { secretName: {{ .Values.existingSecret }}, items: [{ key: dex-config, path: config.yaml }] }
+        - name: data
+          persistentVolumeClaim: { claimName: {{ include "tenancit.fullname" . }}-dex }
+{{- end }}

@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "tenancit.fullname" . }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [{{ .Values.public.host | quote }}]
+      secretName: {{ include "tenancit.fullname" . }}-tls
+  rules:
+    - host: {{ .Values.public.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: {{ include "tenancit.fullname" . }}, port: { name: http } }
+{{- if .Values.personal.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "tenancit.fullname" . }}-oidc
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [{{ .Values.public.oidcHost | quote }}]
+      secretName: {{ include "tenancit.fullname" . }}-oidc-tls
+  rules:
+    - host: {{ .Values.public.oidcHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: {{ include "tenancit.fullname" . }}-dex, port: { name: http } }
+{{- end }}
+
