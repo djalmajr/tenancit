@@ -7,7 +7,7 @@ COPY web/ ./
 RUN bun run build
 
 # --- Stage 2: build the Go binary with the SPA embedded ---
-FROM golang:1.25-alpine AS server
+FROM golang:1.26-alpine AS server
 WORKDIR /src
 RUN apk add --no-cache git
 ENV GOWORK=off
