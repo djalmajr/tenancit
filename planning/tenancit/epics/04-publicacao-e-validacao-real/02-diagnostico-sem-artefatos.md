@@ -48,7 +48,7 @@ Pode avançar em paralelo à história 01, mas deve usar a falha real como prova
 - [x] Tornar upload opcional/não mascarador sem silenciar o teste.
 - [x] Imprimir resumo sanitizado na saída e no job summary.
 - [x] Restringir o resumo a caminhos/tamanhos e manter traces/context removidos.
-- [ ] Confirmar em workflow remoto que upload desabilitado não interfere.
+- [x] Confirmar em workflow remoto que upload desabilitado não interfere.
 - [x] Atualizar documentação e overview.
 
 ## Verificação
@@ -66,4 +66,7 @@ desabilitado e confirmar que o resultado continua fiel ao Playwright.
 Implementado em 2026-07-11: o line reporter permanece como diagnóstico
 primário; o job summary lista apenas caminhos relativos/tamanhos. Upload exige a
 variável `TENANCIT_UPLOAD_PLAYWRIGHT_ARTIFACTS=true`, usa retenção de um dia e
-possui `continue-on-error`. A confirmação remota será registrada após o push.
+possui `continue-on-error`.
+
+Runs `29173148210` e `29173276132` passaram integralmente. Nos dois, o upload
+opt-in ficou ignorado e não houve tentativa nem erro secundário de cota.

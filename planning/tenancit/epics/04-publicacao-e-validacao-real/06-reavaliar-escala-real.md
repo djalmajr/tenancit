@@ -46,9 +46,9 @@ reconfirmada depois da história 05 quando houver ambiente real.
 
 ## Tarefas
 
-- [ ] Identificar fontes de cardinalidade por superfície.
+- [x] Identificar fontes e harness de cardinalidade por superfície.
 - [ ] Coletar contagens, payload, p95/p99 e custo de renderização sanitizados.
-- [ ] Reexecutar benchmark em duas rodadas no volume observado/projetado.
+- [x] Reexecutar toda a curva sintética em duas rodadas; repetir com volume real quando disponível.
 - [ ] Aplicar thresholds e registrar a decisão.
 - [ ] Manter listas ou criar epic de paginação completo.
 - [ ] Atualizar overview, roadmap e handoff.
@@ -64,5 +64,11 @@ registrar latência/payload sem capturar dados operacionais.
 
 ## Evidência
 
-Pendente por gate de volume. Registrar data, fonte, cardinalidades, duas rodadas
-e decisão final.
+Em 2026-07-11, após adequar o benchmark ao namespace de rede E2E, duas rodadas
+de 100, 500, 1.000 e 5.000 registros passaram. O primeiro breakpoint permaneceu
+em 500 e a decisão foi `KEEP_FULL_LISTS` porque o volume operacional declarado
+continua zero. Esta execução prova o harness, não substitui a medição real.
+
+Pendente por gate de volume: informar uma cardinalidade observada ou uma
+projeção formal, repetir com `TENANCIT_SCALE_OBSERVED_VOLUME` e registrar a
+decisão final.

@@ -42,9 +42,9 @@ Histórias 01 e 02.
 
 ## Tarefas
 
-- [ ] Rodar todos os gates canônicos localmente.
-- [ ] Publicar o commit candidato.
-- [ ] Acompanhar o workflow completo e investigar qualquer primeira falha.
+- [x] Rodar todos os gates canônicos localmente.
+- [x] Publicar os commits candidatos.
+- [x] Acompanhar os workflows completos e investigar a primeira falha.
 - [ ] Obter três runs verdes consecutivos sem retry manual.
 - [ ] Atualizar handoff, overview e evidência da história.
 
@@ -62,4 +62,8 @@ gh run list --branch main --limit 10
 
 ## Evidência
 
-Pendente. Registrar SHA, três IDs/URLs de runs e resultados por job.
+- `e9614d2`, run `29173148210`: server, web, product e E2E verdes;
+- `cc5e337`, run `29173276132`: server, web, product e E2E verdes; Security
+  `29173276159` verde; CodeQL corretamente ignorado enquanto privado.
+
+Pendente: terceira execução consecutiva e reconciliação final do handoff.

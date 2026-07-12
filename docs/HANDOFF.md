@@ -178,6 +178,22 @@ revisão jurídica externa.
 3. Quando houver alvo, validar IdP/topologia/continuidade/rewrap e coletar
    cardinalidade real antes de reabrir paginação.
 
+### Progresso do epic 04
+
+- E2E de webhook corrigido sem relaxar SSRF: app e receiver compartilham o
+  namespace descartável e o target usa loopback real.
+- Três execuções locais isoladas e catálogo completo 22/22 passaram com retry
+  zero; OIDC 2/2 também passou.
+- CI remota verde em `29173148210` (`e9614d2`) e `29173276132` (`cc5e337`);
+  terceira execução ainda é necessária para fechar a história.
+- Upload Playwright é opt-in e não mascara o resultado quando a cota de
+  artefatos está indisponível.
+- Candidato público possui O'Saasy conferida, scans limpos, templates,
+  Dependabot, CodeQL condicionado ao repositório público, changelog e checklist
+  de release. A visibilidade permanece privada.
+- Curva sintética 100/500/1.000/5.000 foi repetida em duas rodadas e manteve
+  `KEEP_FULL_LISTS`; cardinalidade operacional real continua pendente.
+
 ## Limites conscientes desta rodada
 
 - Paginação server-side não foi implementada: a curva sintética encontrou o

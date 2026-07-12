@@ -43,7 +43,7 @@ mkdir -p "$output_dir"
 chmod 700 "$output_dir"
 started_stack=true
 compose up -d --build postgres-e2e app-e2e
-port="$(compose port app-e2e 8080 | sed 's/.*://')"
+port="$(compose port webhook-receiver-e2e 8080 | sed 's/.*://')"
 base_url="http://127.0.0.1:$port"
 
 ready=false
