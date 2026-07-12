@@ -68,5 +68,16 @@ versionada pode conter DSN, token, cookie, chave ou payload secreto.
 
 ## Evidência
 
-Pendente por gate externo. Registrar ambiente, data, SHA/digest, owners,
-resultados e desvios sanitizados.
+Descoberta em 2026-07-11:
+
+- configurações locais/versionadas foram pesquisadas sem abrir arquivos de
+  credenciais;
+- foi encontrado somente um manifesto de laboratório legado, com uma réplica,
+  imagem local, migration no boot e configuração de secrets incompatível com
+  os contratos atuais; ele não é um alvo representativo aceitável;
+- o único contexto Kubernetes configurado não estava alcançável e nenhum outro
+  domínio, manifesto ou contexto Tenancit ativo foi encontrado.
+
+Pendente por gate externo: o mantenedor precisa indicar ou disponibilizar o
+primeiro alvo representativo. Depois disso, registrar ambiente, data,
+SHA/digest, owners, resultados e desvios sanitizados no runbook dedicado.

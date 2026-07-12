@@ -200,6 +200,9 @@ revisão jurídica externa.
 - O clone limpo do remoto passou `make test`, `make build` e documentação. O
   SHA `75405c8` passou Security `29174262615` e CI `29174262603`; o candidato
   está `READY TO PUBLISH`, mas a visibilidade permanece privada.
+- A busca por primeiro ambiente real encontrou apenas um laboratório legado que
+  não atende aos contratos atuais; o contexto Kubernetes local estava
+  indisponível. A História 05 aguarda indicação de um alvo representativo.
 
 ## Limites conscientes desta rodada
 
