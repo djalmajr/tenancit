@@ -127,3 +127,18 @@ reports está em link:observability.md[Observabilidade e política de redaction]
   para bootstrap, backup/restore e resposta pós-deploy.
 * Execute migrations somente pelo binário `/migrate`; o processo `/server` não
   possui nem importa essa autoridade.
+==== Diagnóstico do Playwright na CI
+
+O `line reporter` no log do job é a evidência primária: ele registra spec,
+locator, expectativa e linha da falha sem depender do armazenamento de
+artefatos do GitHub. Em falha, o job summary lista somente caminhos relativos e
+tamanhos das capturas locais; não imprime o conteúdo.
+
+O upload é opcional e fica desabilitado por padrão. Para habilitá-lo
+temporariamente, configure a variável de repositório
+`TENANCIT_UPLOAD_PLAYWRIGHT_ARTIFACTS=true`. Falha de upload não substitui nem
+mascara a conclusão do Playwright, e a retenção é de um dia. Traces e vídeos
+continuam desabilitados porque podem persistir headers, tokens e valores de
+formulário; `error-context.md` é removido pelo cleanup. Antes de compartilhar
+qualquer screenshot, confirme que a fixture é descartável e que a imagem não
+contém secrets.

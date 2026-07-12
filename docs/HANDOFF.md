@@ -166,16 +166,17 @@ estão implementados e validados localmente; ainda exigem configuração do alvo
 
 ## Próxima sequência recomendada
 
-O plano persistente e decomposto para essa sequência está em
-[`epic 03`](../planning/tenancit/epics/03-plataforma-operacional/00-overview.md),
-baseado também na análise das novidades da implementação de referência em 2026-07-11.
+O plano persistente para as pendências após o epic 03 está no
+[`epic 04`](../planning/tenancit/epics/04-publicacao-e-validacao-real/00-overview.md).
+Ele separa correção da CI, diagnóstico independente da cota, confirmação remota,
+preparação pública O'Saasy, validação do primeiro ambiente real e o gate de
+cardinalidade. A verificação de licença é interna/documental e não depende de
+revisão jurídica externa.
 
-1. Publicar o contract final e confirmar a CI remota.
-2. Coletar cardinalidade real; reabrir paginação ao observar/projetar 500
-   registros em uma superfície, conforme o relatório de escala.
-3. Escolher o primeiro alvo e repetir o rewrap no restore real, além de validar o
-   [`container-deploy.md`](runbooks/container-deploy.md) com TLS, secrets,
-   backup/restore e smoke.
+1. Estabilizar o E2E de webhook e impedir que a cota de artefatos mascare falhas.
+2. Confirmar três execuções remotas verdes e preparar o candidato público.
+3. Quando houver alvo, validar IdP/topologia/continuidade/rewrap e coletar
+   cardinalidade real antes de reabrir paginação.
 
 ## Limites conscientes desta rodada
 

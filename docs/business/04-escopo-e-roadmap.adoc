@@ -72,9 +72,10 @@ fronteira de secrets.
 |===
 
 Sequência atual: executar o
-link:../../planning/tenancit/epics/03-plataforma-operacional/00-overview.md[epic 03],
-começando por CI/verdade documental, OIDC/RBAC e operação multi-réplica;
-repetir rewrap após backup/restore estar validado no alvo.
+link:../../planning/tenancit/epics/04-publicacao-e-validacao-real/00-overview.md[epic 04],
+começando pela última regressão E2E e confirmação remota, preparando a
+publicação O'Saasy e, quando houver alvo, validando IdP, topologia, continuidade,
+rewrap e cardinalidade real.
 
 Não são compromissos desta trajetória: multi-região, storage WORM/SIEM, HSM,
 cache distribuído genérico ou allowlist de CIDR antes de a topologia de proxies

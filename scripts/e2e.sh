@@ -69,7 +69,7 @@ if [ "${TENANCIT_E2E_EXTERNAL:-0}" != "1" ]; then
   started_stack=true
   ephemeral_stack=true
   compose up -d --build
-  product_port="$(compose port app-e2e 8080 | sed 's/.*://')"
+  product_port="$(compose port webhook-receiver-e2e 8080 | sed 's/.*://')"
   vite_port="$(compose port web-e2e 5180 | sed 's/.*://')"
   receiver_port="$(compose port webhook-receiver-e2e 9090 | sed 's/.*://')"
   product_base_url="http://127.0.0.1:${product_port}"

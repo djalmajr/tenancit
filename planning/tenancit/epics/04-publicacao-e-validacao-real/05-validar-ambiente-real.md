@@ -1,0 +1,70 @@
+# História 05 — Validar o primeiro ambiente real
+
+**Origin:** `planning/tenancit/epics/04-publicacao-e-validacao-real/00-overview.md`
+
+## Contexto
+
+Problema: fixtures locais comprovam contratos, mas não comprovam IdP, proxies,
+TLS, secrets, continuidade ou recuperação na topologia escolhida. O objetivo é
+executar os runbooks no primeiro alvo real e registrar evidência sanitizada. O
+ganho é transformar “pronto para operar” em “operado e recuperável”.
+
+## Rastreabilidade
+
+- `docs/runbooks/container-deploy.md`.
+- `docs/runbooks/post-deploy-smoke.md`.
+- `docs/runbooks/aes-key-rewrap.md`.
+- ADRs 0005–0007 e designs de auditoria/API clients.
+
+## Arquivos
+
+| Caminho | Ação | Motivo |
+|---|---|---|
+| Runbooks em `docs/runbooks/` | Atualizar | Trocar premissas genéricas por evidência sanitizada do alvo |
+| Configuração de deploy escolhida | Adicionar em caminho próprio sem secrets | Codificar topologia reproduzível |
+| `docs/HANDOFF.md` e roadmap | Atualizar | Distinguir validado de apenas implementado |
+| História/overview | Atualizar | Persistir gates externos e resultados |
+
+## Detalhe
+
+AS-IS: duas réplicas, Valkey, Dex, backup/restore e rewrap passam localmente.
+TO-BE: o alvo real valida issuer/audience/claims, ingress/TLS, secret manager,
+trusted proxies, health/readiness, retenção, SLO/RPO/RTO, failover, restore e
+ensaio de rewrap.
+
+### Aceite
+
+- IdP real autentica e aplica roles/claims esperados; break-glass é testado e
+  permanece excepcional/auditado.
+- TLS, origins, cookies, CSP e trusted proxies passam testes negativos.
+- Duas réplicas provam limiter global, revogação imediata e failover.
+- Backup/restore atende RPO/RTO definidos e o smoke passa sobre o restore.
+- Rewrap executa dry-run e ensaio no restore antes de qualquer campanha real.
+- Retenção, SLO, RPO e RTO são documentados com owners e alertas.
+
+### Dependências
+
+História 03 e disponibilidade de ambiente/IdP/políticas. Nenhuma decisão é
+necessária agora; esses itens permanecem gates explícitos até existirem.
+
+## Tarefas
+
+- [ ] Registrar alvo, owners e matriz de dependências sem credenciais.
+- [ ] Configurar IdP/OIDC e validar claims/RBAC/CSRF/logout.
+- [ ] Validar ingress, TLS, DNS, secret manager e trusted proxies.
+- [ ] Executar deploy por digest, migration, smoke e rollback.
+- [ ] Executar falhas controladas de Valkey, Postgres e uma réplica.
+- [ ] Medir e aprovar backup/restore, RPO e RTO.
+- [ ] Executar dry-run/ensaio de rewrap no restore.
+- [ ] Registrar SLOs, retenção, alertas e evidências sanitizadas.
+
+## Verificação
+
+Usar os comandos canônicos dos runbooks, incluindo `make smoke`,
+`make test-continuity`, restore verificado e rewrap dry-run. Nenhuma saída
+versionada pode conter DSN, token, cookie, chave ou payload secreto.
+
+## Evidência
+
+Pendente por gate externo. Registrar ambiente, data, SHA/digest, owners,
+resultados e desvios sanitizados.

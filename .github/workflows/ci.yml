@@ -119,11 +119,25 @@ jobs:
         run: make e2e
       - name: run OIDC, CSRF, and break-glass E2E
         run: make e2e-oidc
-      - name: upload Playwright artifacts on failure
+      - name: summarize Playwright failure evidence
         if: failure()
+        shell: bash
+        run: |
+          {
+            echo '## Playwright failure evidence'
+            echo
+            echo 'The line reporter above is the primary diagnostic. Local evidence files:'
+            echo '```text'
+            find output/playwright -type f \( -name '*.png' -o -name '*.webm' \) -printf '%P (%s bytes)\n' 2>/dev/null | sort || true
+            echo '```'
+            echo 'Full artifacts are opt-in through the TENANCIT_UPLOAD_PLAYWRIGHT_ARTIFACTS repository variable.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: upload Playwright artifacts on failure (opt-in)
+        if: failure() && vars.TENANCIT_UPLOAD_PLAYWRIGHT_ARTIFACTS == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts
           path: output/playwright/
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1

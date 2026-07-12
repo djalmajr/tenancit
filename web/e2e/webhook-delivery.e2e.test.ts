@@ -15,7 +15,7 @@ test("webhook target receives a signed domain event and exposes delivery status"
   await page.goto("/integrations/webhooks");
   await page.getByRole("button", { name: "Novo webhook" }).click();
   await page.getByRole("textbox", { name: "Nome", exact: true }).fill(uniqueID("receiver"));
-  await page.getByRole("textbox", { name: "URL do receiver", exact: true }).fill("http://webhook-receiver-e2e:9090/hook");
+  await page.getByRole("textbox", { name: "URL do receiver", exact: true }).fill("http://127.0.0.1:9090/hook");
   await page.getByRole("button", { name: "Salvar" }).click();
   const secretInput = page.getByRole("textbox", { name: "Signing secret", exact: true });
   await expect(secretInput).not.toHaveValue("");
