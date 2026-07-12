@@ -36,7 +36,7 @@ func EnforceAPIClientRateLimit(
 				return
 			}
 			w.Header().Set("RateLimit-Limit", strconv.Itoa(int(result.Limit)))
-			w.Header().Set("RateLimit-Remaining", strconv.Itoa(int(result.Remaining)))
+			w.Header().Set("RateLimit-Remaining", strconv.FormatInt(result.Remaining, 10))
 			w.Header().Set("RateLimit-Reset", strconv.FormatInt(ceilSeconds(result.ResetAfter), 10))
 			if !result.Allowed {
 				telemetry.RecordSecurityDecision(r.Context(), "rate_limit", "limited")

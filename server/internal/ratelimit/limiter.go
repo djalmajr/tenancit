@@ -17,7 +17,7 @@ var ErrUnavailable = errors.New("rate limiter unavailable")
 type Result struct {
 	Allowed    bool
 	Limit      int32
-	Remaining  int32
+	Remaining  int64
 	RetryAfter time.Duration
 	ResetAfter time.Duration
 }
@@ -60,7 +60,7 @@ func (m *Memory) Allow(_ context.Context, clientID string, rpm int32) (Result, e
 	} else {
 		result.RetryAfter = time.Duration(math.Ceil((1 - bucket.tokens) / rate))
 	}
-	result.Remaining = int32(math.Floor(bucket.tokens))
+	result.Remaining = int64(math.Floor(bucket.tokens))
 	result.ResetAfter = time.Duration(math.Ceil((capacity - bucket.tokens) / rate))
 	m.buckets[clientID] = bucket
 	return result, nil
@@ -140,7 +140,7 @@ func (v *Valkey) Allow(ctx context.Context, clientID string, rpm int32) (Result,
 			return Result{}, ErrUnavailable
 		}
 	}
-	if parsed[1] < 0 || parsed[1] > math.MaxInt32 ||
+	if parsed[1] < 0 || parsed[1] > int64(rpm) ||
 		parsed[2] < 0 || parsed[2] > math.MaxInt64/int64(time.Millisecond) ||
 		parsed[3] < 0 || parsed[3] > math.MaxInt64/int64(time.Millisecond) {
 		telemetry.RecordDependencyOperation(ctx, "valkey", "query", "error", time.Since(started))
@@ -148,7 +148,7 @@ func (v *Valkey) Allow(ctx context.Context, clientID string, rpm int32) (Result,
 	}
 	telemetry.RecordDependencyOperation(ctx, "valkey", "query", "success", time.Since(started))
 	return Result{
-		Allowed: parsed[0] == 1, Limit: rpm, Remaining: int32(parsed[1]),
+		Allowed: parsed[0] == 1, Limit: rpm, Remaining: parsed[1],
 		RetryAfter: time.Duration(parsed[2]) * time.Millisecond,
 		ResetAfter: time.Duration(parsed[3]) * time.Millisecond,
 	}, nil
