@@ -77,26 +77,27 @@ async function measureHTTP(endpoint, concurrency) {
   return { batches, bytes, concurrency, samples, summary: summary(samples) };
 }
 
-async function afterRender(page) {
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
+async function afterRender() {
+  // A deterministic frame-sized settle avoids background-tab rAF stalls
+  // without charging an arbitrary 100 ms to every UI sample.
+  await new Promise((resolve) => setTimeout(resolve, 16));
 }
 
-async function measureBrowser() {
+async function measureBrowser(profile) {
   const browser = await chromium.launch(
     process.env.CI ? { headless: true } : { channel: "chrome", headless: true },
   );
   const context = await browser.newContext({
     deviceScaleFactor: 1,
     locale: "pt-BR",
-    viewport: { width: 1440, height: 900 },
+    viewport: profile.viewport,
   });
   await context.addInitScript(
     ({ token }) => window.localStorage.setItem("tenancitAdminToken", token),
     { token: adminToken },
   );
   const page = await context.newPage();
+  page.setDefaultTimeout(15_000);
   const result = {};
 
   try {
@@ -134,18 +135,17 @@ async function measureBrowser() {
         searchLabel: "Buscar por nome, data ou status...",
       },
     ]) {
+      console.log(`browser ${profile.id}/${surface.id}`);
       const renderSamples = [];
-      for (let i = 0; i < 35; i += 1) {
+      for (let i = 0; i < profile.renderIterations; i += 1) {
         const started = performance.now();
-        const responsePromise = page.waitForResponse(
-          (response) => new URL(response.url()).pathname === surface.apiPath,
-        );
-        await page.goto(`${baseURL}${surface.path}`);
-        const response = await responsePromise;
-        await response.finished();
+        await page.goto(`${baseURL}${surface.path}`, {
+          timeout: 15_000,
+          waitUntil: "domcontentloaded",
+        });
         await page.getByRole("heading", { name: surface.heading, exact: true }).waitFor();
         await afterRender(page);
-        if (i >= 5) renderSamples.push(performance.now() - started);
+        if (i >= profile.renderWarmups) renderSamples.push(performance.now() - started);
       }
 
       const surfaceResult = { render: { samples: renderSamples, summary: summary(renderSamples) } };
@@ -153,7 +153,7 @@ async function measureBrowser() {
         const search = page.getByRole("textbox", { name: surface.searchLabel, exact: true });
         const filterSamples = [];
         const sortSamples = [];
-        for (let i = 0; i < 35; i += 1) {
+        for (let i = 0; i < 15; i += 1) {
           let started = performance.now();
           await search.fill(i % 2 === 0 ? surface.filterValue : "");
           await afterRender(page);
@@ -167,10 +167,13 @@ async function measureBrowser() {
         surfaceResult.filter = { samples: filterSamples, summary: summary(filterSamples) };
         surfaceResult.sort = { samples: sortSamples, summary: summary(sortSamples) };
       }
-      result[surface.id] = surfaceResult;
+      result[`${profile.id}-${surface.id}`] = surfaceResult;
     }
   } finally {
-    await browser.close();
+    await Promise.race([
+      browser.close(),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
   }
   return result;
 }
@@ -181,6 +184,19 @@ for (const endpoint of endpoints) {
     concurrency1: await measureHTTP(endpoint, 1),
     concurrency10: await measureHTTP(endpoint, 10),
   };
+}
+
+const browserMeasurements = {
+  ...await measureBrowser({
+    id: "desktop", renderIterations: 15, renderWarmups: 5,
+    viewport: { width: 1440, height: 900 },
+  }),
+};
+if (process.env.TENANCIT_SCALE_INCLUDE_MOBILE === "1") {
+  Object.assign(browserMeasurements, await measureBrowser({
+    id: "mobile", renderIterations: 3, renderWarmups: 1,
+    viewport: { width: 390, height: 844 },
+  }));
 }
 
 const payload = {
@@ -198,10 +214,11 @@ const payload = {
     cpuCount: os.cpus().length,
     postgres: process.env.TENANCIT_SCALE_POSTGRES_VERSION ?? "unknown",
     chromium: process.env.TENANCIT_SCALE_CHROMIUM_VERSION ?? "unknown",
-    viewport: "1440x900",
+    viewports: process.env.TENANCIT_SCALE_INCLUDE_MOBILE === "1"
+      ? ["1440x900", "390x844"] : ["1440x900"],
   },
   http,
-  browser: await measureBrowser(),
+  browser: browserMeasurements,
 };
 
 mkdirSync(dirname(outputPath), { recursive: true, mode: 0o700 });

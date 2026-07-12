@@ -63,3 +63,15 @@ Em 2026-07-11 foram comprovados:
 Esses limites são gates de cada ambiente de cliente, não responsabilidades que
 devam ser escondidas no perfil pessoal.
 
+## Rollback verificado
+
+O release foi revertido da revisão 5 para a revisão 4 (digest anterior), com
+`/readyz` saudável e o tenant sentinela preservado. Em seguida, o roll-forward
+restaurou o digest `sha256:b9571461...57f1fa1`, novamente com readiness saudável.
+As imagens de PostgreSQL, Valkey e Dex também são fixadas por digest no perfil.
+Jobs one-shot de rewrap são removidos depois da coleta da evidência.
+
+O namespace aplica default-deny e libera somente tráfego interno necessário,
+DNS, HTTPS de saída e ingress do Traefik. Os CIDRs de pods/serviços do laboratório
+são parâmetros explícitos do perfil; ambientes de clientes devem fornecer os
+CIDRs da própria topologia.

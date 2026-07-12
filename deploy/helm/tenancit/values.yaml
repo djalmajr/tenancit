@@ -33,3 +33,8 @@ personal:
   storageClassName: local-path
   postgresStorage: 5Gi
   dexStorage: 256Mi
+  postgresImage: postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+  valkeyImage: valkey/valkey@sha256:cfe71288f087704b06be45e270afa7a2abbf820093d6b11a23762081f5ff321d
+  dexImage: ghcr.io/dexidp/dex@sha256:5d0656fce7d453c0e3b2706abf40c0d0ce5b371fb0b73b3cf714d05f35fa5f86
+  podCIDR: 10.42.0.0/16
+  serviceCIDR: 10.43.0.0/16

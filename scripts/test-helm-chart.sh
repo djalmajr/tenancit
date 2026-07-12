@@ -28,3 +28,13 @@ grep -q 'replicas: 2' "$tmp"
 grep -q 'TENANCIT_ADMIN_AUTH_MODE' "$tmp"
 grep -q 'kind: PodDisruptionBudget' "$tmp"
 grep -q 'kind: StatefulSet' "$tmp"
+grep -q 'kind: NetworkPolicy' "$tmp"
+
+for invalid in latest sha256:abc sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA; do
+  if $helm_cmd template tenancit deploy/helm/tenancit \
+    --values deploy/helm/tenancit/values-personal.yaml \
+    --set-string image.digest="$invalid" >/dev/null 2>&1; then
+    echo "invalid image digest was accepted: $invalid" >&2
+    exit 1
+  fi
+done

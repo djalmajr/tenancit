@@ -14,7 +14,7 @@ CIDRs privados, nomes internos ou payloads operacionais.
 | Ambiente e owner operacional | laboratório pessoal; mantenedor do projeto |
 | Plataforma/orquestrador | K3s single-node em VM Hetzner |
 | Data/janela de validação | 2026-07-11 |
-| Commit e digest imutável | commit `92c9f7c`; digest registrado no release Helm |
+| Commit e digest imutável | commit `b9e37e2`; digest `sha256:b9571461...57f1fa1` |
 | URL pública sanitizada | `https://tenancit.djalmajr.dev` |
 | Número de réplicas | 2 réplicas do app + 1 worker |
 | PostgreSQL/Valkey/IdP gerenciados ou próprios | PostgreSQL, Valkey e Dex isolados no namespace de teste |
@@ -42,7 +42,7 @@ O operador precisa disponibilizar no ambiente, sem copiá-los para este arquivo:
 | Valkey | 5 RPM + indisponibilidade controlada | 5x `200`, 5x `429`; readiness `503/200` | Aprovado |
 | PostgreSQL | indisponibilidade e recuperação | readiness `503/200`; dados preservados | Aprovado |
 | Backup/restore | dump, checksum e restore isolado | 130.306 B; 30 tabelas; 1 tenant | Aprovado para teste |
-| Rollback | voltar ao digest anterior | dados preservados e readiness restaurada | Em fechamento |
+| Rollback | revisão Helm 5 -> 4 -> imagem atual | readiness `200`; 1 tenant preservado; roll-forward concluído | Aprovado |
 | Rewrap | `--dry-run --target-version 1` | nenhuma escrita | Aprovado |
 | Observabilidade | health/readiness e logs JSON | sem secrets na evidência | Aprovado no laboratório |
 | Retenção | workers ativos e settings versionados | execução disponível | Aprovado funcionalmente |

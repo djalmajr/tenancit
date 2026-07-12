@@ -84,26 +84,49 @@ staticPasswords:
 EOF
 )"
 
-kubectl -n "$namespace" create secret generic "$secret_name" \
-  --from-literal=postgres-admin-password="$POSTGRES_ADMIN_PASSWORD" \
-  --from-literal=postgres-migration-password="$POSTGRES_MIGRATION_PASSWORD" \
-  --from-literal=postgres-runtime-password="$POSTGRES_RUNTIME_PASSWORD" \
-  --from-literal=postgres-jobs-password="$POSTGRES_JOBS_PASSWORD" \
-  --from-literal=postgres-backup-password="$POSTGRES_BACKUP_PASSWORD" \
-  --from-literal=postgres-rewrap-password="$POSTGRES_REWRAP_PASSWORD" \
-  --from-literal=migration-database-url="postgres://tenancit_migration:$migration_q@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=runtime-database-url="postgres://tenancit_runtime_login:$runtime_q@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=jobs-database-url="postgres://tenancit_jobs_login:$jobs_q@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=backup-database-url="postgres://tenancit_backup_login:$(urlencode "$POSTGRES_BACKUP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=rewrap-database-url="postgres://tenancit_rewrap_login:$(urlencode "$POSTGRES_REWRAP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=postgres-admin-url="postgres://postgres:$admin_q@$pg_service:5432/tenancit?sslmode=disable" \
-  --from-literal=valkey-password="$VALKEY_PASSWORD" \
-  --from-literal=valkey-url="redis://:$valkey_q@$valkey_service:6379/0" \
-  --from-literal=oidc-client-secret="$OIDC_CLIENT_SECRET" \
-  --from-literal=aes-key="$AES_KEY" \
-  --from-literal=operations-token="$OPERATIONS_TOKEN" \
-  --from-literal=dex-config="$dex_config" \
-  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+secret_value() {
+  kubectl -n "$namespace" get secret "$secret_name" -o json |
+    jq -r --arg key "$1" '.data[$key] // empty' | base64 -d
+}
+check_secret_value() {
+  [ "$(secret_value "$1")" = "$2" ] || {
+    echo "credential drift for $1; use an explicit credential-rotation procedure" >&2
+    exit 1
+  }
+}
+if kubectl -n "$namespace" get secret "$secret_name" >/dev/null 2>&1; then
+  check_secret_value postgres-admin-password "$POSTGRES_ADMIN_PASSWORD"
+  check_secret_value postgres-migration-password "$POSTGRES_MIGRATION_PASSWORD"
+  check_secret_value postgres-runtime-password "$POSTGRES_RUNTIME_PASSWORD"
+  check_secret_value postgres-jobs-password "$POSTGRES_JOBS_PASSWORD"
+  check_secret_value postgres-backup-password "$POSTGRES_BACKUP_PASSWORD"
+  check_secret_value postgres-rewrap-password "$POSTGRES_REWRAP_PASSWORD"
+  check_secret_value valkey-password "$VALKEY_PASSWORD"
+  check_secret_value oidc-client-secret "$OIDC_CLIENT_SECRET"
+  check_secret_value aes-key "$AES_KEY"
+  check_secret_value operations-token "$OPERATIONS_TOKEN"
+fi
+
+b64() { printf '%s' "$1" | base64 | tr -d '\n'; }
+printf '%s\n' "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$secret_name\",\"namespace\":\"$namespace\"},\"type\":\"Opaque\",\"data\":{
+\"postgres-admin-password\":\"$(b64 "$POSTGRES_ADMIN_PASSWORD")\",
+\"postgres-migration-password\":\"$(b64 "$POSTGRES_MIGRATION_PASSWORD")\",
+\"postgres-runtime-password\":\"$(b64 "$POSTGRES_RUNTIME_PASSWORD")\",
+\"postgres-jobs-password\":\"$(b64 "$POSTGRES_JOBS_PASSWORD")\",
+\"postgres-backup-password\":\"$(b64 "$POSTGRES_BACKUP_PASSWORD")\",
+\"postgres-rewrap-password\":\"$(b64 "$POSTGRES_REWRAP_PASSWORD")\",
+\"migration-database-url\":\"$(b64 "postgres://tenancit_migration:$migration_q@$pg_service:5432/tenancit?sslmode=disable")\",
+\"runtime-database-url\":\"$(b64 "postgres://tenancit_runtime_login:$runtime_q@$pg_service:5432/tenancit?sslmode=disable")\",
+\"jobs-database-url\":\"$(b64 "postgres://tenancit_jobs_login:$jobs_q@$pg_service:5432/tenancit?sslmode=disable")\",
+\"backup-database-url\":\"$(b64 "postgres://tenancit_backup_login:$(urlencode "$POSTGRES_BACKUP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable")\",
+\"rewrap-database-url\":\"$(b64 "postgres://tenancit_rewrap_login:$(urlencode "$POSTGRES_REWRAP_PASSWORD")@$pg_service:5432/tenancit?sslmode=disable")\",
+\"postgres-admin-url\":\"$(b64 "postgres://postgres:$admin_q@$pg_service:5432/tenancit?sslmode=disable")\",
+\"valkey-password\":\"$(b64 "$VALKEY_PASSWORD")\",
+\"valkey-url\":\"$(b64 "redis://:$valkey_q@$valkey_service:6379/0")\",
+\"oidc-client-secret\":\"$(b64 "$OIDC_CLIENT_SECRET")\",
+\"aes-key\":\"$(b64 "$AES_KEY")\",
+\"operations-token\":\"$(b64 "$OPERATIONS_TOKEN")\",
+\"dex-config\":\"$(b64 "$dex_config")\"}}" | kubectl apply -f - >/dev/null
 
 pull_secret_args=""
 if command -v docker-credential-desktop >/dev/null 2>&1; then
@@ -112,9 +135,10 @@ if command -v docker-credential-desktop >/dev/null 2>&1; then
     ghcr_user="$(printf '%s' "$ghcr_credential" | jq -r '.Username // empty')"
     ghcr_token="$(printf '%s' "$ghcr_credential" | jq -r '.Secret // empty')"
     if [ -n "$ghcr_user" ] && [ -n "$ghcr_token" ]; then
-      kubectl -n "$namespace" create secret docker-registry tenancit-ghcr \
-        --docker-server=ghcr.io --docker-username="$ghcr_user" --docker-password="$ghcr_token" \
-        --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+      docker_auth="$(printf '%s:%s' "$ghcr_user" "$ghcr_token" | base64 | tr -d '\n')"
+      docker_config="$(printf '{\"auths\":{\"ghcr.io\":{\"auth\":\"%s\"}}}' "$docker_auth")"
+      printf '{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"tenancit-ghcr\",\"namespace\":\"%s\"},\"type\":\"kubernetes.io/dockerconfigjson\",\"data\":{\".dockerconfigjson\":\"%s\"}}\n' \
+        "$namespace" "$(b64 "$docker_config")" | kubectl apply -f - >/dev/null
       pull_secret_args="--set imagePullSecrets[0].name=tenancit-ghcr"
     fi
   fi
@@ -130,7 +154,8 @@ helm upgrade --install "$release" "$root_dir/deploy/helm/tenancit" \
   $pull_secret_args \
   --wait --timeout 10m
 
-kubectl -n "$namespace" rollout restart deployment/"$release" deployment/"$release-audit-jobs" >/dev/null
+kubectl -n "$namespace" rollout restart deployment/"$release" deployment/"$release-audit-jobs" deployment/"$release-dex" >/dev/null
 kubectl -n "$namespace" rollout status deployment/"$release" --timeout=5m
 kubectl -n "$namespace" rollout status deployment/"$release-audit-jobs" --timeout=5m
+kubectl -n "$namespace" rollout status deployment/"$release-dex" --timeout=5m
 printf 'Tenancit: https://%s\nCredentials: %s (mode 0600)\n' "$host" "$state_file"

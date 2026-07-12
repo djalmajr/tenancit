@@ -73,7 +73,7 @@ spec:
       securityContext: { fsGroup: 999, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: {{ required "personal.postgresImage is required" .Values.personal.postgresImage }}
           env:
             - { name: POSTGRES_DB, value: tenancit }
             - { name: POSTGRES_USER, value: postgres }
@@ -129,7 +129,7 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 999, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: valkey
-          image: valkey/valkey:8-alpine
+          image: {{ required "personal.valkeyImage is required" .Values.personal.valkeyImage }}
           command: ["sh", "-ec", "exec valkey-server --save '' --appendonly no --requirepass \"$VALKEY_PASSWORD\""]
           env:
             - name: VALKEY_PASSWORD
@@ -168,7 +168,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: dex
-          image: ghcr.io/dexidp/dex:v2.44.0
+          image: {{ required "personal.dexImage is required" .Values.personal.dexImage }}
           command: ["/usr/local/bin/dex", "serve", "/etc/dex/config.yaml"]
           ports: [{ name: http, containerPort: 5556 }]
           readinessProbe: { httpGet: { path: {{ printf "%s/.well-known/openid-configuration" .Values.oidc.issuerPath | quote }}, port: http }, periodSeconds: 5 }
@@ -182,4 +182,44 @@ spec:
           secret: { secretName: {{ .Values.existingSecret }}, items: [{ key: dex-config, path: config.yaml }] }
         - name: data
           persistentVolumeClaim: { claimName: {{ include "tenancit.fullname" . }}-dex }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-default-deny }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ include "tenancit.fullname" . }}-allow-required }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: {{ required "personal.podCIDR is required" .Values.personal.podCIDR }} }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: traefik }
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 5556 }
+        - { protocol: TCP, port: 5432 }
+        - { protocol: TCP, port: 6379 }
+  egress:
+    - to:
+        - ipBlock: { cidr: {{ required "personal.podCIDR is required" .Values.personal.podCIDR }} }
+        - ipBlock: { cidr: {{ required "personal.serviceCIDR is required" .Values.personal.serviceCIDR }} }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - ports:
+        - { protocol: TCP, port: 443 }
 {{- end }}

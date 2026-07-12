@@ -5,9 +5,10 @@
 ## Contexto
 
 Problema: fixtures locais comprovam contratos, mas não comprovam IdP, proxies,
-TLS, secrets, continuidade ou recuperação na topologia escolhida. O objetivo é
-executar os runbooks no primeiro alvo real e registrar evidência sanitizada. O
-ganho é transformar “pronto para operar” em “operado e recuperável”.
+TLS, secrets, continuidade ou recuperação numa topologia Kubernetes. O objetivo
+desta história é executar os runbooks no laboratório pessoal e registrar
+evidência sanitizada. O ganho é validar integração e recuperação sem confundir
+esse ensaio com homologação de produção de um cliente.
 
 ## Rastreabilidade
 
@@ -29,9 +30,10 @@ ganho é transformar “pronto para operar” em “operado e recuperável”.
 ## Detalhe
 
 AS-IS: duas réplicas, Valkey, Dex, backup/restore e rewrap passam localmente.
-TO-BE: o alvo real valida issuer/audience/claims, ingress/TLS, secret manager,
-trusted proxies, health/readiness, retenção, SLO/RPO/RTO, failover, restore e
-ensaio de rewrap.
+TO-BE: o laboratório valida issuer/audience/claims, ingress/TLS, secrets,
+health/readiness, retenção funcional, failover, restore e ensaio de rewrap.
+Cada ambiente de cliente mantém um gate próprio para IdP corporativo, HA,
+backup off-site, observabilidade e valores aprovados de SLO/RPO/RTO.
 
 ### Aceite
 
@@ -39,9 +41,11 @@ ensaio de rewrap.
   permanece excepcional/auditado.
 - TLS, origins, cookies, CSP e trusted proxies passam testes negativos.
 - Duas réplicas provam limiter global, revogação imediata e failover.
-- Backup/restore atende RPO/RTO definidos e o smoke passa sobre o restore.
+- Backup/restore é medido, o smoke passa sobre o restore e os limites do
+  laboratório são registrados sem prometer RPO/RTO de produção.
 - Rewrap executa dry-run e ensaio no restore antes de qualquer campanha real.
-- Retenção, SLO, RPO e RTO são documentados com owners e alertas.
+- Retenção e owners do laboratório são documentados; SLO, RPO, RTO e alertas
+  permanecem gates obrigatórios por ambiente de cliente.
 
 ### Dependências
 

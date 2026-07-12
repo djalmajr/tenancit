@@ -66,7 +66,7 @@ test -z "$(git -C "$root_dir" status --porcelain)" || dirty=1
 postgres_version="$(compose exec -T postgres-e2e psql -U postgres -d tenancit-e2e -Atc 'show server_version')"
 chromium_version="$(/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version 2>/dev/null || echo unknown)"
 
-for size in 100 500 1000 5000; do
+for size in 100 250 500 1000 5000; do
   compose exec -T postgres-e2e psql -U postgres -d tenancit-e2e -v size="$size" \
     < "$root_dir/benchmarks/scale/seed.sql" >/dev/null
   plans_dir="$output_dir/query-plans/$size"
@@ -81,6 +81,8 @@ for size in 100 500 1000 5000; do
     'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT rd.id, count(rf.id) FROM resource_definitions rd LEFT JOIN resource_fields rf ON rf.resource_definition_id = rd.id GROUP BY rd.id ORDER BY rd.name' \
     > "$plans_dir/definitions.json"
   for run in 1 2; do
+    include_mobile=0
+    [ "$size" -eq 250 ] && include_mobile=1
     TENANCIT_SCALE_BASE_URL="$base_url" \
     TENANCIT_SCALE_CARDINALITY="$size" \
     TENANCIT_SCALE_RUN="$run" \
@@ -88,6 +90,7 @@ for size in 100 500 1000 5000; do
     TENANCIT_SCALE_DIRTY="$dirty" \
     TENANCIT_SCALE_POSTGRES_VERSION="$postgres_version" \
     TENANCIT_SCALE_CHROMIUM_VERSION="$chromium_version" \
+    TENANCIT_SCALE_INCLUDE_MOBILE="$include_mobile" \
       bun "$root_dir/web/scripts/benchmark-scale.mjs" "$output_dir/raw-$size-$run.json"
   done
 done

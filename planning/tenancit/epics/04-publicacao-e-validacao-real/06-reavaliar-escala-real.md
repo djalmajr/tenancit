@@ -69,14 +69,25 @@ de 100, 500, 1.000 e 5.000 registros passaram. O primeiro breakpoint permaneceu
 em 500 e a decisão foi `KEEP_FULL_LISTS` porque o volume operacional declarado
 continua zero. Esta execução prova o harness, não substitui a medição real.
 
-Projeção aprovada em 2026-07-11: até 50 mil usuários finais por ambiente, com
-até 100 tenants, 100 definições e 250 API clients no plano administrativo. Os
+Premissa de engenharia usada em 2026-07-11: até 50 mil usuários finais por
+ambiente e um cenário administrativo sintético de 250 registros por superfície.
+Os valores de 100 tenants/definições e 250 API clients não são tratados como
+projeção comercial aprovada e devem ser confirmados por cliente. Os
 usuários finais aumentam throughput das APIs de consumo, mas não viram linhas
 administrativas automaticamente.
 
 `TENANCIT_SCALE_OBSERVED_VOLUME=250 make benchmark-scale` repetiu 100, 500,
 1.000 e 5.000 em duas rodadas. O sumário local
-`benchmarks/scale/results/20260712t012212z-72055/summary.json` registrou
+`benchmarks/scale/results/20260712t031427z-33947/summary.json` registrou
 `KEEP_FULL_LISTS`: volume 250 abaixo do primeiro breakpoint 500. Teste de carga
 de consumo/SLO permanece uma trilha diferente e deve ser dimensionado por
 ambiente de cliente.
+
+O harness mede toda a curva em `1440x900` e repete o volume operacional de 250
+em `390x844`; portanto, a decisão inclui renderização, busca e ordenação em
+desktop e mobile sem confundir o ensaio móvel representativo com stress acima
+do breakpoint de capacidade.
+
+As duas rodadas mobile em 250 itens ficaram abaixo do hard trigger de 150 ms;
+o maior p95 observado foi 138,0 ms em definições. Nenhum trigger duro ou soft
+foi confirmado no ponto operacional.
