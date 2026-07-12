@@ -24,6 +24,7 @@ ganho é transformar “pronto para operar” em “operado e recuperável”.
 | Configuração de deploy escolhida | Adicionar em caminho próprio sem secrets | Codificar topologia reproduzível |
 | `docs/HANDOFF.md` e roadmap | Atualizar | Distinguir validado de apenas implementado |
 | História/overview | Atualizar | Persistir gates externos e resultados |
+| `docs/runbooks/first-production-validation-record.md` | Preencher | Centralizar evidência sanitizada e aceite |
 
 ## Detalhe
 
@@ -49,6 +50,7 @@ necessária agora; esses itens permanecem gates explícitos até existirem.
 
 ## Tarefas
 
+- [x] Criar o registro sanitizado, matriz de gates e entrada mínima necessária.
 - [ ] Registrar alvo, owners e matriz de dependências sem credenciais.
 - [ ] Configurar IdP/OIDC e validar claims/RBAC/CSRF/logout.
 - [ ] Validar ingress, TLS, DNS, secret manager e trusted proxies.
