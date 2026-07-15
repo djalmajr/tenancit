@@ -29,6 +29,7 @@ import {
 } from "@/lib/api";
 import { apiErrorMessage, useI18n } from "@/lib/i18n";
 import { adminQueryKeys } from "@/lib/query-keys";
+import { isValidWebhookURL } from "@/lib/validation";
 
 const EMPTY_TARGETS: WebhookTarget[] = [];
 const EMPTY_DELIVERIES: WebhookDelivery[] = [];
@@ -42,6 +43,7 @@ export default function IntegrationsPage() {
   const [format, setFormat] = useState<WebhookTarget["format"]>("generic");
   const [createdTarget, setCreatedTarget] = useState<CreatedWebhookTarget>();
   const [pending, setPending] = useState(false);
+  const webhookURLValid = isValidWebhookURL(url);
 
   const targetsQuery = useQuery({
     queryKey: adminQueryKeys.webhookTargets(),
@@ -79,6 +81,7 @@ export default function IntegrationsPage() {
   }, [queryClient]);
 
   async function createTarget() {
+    if (!name.trim() || !webhookURLValid) return;
     setPending(true);
     try {
       const created = await api.createWebhookTarget({ name, url, format });
@@ -242,22 +245,34 @@ export default function IntegrationsPage() {
         <label className="space-y-1.5 text-sm">
           {t("integrations.url")}
           <Input
+            aria-describedby="webhook-url-hint"
+            aria-invalid={url.length > 0 && !webhookURLValid}
             aria-label={t("integrations.url")}
+            autoComplete="url"
             placeholder="https://receiver.example/webhooks/tenancit"
+            type="url"
             value={url}
             onChange={(event) => setURL(event.target.value)}
           />
+          <span className={url.length > 0 && !webhookURLValid ? "block text-xs text-destructive" : "block text-xs text-muted-foreground"} id="webhook-url-hint">
+            {t("validation.webhookURL")}
+          </span>
         </label>
         <Combobox
           aria-label={t("integrations.format")}
-          options={["generic", "slack", "discord", "teams"].map((value) => ({ value, label: value }))}
+          options={[
+            { value: "generic", label: t("integrations.formatGeneric") },
+            { value: "slack", label: "Slack" },
+            { value: "discord", label: "Discord" },
+            { value: "teams", label: "Microsoft Teams" },
+          ]}
           searchable={false}
           value={format}
           onValueChange={(value) => setFormat(value as WebhookTarget["format"])}
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-          <Button disabled={pending || !name.trim() || !url.trim()} onClick={() => void createTarget()}>{t("common.save")}</Button>
+          <Button disabled={pending || !name.trim() || !webhookURLValid} onClick={() => void createTarget()}>{t("common.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

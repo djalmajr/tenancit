@@ -26,3 +26,13 @@ func TestFromAuditIgnoresNonDomainAndRevealEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestFromAuditPublishesDomainRename(t *testing.T) {
+	draft, publish, err := FromAudit("domain.updated", "domain", "domain-1")
+	if err != nil || !publish {
+		t.Fatalf("FromAudit publish=%v err=%v", publish, err)
+	}
+	if draft.Type != "tenancit.tenant_domain.updated" || draft.AggregateID != "domain-1" {
+		t.Fatalf("draft=%+v", draft)
+	}
+}

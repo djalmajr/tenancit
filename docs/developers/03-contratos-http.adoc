@@ -77,13 +77,13 @@ retorna `400 idempotency_key_required`.
 | `/v1/admin/tenants`, `/v1/admin/tenants/{id}`
 | CRUD principal de tenants. `DELETE` remove o tenant e, por FK `ON DELETE CASCADE`, seus domains/resources/values (204; 404 se não existir).
 
-| `POST`, `GET`, `DELETE`
+| `POST`, `GET`, `PUT`, `DELETE`
 | `/v1/admin/tenants/{id}/domains`
-| Hostnames associados ao tenant.
+| Hostnames associados ao tenant. O `PUT` atua em `/{domainId}`, canonicaliza o hostname e preserva unicidade global.
 
 | `POST`, `GET`, `PUT`, `DELETE`
 | `/v1/admin/tenants/{id}/resources`
-| Provisionamento, listagem, status e remoção de resources.
+| Provisionamento, listagem, edição de nome/alias via `PATCH /{resourceId}`, status e remoção de resources.
 
 | `POST`, `GET`, `PUT`
 | `/v1/admin/resource-definitions`
@@ -149,6 +149,7 @@ Resposta:
   "tenantSlug": "cliente",
   "resources": [
     {
+      "alias": "postgres.agility",
       "definitionKey": "postgres",
       "values": {
         "host": "db.internal",
@@ -164,7 +165,7 @@ ASCII minúsculo, sem espaços ou ponto final. IDNs precisam ser fornecidos em
 punycode explícito.
 
 Cache / revalidação: a resposta carrega `ETag` (forte — derivado do tenant, dos
-resources ativos e da versão de suas definitions) e `Cache-Control: private, no-store`,
+resources ativos, das origens vinculadas e da versão de suas definitions) e `Cache-Control: private, no-store`,
 pois o corpo contém credenciais em texto claro. O consumidor pode reter o
 validador na própria aplicação e enviar `If-None-Match: <etag>`; quando nada mudou
 o servidor responde `304 Not Modified` sem corpo e *sem redecifrar*. Qualquer
@@ -190,11 +191,11 @@ mas devem revalidar cada uso com `If-None-Match` (resposta `304` quando o
 mapeamento não mudou). Isso evita servir a identidade anterior quando um
 hostname é removido de um tenant e atribuído a outro.
 
-Atalho por tipo:
+Atalho por alias (o alias é único dentro do tenant):
 
 [source,http]
 ----
-GET /v1/resolve/{hostname}/resources/{definitionKey}
+GET /v1/resolve/{hostname}/resources/{alias}
 Authorization: Bearer tnc_...
 ----
 

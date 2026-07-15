@@ -47,7 +47,7 @@ func RequireAPIKey(q apiKeyLookup, now func() time.Time) func(http.Handler) http
 				return
 			}
 			client, err := q.GetAPIClientAuthByHash(r.Context(), service.HashAPIKey(token))
-			expired := client.ExpiresAt.Valid && !now().UTC().Before(client.ExpiresAt.Time)
+			expired := !now().UTC().Before(client.ExpiresAt)
 			if err != nil || client.Status != "active" || expired {
 				telemetry.RecordSecurityDecision(r.Context(), "api_key_auth", "denied")
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_api_key"})
@@ -58,7 +58,7 @@ func RequireAPIKey(q apiKeyLookup, now func() time.Time) func(http.Handler) http
 				scopes[scope] = struct{}{}
 			}
 			principal := apiClientPrincipal{
-				ID: client.ID.String(), Name: client.Name, Scopes: scopes, RPMLimit: client.RpmLimit,
+				ID: client.ID.String(), Name: client.Name, Scopes: scopes, RPMLimit: &client.RpmLimit,
 			}
 			telemetry.RecordSecurityDecision(r.Context(), "api_key_auth", "success")
 			next.ServeHTTP(w, r.WithContext(contextWithAPIClientPrincipal(r.Context(), principal)))

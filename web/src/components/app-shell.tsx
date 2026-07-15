@@ -15,8 +15,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -25,7 +29,6 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
@@ -48,6 +51,7 @@ import {
   type AdminAuthMessage,
   type AdminSession,
 } from "@/lib/api";
+import { avatarHue, initials } from "@/lib/avatar";
 import { LOCALE_OPTIONS, LOCALE_STORAGE_KEY, type Locale, type TranslationKey, useI18n } from "@/lib/i18n";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -249,21 +253,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarGroup>)}
         </SidebarContent>
 
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                aria-label={t("nav.logout")}
-                onClick={() => void logoutAdmin()}
-                title={t("nav.logout")}
-                tooltip={t("nav.logout")}
-              >
-                <LogOut />
-                <span className="group-data-[state=collapsed]:hidden">{t("nav.logout")}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
       </Sidebar>
 
       <SidebarInset>
@@ -277,12 +266,87 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </div>
-          <PreferenceControls className="ml-auto" />
+          <div className="ml-auto flex items-center gap-1.5">
+            <PreferenceControls />
+            <UserMenu
+              session={adminSession}
+              sharedCredential={authConfig.mode === "legacy_shared_token"}
+              onLogout={() => void logoutAdmin()}
+            />
+          </div>
         </header>
         <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
     </AdminCapabilitiesProvider>
+  );
+}
+
+function UserMenu({
+  onLogout,
+  session,
+  sharedCredential,
+}: {
+  onLogout: () => void;
+  session?: AdminSession;
+  sharedCredential: boolean;
+}) {
+  const { t } = useI18n();
+  const displayName = session?.label || t("auth.sharedCredential");
+  const detail = sharedCredential
+    ? t("auth.sharedToken")
+    : session?.roles.length
+      ? session.roles.join(", ")
+      : t("auth.oidcSession");
+  const avatarLabel = initials(displayName);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={t("nav.account")}
+        className={cn(
+          "inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full outline-none",
+          "ring-offset-background transition-opacity hover:opacity-90",
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        )}
+        title={displayName}
+        type="button"
+      >
+        <span
+          aria-hidden
+          className="flex size-8 items-center justify-center rounded-full text-[11px] font-semibold leading-none text-white"
+          style={{ background: avatarHue(session?.subject || displayName) }}
+        >
+          {avatarLabel}
+        </span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex items-center gap-3 py-0.5">
+              <span
+                aria-hidden
+                className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold leading-none text-white"
+                style={{ background: avatarHue(session?.subject || displayName) }}
+              >
+                {avatarLabel}
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium leading-tight">{displayName}</div>
+                <div className="truncate text-xs text-muted-foreground">{detail}</div>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={onLogout}>
+            <LogOut />
+            {t("nav.logout")}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

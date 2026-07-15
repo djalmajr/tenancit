@@ -1,9 +1,23 @@
 # Catálogo E2E automatizado
 
-O catálogo executável preserva correspondência entre os 20 flows
-de `e2e/flows`, as specs e seus 147 passos numerados. Cada passo Markdown é
+O catálogo executável preserva correspondência entre os 20 flows confirmados,
+as specs e seus 147 passos numerados. Cada passo Markdown é
 um `test.step` produzido por `flowStep(flowId, número, título, ação + assert)`;
 não há consolidações de passos.
+
+Fluxos com `status: draft` são propostas de jornada descobertas a partir da UI
+atual. Eles ficam no mesmo catálogo para revisão humana, mas só entram na matriz
+Playwright e nos totais do gate depois de confirmados e automatizados.
+
+## Rascunhos UX aguardando confirmação
+
+| flow-id | persona | passos | foco |
+|---|---|---:|---|
+| `tenant-shared-resource-inheritance` | `administrator` | 10 | vínculo, override, origem e duplicação independente |
+| `operational-health-review` | `future-operator` | 6 | saúde do runtime, dependências e reports |
+| `webhook-target-and-delivery-operations` | `administrator` | 7 | destino, segredo one-shot, entregas e dead letters |
+| `active-session-management` | `administrator` | 6 | busca, sessão atual e revogação contextual |
+| `operational-settings-management` | `administrator` | 7 | políticas por seção, limites e concorrência otimista |
 
 | flow-id | spec | test.step | tier | passos |
 |---|---|---|---|---|

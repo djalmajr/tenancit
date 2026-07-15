@@ -25,7 +25,7 @@ func TestExecuteRunsDryRunAndConfirmedCampaignWithoutKeyArguments(t *testing.T) 
 	var resourceID, fieldID uuid.UUID
 	if err := pool.QueryRow(t.Context(), `WITH tenant AS (INSERT INTO tenants(slug,name) VALUES('cli-rewrap','CLI') RETURNING id),
 		definition AS (INSERT INTO resource_definitions(key,name) VALUES('cli-rewrap','CLI') RETURNING id),
-		resource AS (INSERT INTO tenant_resources(tenant_id,resource_definition_id) SELECT tenant.id,definition.id FROM tenant,definition RETURNING id,resource_definition_id),
+		resource AS (INSERT INTO tenant_resources(tenant_id,resource_definition_id,display_name) SELECT tenant.id,definition.id,'CLI resource' FROM tenant,definition RETURNING id,resource_definition_id),
 		field AS (INSERT INTO resource_fields(resource_definition_id,key,label,is_secret) SELECT resource_definition_id,'secret','Secret',true FROM resource RETURNING id)
 		SELECT resource.id,field.id FROM resource,field`).Scan(&resourceID, &fieldID); err != nil {
 		t.Fatal(err)

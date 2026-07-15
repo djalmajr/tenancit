@@ -51,15 +51,68 @@ type AdminAuditEventsDefault struct {
 	Metadata      []byte    `json:"metadata"`
 }
 
+type AdminIdempotencyRecord struct {
+	ID                 uuid.UUID          `json:"id"`
+	ActorKind          string             `json:"actor_kind"`
+	ActorIssuer        string             `json:"actor_issuer"`
+	ActorSubject       string             `json:"actor_subject"`
+	Operation          string             `json:"operation"`
+	IdempotencyKey     uuid.UUID          `json:"idempotency_key"`
+	RequestFingerprint []byte             `json:"request_fingerprint"`
+	Status             string             `json:"status"`
+	HttpStatus         *int16             `json:"http_status"`
+	ContentType        *string            `json:"content_type"`
+	ResponseCipher     []byte             `json:"response_cipher"`
+	Nonce              []byte             `json:"nonce"`
+	KeyVersion         *int16             `json:"key_version"`
+	CreatedAt          time.Time          `json:"created_at"`
+	CompletedAt        pgtype.Timestamptz `json:"completed_at"`
+	ExpiresAt          time.Time          `json:"expires_at"`
+}
+
+type AdminSession struct {
+	ID              uuid.UUID          `json:"id"`
+	TokenHash       string             `json:"token_hash"`
+	CsrfTokenHash   string             `json:"csrf_token_hash"`
+	CsrfTokenCipher []byte             `json:"csrf_token_cipher"`
+	CsrfNonce       []byte             `json:"csrf_nonce"`
+	CsrfKeyVersion  int16              `json:"csrf_key_version"`
+	ActorIssuer     string             `json:"actor_issuer"`
+	ActorSubject    string             `json:"actor_subject"`
+	ActorLabel      *string            `json:"actor_label"`
+	Roles           []string           `json:"roles"`
+	Permissions     []string           `json:"permissions"`
+	CreatedAt       time.Time          `json:"created_at"`
+	LastUsedAt      time.Time          `json:"last_used_at"`
+	ExpiresAt       time.Time          `json:"expires_at"`
+	IdleExpiresAt   time.Time          `json:"idle_expires_at"`
+	RevokedAt       pgtype.Timestamptz `json:"revoked_at"`
+}
+
+type AdminSetting struct {
+	Key              string    `json:"key"`
+	Value            string    `json:"value"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	UpdatedByKind    string    `json:"updated_by_kind"`
+	UpdatedByIssuer  *string   `json:"updated_by_issuer"`
+	UpdatedBySubject string    `json:"updated_by_subject"`
+}
+
+type AdminSettingsRevision struct {
+	Singleton bool      `json:"singleton"`
+	Version   int64     `json:"version"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type ApiClient struct {
 	ID           uuid.UUID          `json:"id"`
 	Name         string             `json:"name"`
 	KeyHash      string             `json:"key_hash"`
 	Status       string             `json:"status"`
 	CreatedAt    time.Time          `json:"created_at"`
-	TokenPreview *string            `json:"token_preview"`
-	RpmLimit     *int32             `json:"rpm_limit"`
-	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	TokenPreview string             `json:"token_preview"`
+	RpmLimit     int32              `json:"rpm_limit"`
+	ExpiresAt    time.Time          `json:"expires_at"`
 	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
 	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
 	UpdatedAt    time.Time          `json:"updated_at"`
@@ -85,6 +138,84 @@ type ApiClientUsageDaily struct {
 	StatusClass      int16       `json:"status_class"`
 	RequestCount     int64       `json:"request_count"`
 	RateLimitedCount int64       `json:"rate_limited_count"`
+}
+
+type AuditExportJob struct {
+	ID                 uuid.UUID          `json:"id"`
+	IdempotencyKey     uuid.UUID          `json:"idempotency_key"`
+	RequestFingerprint []byte             `json:"request_fingerprint"`
+	RequestedByKind    string             `json:"requested_by_kind"`
+	RequestedByIssuer  *string            `json:"requested_by_issuer"`
+	RequestedBySubject string             `json:"requested_by_subject"`
+	Filters            []byte             `json:"filters"`
+	Format             string             `json:"format"`
+	Status             string             `json:"status"`
+	RowCount           *int64             `json:"row_count"`
+	PayloadCipher      []byte             `json:"payload_cipher"`
+	Nonce              []byte             `json:"nonce"`
+	KeyVersion         *int16             `json:"key_version"`
+	FailureCode        *string            `json:"failure_code"`
+	CreatedAt          time.Time          `json:"created_at"`
+	StartedAt          pgtype.Timestamptz `json:"started_at"`
+	CompletedAt        pgtype.Timestamptz `json:"completed_at"`
+	ExpiresAt          time.Time          `json:"expires_at"`
+	DownloadedAt       pgtype.Timestamptz `json:"downloaded_at"`
+}
+
+type AuditLegalHold struct {
+	ID                uuid.UUID          `json:"id"`
+	FromTime          time.Time          `json:"from_time"`
+	ToTime            time.Time          `json:"to_time"`
+	Reason            string             `json:"reason"`
+	CreatedByKind     string             `json:"created_by_kind"`
+	CreatedByIssuer   *string            `json:"created_by_issuer"`
+	CreatedBySubject  string             `json:"created_by_subject"`
+	CreatedAt         time.Time          `json:"created_at"`
+	ReleasedAt        pgtype.Timestamptz `json:"released_at"`
+	ReleasedBySubject *string            `json:"released_by_subject"`
+}
+
+type AuditPartitionRegistry struct {
+	PartitionName string    `json:"partition_name"`
+	FromTime      time.Time `json:"from_time"`
+	ToTime        time.Time `json:"to_time"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type OidcLoginAttempt struct {
+	StateHash          string             `json:"state_hash"`
+	NonceHash          string             `json:"nonce_hash"`
+	PkceVerifierCipher []byte             `json:"pkce_verifier_cipher"`
+	CipherNonce        []byte             `json:"cipher_nonce"`
+	KeyVersion         int16              `json:"key_version"`
+	RedirectAfter      string             `json:"redirect_after"`
+	CreatedAt          time.Time          `json:"created_at"`
+	ExpiresAt          time.Time          `json:"expires_at"`
+	ConsumedAt         pgtype.Timestamptz `json:"consumed_at"`
+}
+
+type OperationalReport struct {
+	ID                uuid.UUID `json:"id"`
+	Kind              string    `json:"kind"`
+	Source            string    `json:"source"`
+	Status            string    `json:"status"`
+	OccurredAt        time.Time `json:"occurred_at"`
+	FreshUntil        time.Time `json:"fresh_until"`
+	ReceivedAt        time.Time `json:"received_at"`
+	IdempotencyKey    string    `json:"idempotency_key"`
+	PayloadHash       []byte    `json:"payload_hash"`
+	CredentialVersion string    `json:"credential_version"`
+}
+
+type OutboxEvent struct {
+	ID            uuid.UUID `json:"id"`
+	EventType     string    `json:"event_type"`
+	EventVersion  int32     `json:"event_version"`
+	AggregateType string    `json:"aggregate_type"`
+	AggregateID   string    `json:"aggregate_id"`
+	RequestID     string    `json:"request_id"`
+	Payload       []byte    `json:"payload"`
+	OccurredAt    time.Time `json:"occurred_at"`
 }
 
 type ResourceDefinition struct {
@@ -127,12 +258,15 @@ type TenantDomain struct {
 }
 
 type TenantResource struct {
-	ID                   uuid.UUID `json:"id"`
-	TenantID             uuid.UUID `json:"tenant_id"`
-	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
-	Status               string    `json:"status"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   uuid.UUID   `json:"id"`
+	TenantID             uuid.UUID   `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID   `json:"resource_definition_id"`
+	Status               string      `json:"status"`
+	CreatedAt            time.Time   `json:"created_at"`
+	UpdatedAt            time.Time   `json:"updated_at"`
+	Alias                string      `json:"alias"`
+	SourceResourceID     pgtype.UUID `json:"source_resource_id"`
+	DisplayName          string      `json:"display_name"`
 }
 
 type TenantResourceValue struct {
@@ -143,4 +277,46 @@ type TenantResourceValue struct {
 	ValueCipher      []byte    `json:"value_cipher"`
 	Nonce            []byte    `json:"nonce"`
 	KeyVersion       *int32    `json:"key_version"`
+}
+
+type WebhookDeadLetter struct {
+	ID         uuid.UUID          `json:"id"`
+	DeliveryID uuid.UUID          `json:"delivery_id"`
+	ReasonCode string             `json:"reason_code"`
+	FailedAt   time.Time          `json:"failed_at"`
+	ReplayedAt pgtype.Timestamptz `json:"replayed_at"`
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID          `json:"id"`
+	EventID        uuid.UUID          `json:"event_id"`
+	TargetID       uuid.UUID          `json:"target_id"`
+	Status         string             `json:"status"`
+	AttemptCount   int32              `json:"attempt_count"`
+	NextAttemptAt  time.Time          `json:"next_attempt_at"`
+	LeaseToken     pgtype.UUID        `json:"lease_token"`
+	LeaseExpiresAt pgtype.Timestamptz `json:"lease_expires_at"`
+	LastHttpStatus *int32             `json:"last_http_status"`
+	LastErrorCode  *string            `json:"last_error_code"`
+	DeliveredAt    pgtype.Timestamptz `json:"delivered_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+type WebhookTarget struct {
+	ID                      uuid.UUID          `json:"id"`
+	Name                    string             `json:"name"`
+	Format                  string             `json:"format"`
+	Status                  string             `json:"status"`
+	UrlCipher               []byte             `json:"url_cipher"`
+	UrlNonce                []byte             `json:"url_nonce"`
+	UrlKeyVersion           int16              `json:"url_key_version"`
+	SigningSecretCipher     []byte             `json:"signing_secret_cipher"`
+	SigningSecretNonce      []byte             `json:"signing_secret_nonce"`
+	SigningSecretKeyVersion int16              `json:"signing_secret_key_version"`
+	AllowLoopbackHttp       bool               `json:"allow_loopback_http"`
+	ConsecutiveFailures     int32              `json:"consecutive_failures"`
+	CircuitOpenUntil        pgtype.Timestamptz `json:"circuit_open_until"`
+	CreatedAt               time.Time          `json:"created_at"`
+	UpdatedAt               time.Time          `json:"updated_at"`
 }

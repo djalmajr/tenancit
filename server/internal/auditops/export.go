@@ -125,7 +125,8 @@ func (r *ExportRepository) Create(ctx context.Context, actor ExportActor, key uu
 	if synchronous {
 		status = "processing"
 	}
-	expires := r.now().UTC().Add(24 * time.Hour)
+	createdAt := r.now().UTC()
+	expires := createdAt.Add(24 * time.Hour)
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return job, err
@@ -133,12 +134,12 @@ func (r *ExportRepository) Create(ctx context.Context, actor ExportActor, key uu
 	defer tx.Rollback(ctx)
 	var inserted bool
 	err = tx.QueryRow(ctx, `INSERT INTO audit_export_jobs
-		(idempotency_key,request_fingerprint,requested_by_kind,requested_by_issuer,requested_by_subject,filters,format,status,expires_at)
-		VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9)
+		(idempotency_key,request_fingerprint,requested_by_kind,requested_by_issuer,requested_by_subject,filters,format,status,created_at,expires_at)
+		VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10)
 		ON CONFLICT (requested_by_kind,requested_by_subject,idempotency_key) DO UPDATE SET idempotency_key=EXCLUDED.idempotency_key
 		WHERE audit_export_jobs.request_fingerprint=EXCLUDED.request_fingerprint
 		RETURNING id,idempotency_key,filters,format,status,row_count,created_at,completed_at,expires_at,downloaded_at,(xmax=0)`,
-		key, fingerprint[:], actor.Kind, actor.Issuer, actor.Subject, encoded, format, status, expires).Scan(&job.ID, &job.IdempotencyKey, &encoded, &job.Format, &job.Status, &job.RowCount, &job.CreatedAt, &job.CompletedAt, &job.ExpiresAt, &job.DownloadedAt, &inserted)
+		key, fingerprint[:], actor.Kind, actor.Issuer, actor.Subject, encoded, format, status, createdAt, expires).Scan(&job.ID, &job.IdempotencyKey, &encoded, &job.Format, &job.Status, &job.RowCount, &job.CreatedAt, &job.CompletedAt, &job.ExpiresAt, &job.DownloadedAt, &inserted)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return job, ErrIdempotencyMismatch
 	}
@@ -192,7 +193,8 @@ func (r *ExportRepository) ProcessPending(ctx context.Context) (bool, error) {
 	var id uuid.UUID
 	var raw []byte
 	var format string
-	err = tx.QueryRow(ctx, `UPDATE audit_export_jobs SET status='processing',started_at=clock_timestamp() WHERE id=(SELECT id FROM audit_export_jobs WHERE status='pending' AND expires_at>clock_timestamp() ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING id,filters,format`).Scan(&id, &raw, &format)
+	now := r.now().UTC()
+	err = tx.QueryRow(ctx, `UPDATE audit_export_jobs SET status='processing',started_at=$1 WHERE id=(SELECT id FROM audit_export_jobs WHERE status='pending' AND expires_at>$1 ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING id,filters,format`, now).Scan(&id, &raw, &format)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
@@ -248,7 +250,7 @@ func (r *ExportRepository) Consume(ctx context.Context, actor ExportActor, id uu
 	if err != nil {
 		return nil, "", err
 	}
-	command, err := tx.Exec(ctx, `UPDATE audit_export_jobs SET status='expired',downloaded_at=clock_timestamp(),payload_cipher=NULL,nonce=NULL,key_version=NULL WHERE id=$1 AND status='ready' AND downloaded_at IS NULL`, id)
+	command, err := tx.Exec(ctx, `UPDATE audit_export_jobs SET status='expired',downloaded_at=$2,payload_cipher=NULL,nonce=NULL,key_version=NULL WHERE id=$1 AND status='ready' AND downloaded_at IS NULL`, id, r.now().UTC())
 	if err != nil || command.RowsAffected() != 1 {
 		clear(payload)
 		if err == nil {
@@ -304,11 +306,11 @@ func (r *ExportRepository) process(ctx context.Context, id uuid.UUID, filter Exp
 		_ = r.fail(ctx, id, "encryption_failed")
 		return err
 	}
-	_, err = r.pool.Exec(ctx, `UPDATE audit_export_jobs SET status='ready',row_count=$2,payload_cipher=$3,nonce=$4,key_version=$5,completed_at=clock_timestamp() WHERE id=$1 AND status='processing'`, id, rows, encrypted.Cipher, encrypted.Nonce, encrypted.KeyVersion)
+	_, err = r.pool.Exec(ctx, `UPDATE audit_export_jobs SET status='ready',row_count=$2,payload_cipher=$3,nonce=$4,key_version=$5,completed_at=$6 WHERE id=$1 AND status='processing'`, id, rows, encrypted.Cipher, encrypted.Nonce, encrypted.KeyVersion, r.now().UTC())
 	return err
 }
 
 func (r *ExportRepository) fail(ctx context.Context, id uuid.UUID, code string) error {
-	_, err := r.pool.Exec(ctx, `UPDATE audit_export_jobs SET status='failed',failure_code=$2,completed_at=clock_timestamp() WHERE id=$1 AND status='processing'`, id, code)
+	_, err := r.pool.Exec(ctx, `UPDATE audit_export_jobs SET status='failed',failure_code=$2,completed_at=$3 WHERE id=$1 AND status='processing'`, id, code, r.now().UTC())
 	return err
 }

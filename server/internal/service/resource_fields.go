@@ -7,15 +7,18 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/crypto"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ResourceFieldValue struct {
-	DataType string `json:"dataType"`
-	IsSecret bool   `json:"isSecret"`
-	Key      string `json:"key"`
-	Label    string `json:"label"`
-	Required bool   `json:"required"`
-	Value    string `json:"value"`
+	DataType   string `json:"dataType"`
+	IsSecret   bool   `json:"isSecret"`
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Required   bool   `json:"required"`
+	IsOverride bool   `json:"isOverride"`
+	Origin     string `json:"origin"`
+	Value      string `json:"value"`
 }
 
 type ResourceHeader struct {
@@ -23,6 +26,8 @@ type ResourceHeader struct {
 	DefinitionKey       string
 	DefinitionName      string
 	DefinitionUpdatedAt time.Time
+	SourceAlias         string
+	SourceUpdatedAt     time.Time
 }
 
 type BuiltResourceFields struct {
@@ -86,11 +91,17 @@ func BuildResourceFieldsBatch(
 			continue
 		}
 		fv := ResourceFieldValue{
-			DataType: row.DataType,
-			IsSecret: row.IsSecret,
-			Key:      row.FieldKey,
-			Label:    row.FieldLabel,
-			Required: row.Required,
+			DataType:   row.DataType,
+			IsSecret:   row.IsSecret,
+			Key:        row.FieldKey,
+			Label:      row.FieldLabel,
+			Required:   row.Required,
+			IsOverride: row.IsOverride,
+		}
+		if row.IsOverride || !out[index].Header.Resource.SourceResourceID.Valid {
+			fv.Origin = "local"
+		} else {
+			fv.Origin = "inherited"
 		}
 		if row.HasValue {
 			value := db.TenantResourceValue{
@@ -117,10 +128,13 @@ func resourceHeaderFromListRow(row db.ListResourceHeadersByTenantRow) ResourceHe
 		Resource: db.TenantResource{
 			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
 			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			Alias: row.Alias, SourceResourceID: row.SourceResourceID,
 		},
 		DefinitionKey:       row.DefinitionKey,
 		DefinitionName:      row.DefinitionName,
 		DefinitionUpdatedAt: row.DefinitionUpdatedAt,
+		SourceAlias:         stringValue(row.SourceAlias),
+		SourceUpdatedAt:     timeValue(row.SourceUpdatedAt),
 	}
 }
 
@@ -129,9 +143,26 @@ func resourceHeaderFromGetRow(row db.GetResourceHeaderRow) ResourceHeader {
 		Resource: db.TenantResource{
 			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
 			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			Alias: row.Alias, SourceResourceID: row.SourceResourceID,
 		},
 		DefinitionKey:       row.DefinitionKey,
 		DefinitionName:      row.DefinitionName,
 		DefinitionUpdatedAt: row.DefinitionUpdatedAt,
+		SourceAlias:         stringValue(row.SourceAlias),
+		SourceUpdatedAt:     timeValue(row.SourceUpdatedAt),
 	}
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func timeValue(value pgtype.Timestamptz) time.Time {
+	if !value.Valid {
+		return time.Time{}
+	}
+	return value.Time
 }

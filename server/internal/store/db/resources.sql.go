@@ -48,11 +48,11 @@ VALUES ($1, $2, $3, $4, $5) RETURNING id, name, key_hash, status, created_at, to
 `
 
 type CreateAPIClientParams struct {
-	Name         string             `json:"name"`
-	KeyHash      string             `json:"key_hash"`
-	TokenPreview *string            `json:"token_preview"`
-	RpmLimit     *int32             `json:"rpm_limit"`
-	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	Name         string    `json:"name"`
+	KeyHash      string    `json:"key_hash"`
+	TokenPreview string    `json:"token_preview"`
+	RpmLimit     int32     `json:"rpm_limit"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 func (q *Queries) CreateAPIClient(ctx context.Context, arg CreateAPIClientParams) (ApiClient, error) {
@@ -81,17 +81,26 @@ func (q *Queries) CreateAPIClient(ctx context.Context, arg CreateAPIClientParams
 }
 
 const createTenantResource = `-- name: CreateTenantResource :one
-INSERT INTO tenant_resources (tenant_id, resource_definition_id)
-VALUES ($1, $2) RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at
+INSERT INTO tenant_resources (tenant_id, resource_definition_id, alias, display_name, source_resource_id)
+VALUES ($1, $2, $3, $4, $5) RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name
 `
 
 type CreateTenantResourceParams struct {
-	TenantID             uuid.UUID `json:"tenant_id"`
-	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+	TenantID             uuid.UUID   `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID   `json:"resource_definition_id"`
+	Alias                string      `json:"alias"`
+	DisplayName          string      `json:"display_name"`
+	SourceResourceID     pgtype.UUID `json:"source_resource_id"`
 }
 
 func (q *Queries) CreateTenantResource(ctx context.Context, arg CreateTenantResourceParams) (TenantResource, error) {
-	row := q.db.QueryRow(ctx, createTenantResource, arg.TenantID, arg.ResourceDefinitionID)
+	row := q.db.QueryRow(ctx, createTenantResource,
+		arg.TenantID,
+		arg.ResourceDefinitionID,
+		arg.Alias,
+		arg.DisplayName,
+		arg.SourceResourceID,
+	)
 	var i TenantResource
 	err := row.Scan(
 		&i.ID,
@@ -100,6 +109,9 @@ func (q *Queries) CreateTenantResource(ctx context.Context, arg CreateTenantReso
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -122,6 +134,25 @@ DELETE FROM api_client_usage_daily WHERE day < $1
 
 func (q *Queries) DeleteExpiredAPIClientUsage(ctx context.Context, cutoffDay pgtype.Date) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredAPIClientUsage, cutoffDay)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteResourceValue = `-- name: DeleteResourceValue :execrows
+DELETE FROM tenant_resource_values
+WHERE tenant_resource_id = $1
+  AND resource_field_id = $2
+`
+
+type DeleteResourceValueParams struct {
+	TenantResourceID uuid.UUID `json:"tenant_resource_id"`
+	ResourceFieldID  uuid.UUID `json:"resource_field_id"`
+}
+
+func (q *Queries) DeleteResourceValue(ctx context.Context, arg DeleteResourceValueParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteResourceValue, arg.TenantResourceID, arg.ResourceFieldID)
 	if err != nil {
 		return 0, err
 	}
@@ -190,9 +221,9 @@ type GetAPIClientAuthByHashRow struct {
 	KeyHash      string             `json:"key_hash"`
 	Status       string             `json:"status"`
 	CreatedAt    time.Time          `json:"created_at"`
-	TokenPreview *string            `json:"token_preview"`
-	RpmLimit     *int32             `json:"rpm_limit"`
-	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	TokenPreview string             `json:"token_preview"`
+	RpmLimit     int32              `json:"rpm_limit"`
+	ExpiresAt    time.Time          `json:"expires_at"`
 	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
 	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
 	UpdatedAt    time.Time          `json:"updated_at"`
@@ -242,22 +273,21 @@ func (q *Queries) GetAPIClientByHash(ctx context.Context, keyHash string) (ApiCl
 	return i, err
 }
 
-const getActiveResourceByTenantAndDefinitionKey = `-- name: GetActiveResourceByTenantAndDefinitionKey :one
-SELECT tr.id, tr.tenant_id, tr.resource_definition_id, tr.status, tr.created_at, tr.updated_at
+const getActiveResourceByTenantAndAlias = `-- name: GetActiveResourceByTenantAndAlias :one
+SELECT tr.id, tr.tenant_id, tr.resource_definition_id, tr.status, tr.created_at, tr.updated_at, tr.alias, tr.source_resource_id, tr.display_name
 FROM tenant_resources tr
-JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
 WHERE tr.tenant_id = $1
-  AND rd.key = $2
+  AND lower(btrim(tr.alias)) = lower(btrim($2))
   AND tr.status = 'active'
 `
 
-type GetActiveResourceByTenantAndDefinitionKeyParams struct {
+type GetActiveResourceByTenantAndAliasParams struct {
 	TenantID uuid.UUID `json:"tenant_id"`
-	Key      string    `json:"key"`
+	Btrim    string    `json:"btrim"`
 }
 
-func (q *Queries) GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg GetActiveResourceByTenantAndDefinitionKeyParams) (TenantResource, error) {
-	row := q.db.QueryRow(ctx, getActiveResourceByTenantAndDefinitionKey, arg.TenantID, arg.Key)
+func (q *Queries) GetActiveResourceByTenantAndAlias(ctx context.Context, arg GetActiveResourceByTenantAndAliasParams) (TenantResource, error) {
+	row := q.db.QueryRow(ctx, getActiveResourceByTenantAndAlias, arg.TenantID, arg.Btrim)
 	var i TenantResource
 	err := row.Scan(
 		&i.ID,
@@ -266,6 +296,36 @@ func (q *Queries) GetActiveResourceByTenantAndDefinitionKey(ctx context.Context,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
+	)
+	return i, err
+}
+
+const getResourceForLink = `-- name: GetResourceForLink :one
+SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name FROM tenant_resources
+WHERE id = $1 AND tenant_id = $2
+`
+
+type GetResourceForLinkParams struct {
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) GetResourceForLink(ctx context.Context, arg GetResourceForLinkParams) (TenantResource, error) {
+	row := q.db.QueryRow(ctx, getResourceForLink, arg.ID, arg.TenantID)
+	var i TenantResource
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ResourceDefinitionID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -274,27 +334,38 @@ const getResourceHeader = `-- name: GetResourceHeader :one
 SELECT tr.id,
        tr.tenant_id,
        tr.resource_definition_id,
+       tr.alias,
+       tr.display_name,
+       tr.source_resource_id,
        tr.status,
        tr.created_at,
        tr.updated_at,
        rd.key AS definition_key,
        rd.name AS definition_name,
-       rd.updated_at AS definition_updated_at
+       rd.updated_at AS definition_updated_at,
+       source.alias AS source_alias,
+       source.updated_at AS source_updated_at
 FROM tenant_resources tr
 JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+LEFT JOIN tenant_resources source ON source.id = tr.source_resource_id
 WHERE tr.id = $1
 `
 
 type GetResourceHeaderRow struct {
-	ID                   uuid.UUID `json:"id"`
-	TenantID             uuid.UUID `json:"tenant_id"`
-	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
-	Status               string    `json:"status"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	DefinitionKey        string    `json:"definition_key"`
-	DefinitionName       string    `json:"definition_name"`
-	DefinitionUpdatedAt  time.Time `json:"definition_updated_at"`
+	ID                   uuid.UUID          `json:"id"`
+	TenantID             uuid.UUID          `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID          `json:"resource_definition_id"`
+	Alias                string             `json:"alias"`
+	DisplayName          string             `json:"display_name"`
+	SourceResourceID     pgtype.UUID        `json:"source_resource_id"`
+	Status               string             `json:"status"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
+	DefinitionKey        string             `json:"definition_key"`
+	DefinitionName       string             `json:"definition_name"`
+	DefinitionUpdatedAt  time.Time          `json:"definition_updated_at"`
+	SourceAlias          *string            `json:"source_alias"`
+	SourceUpdatedAt      pgtype.Timestamptz `json:"source_updated_at"`
 }
 
 func (q *Queries) GetResourceHeader(ctx context.Context, id uuid.UUID) (GetResourceHeaderRow, error) {
@@ -304,18 +375,23 @@ func (q *Queries) GetResourceHeader(ctx context.Context, id uuid.UUID) (GetResou
 		&i.ID,
 		&i.TenantID,
 		&i.ResourceDefinitionID,
+		&i.Alias,
+		&i.DisplayName,
+		&i.SourceResourceID,
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DefinitionKey,
 		&i.DefinitionName,
 		&i.DefinitionUpdatedAt,
+		&i.SourceAlias,
+		&i.SourceUpdatedAt,
 	)
 	return i, err
 }
 
 const getTenantResource = `-- name: GetTenantResource :one
-SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at FROM tenant_resources
+SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name FROM tenant_resources
 WHERE id = $1 AND tenant_id = $2
 FOR UPDATE
 `
@@ -335,6 +411,9 @@ func (q *Queries) GetTenantResource(ctx context.Context, arg GetTenantResourcePa
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -573,7 +652,7 @@ func (q *Queries) ListAPIClients(ctx context.Context) ([]ApiClient, error) {
 }
 
 const listActiveResourcesByTenant = `-- name: ListActiveResourcesByTenant :many
-SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at FROM tenant_resources WHERE tenant_id = $1 AND status = 'active'
+SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name FROM tenant_resources WHERE tenant_id = $1 AND status = 'active'
 `
 
 func (q *Queries) ListActiveResourcesByTenant(ctx context.Context, tenantID uuid.UUID) ([]TenantResource, error) {
@@ -592,6 +671,9 @@ func (q *Queries) ListActiveResourcesByTenant(ctx context.Context, tenantID uuid
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Alias,
+			&i.SourceResourceID,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -751,16 +833,20 @@ SELECT tr.id AS tenant_resource_id,
        rf.data_type,
        rf.required,
        rf.is_secret,
-       (trv.id IS NOT NULL)::boolean AS has_value,
-       trv.value_plain,
-       trv.value_cipher,
-       trv.nonce,
-       trv.key_version
+       (local_value.id IS NOT NULL OR source_value.id IS NOT NULL)::boolean AS has_value,
+       (local_value.id IS NOT NULL)::boolean AS is_override,
+       coalesce(local_value.value_plain, source_value.value_plain) AS value_plain,
+       coalesce(local_value.value_cipher, source_value.value_cipher) AS value_cipher,
+       coalesce(local_value.nonce, source_value.nonce) AS nonce,
+       coalesce(local_value.key_version, source_value.key_version) AS key_version
 FROM tenant_resources tr
 JOIN resource_fields rf ON rf.resource_definition_id = tr.resource_definition_id
-LEFT JOIN tenant_resource_values trv
-  ON trv.tenant_resource_id = tr.id
- AND trv.resource_field_id = rf.id
+LEFT JOIN tenant_resource_values local_value
+  ON local_value.tenant_resource_id = tr.id
+ AND local_value.resource_field_id = rf.id
+LEFT JOIN tenant_resource_values source_value
+  ON source_value.tenant_resource_id = tr.source_resource_id
+ AND source_value.resource_field_id = rf.id
 WHERE tr.id = ANY($1::uuid[])
 ORDER BY tr.id, rf.sort_order, rf.key
 `
@@ -774,6 +860,7 @@ type ListResourceFieldValuesByResourceIDsRow struct {
 	Required         bool      `json:"required"`
 	IsSecret         bool      `json:"is_secret"`
 	HasValue         bool      `json:"has_value"`
+	IsOverride       bool      `json:"is_override"`
 	ValuePlain       *string   `json:"value_plain"`
 	ValueCipher      []byte    `json:"value_cipher"`
 	Nonce            []byte    `json:"nonce"`
@@ -798,6 +885,7 @@ func (q *Queries) ListResourceFieldValuesByResourceIDs(ctx context.Context, reso
 			&i.Required,
 			&i.IsSecret,
 			&i.HasValue,
+			&i.IsOverride,
 			&i.ValuePlain,
 			&i.ValueCipher,
 			&i.Nonce,
@@ -817,14 +905,20 @@ const listResourceHeadersByTenant = `-- name: ListResourceHeadersByTenant :many
 SELECT tr.id,
        tr.tenant_id,
        tr.resource_definition_id,
+       tr.alias,
+       tr.display_name,
+       tr.source_resource_id,
        tr.status,
        tr.created_at,
        tr.updated_at,
        rd.key AS definition_key,
        rd.name AS definition_name,
-       rd.updated_at AS definition_updated_at
+       rd.updated_at AS definition_updated_at,
+       source.alias AS source_alias,
+       source.updated_at AS source_updated_at
 FROM tenant_resources tr
 JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+LEFT JOIN tenant_resources source ON source.id = tr.source_resource_id
 WHERE tr.tenant_id = $1
   AND ($2::boolean OR tr.status = 'active')
 ORDER BY tr.created_at, tr.id
@@ -836,15 +930,20 @@ type ListResourceHeadersByTenantParams struct {
 }
 
 type ListResourceHeadersByTenantRow struct {
-	ID                   uuid.UUID `json:"id"`
-	TenantID             uuid.UUID `json:"tenant_id"`
-	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
-	Status               string    `json:"status"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-	DefinitionKey        string    `json:"definition_key"`
-	DefinitionName       string    `json:"definition_name"`
-	DefinitionUpdatedAt  time.Time `json:"definition_updated_at"`
+	ID                   uuid.UUID          `json:"id"`
+	TenantID             uuid.UUID          `json:"tenant_id"`
+	ResourceDefinitionID uuid.UUID          `json:"resource_definition_id"`
+	Alias                string             `json:"alias"`
+	DisplayName          string             `json:"display_name"`
+	SourceResourceID     pgtype.UUID        `json:"source_resource_id"`
+	Status               string             `json:"status"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
+	DefinitionKey        string             `json:"definition_key"`
+	DefinitionName       string             `json:"definition_name"`
+	DefinitionUpdatedAt  time.Time          `json:"definition_updated_at"`
+	SourceAlias          *string            `json:"source_alias"`
+	SourceUpdatedAt      pgtype.Timestamptz `json:"source_updated_at"`
 }
 
 func (q *Queries) ListResourceHeadersByTenant(ctx context.Context, arg ListResourceHeadersByTenantParams) ([]ListResourceHeadersByTenantRow, error) {
@@ -860,12 +959,17 @@ func (q *Queries) ListResourceHeadersByTenant(ctx context.Context, arg ListResou
 			&i.ID,
 			&i.TenantID,
 			&i.ResourceDefinitionID,
+			&i.Alias,
+			&i.DisplayName,
+			&i.SourceResourceID,
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DefinitionKey,
 			&i.DefinitionName,
 			&i.DefinitionUpdatedAt,
+			&i.SourceAlias,
+			&i.SourceUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -910,7 +1014,7 @@ func (q *Queries) ListResourceValues(ctx context.Context, tenantResourceID uuid.
 }
 
 const listTenantResources = `-- name: ListTenantResources :many
-SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at FROM tenant_resources WHERE tenant_id = $1
+SELECT id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name FROM tenant_resources WHERE tenant_id = $1
 `
 
 func (q *Queries) ListTenantResources(ctx context.Context, tenantID uuid.UUID) ([]TenantResource, error) {
@@ -929,6 +1033,9 @@ func (q *Queries) ListTenantResources(ctx context.Context, tenantID uuid.UUID) (
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Alias,
+			&i.SourceResourceID,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -970,7 +1077,7 @@ RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expi
 
 type RotateAPIClientTokenParams struct {
 	KeyHash      string    `json:"key_hash"`
-	TokenPreview *string   `json:"token_preview"`
+	TokenPreview string    `json:"token_preview"`
 	ID           uuid.UUID `json:"id"`
 }
 
@@ -1045,7 +1152,7 @@ const setTenantResourceStatus = `-- name: SetTenantResourceStatus :one
 UPDATE tenant_resources SET status = $1, updated_at = now()
 WHERE id = $2
   AND tenant_id = $3
-RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at
+RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name
 `
 
 type SetTenantResourceStatusParams struct {
@@ -1064,6 +1171,9 @@ func (q *Queries) SetTenantResourceStatus(ctx context.Context, arg SetTenantReso
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -1094,10 +1204,10 @@ RETURNING id, name, key_hash, status, created_at, token_preview, rpm_limit, expi
 `
 
 type UpdateAPIClientPolicyParams struct {
-	Name      string             `json:"name"`
-	RpmLimit  *int32             `json:"rpm_limit"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	ID        uuid.UUID          `json:"id"`
+	Name      string    `json:"name"`
+	RpmLimit  int32     `json:"rpm_limit"`
+	ExpiresAt time.Time `json:"expires_at"`
+	ID        uuid.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateAPIClientPolicy(ctx context.Context, arg UpdateAPIClientPolicyParams) (ApiClient, error) {
@@ -1120,6 +1230,43 @@ func (q *Queries) UpdateAPIClientPolicy(ctx context.Context, arg UpdateAPIClient
 		&i.LastUsedAt,
 		&i.RevokedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateTenantResourceIdentity = `-- name: UpdateTenantResourceIdentity :one
+UPDATE tenant_resources
+SET alias = $1, display_name = $2, updated_at = now()
+WHERE id = $3
+  AND tenant_id = $4
+RETURNING id, tenant_id, resource_definition_id, status, created_at, updated_at, alias, source_resource_id, display_name
+`
+
+type UpdateTenantResourceIdentityParams struct {
+	Alias       string    `json:"alias"`
+	DisplayName string    `json:"display_name"`
+	ID          uuid.UUID `json:"id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) UpdateTenantResourceIdentity(ctx context.Context, arg UpdateTenantResourceIdentityParams) (TenantResource, error) {
+	row := q.db.QueryRow(ctx, updateTenantResourceIdentity,
+		arg.Alias,
+		arg.DisplayName,
+		arg.ID,
+		arg.TenantID,
+	)
+	var i TenantResource
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.ResourceDefinitionID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Alias,
+		&i.SourceResourceID,
+		&i.DisplayName,
 	)
 	return i, err
 }

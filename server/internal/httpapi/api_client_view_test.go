@@ -7,7 +7,6 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func TestAPIClientViewPublishesFinalGovernanceContract(t *testing.T) {
@@ -16,8 +15,8 @@ func TestAPIClientViewPublishesFinalGovernanceContract(t *testing.T) {
 	rpm := int32(300)
 	view := newAPIClientView(db.ApiClient{
 		ID: uuid.New(), Name: "service", Status: "active", CreatedAt: now,
-		TokenPreview: &preview, RpmLimit: &rpm,
-		ExpiresAt: pgtype.Timestamptz{Time: now.Add(90 * 24 * time.Hour), Valid: true},
+		TokenPreview: preview, RpmLimit: rpm,
+		ExpiresAt: now.Add(90 * 24 * time.Hour),
 		UpdatedAt: now,
 	}, []string{"tenant:identify"}, now)
 	payload, err := json.Marshal(view)

@@ -112,6 +112,18 @@ func (q *Queries) CreateDefinition(ctx context.Context, arg CreateDefinitionPara
 	return i, err
 }
 
+const deleteDefinition = `-- name: DeleteDefinition :execrows
+DELETE FROM resource_definitions WHERE id = $1
+`
+
+func (q *Queries) DeleteDefinition(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDefinition, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDefinition = `-- name: GetDefinition :one
 SELECT id, key, name, description, icon, status, created_at, updated_at FROM resource_definitions WHERE id = $1
 `
@@ -344,6 +356,37 @@ type SetDefinitionStatusParams struct {
 
 func (q *Queries) SetDefinitionStatus(ctx context.Context, arg SetDefinitionStatusParams) (ResourceDefinition, error) {
 	row := q.db.QueryRow(ctx, setDefinitionStatus, arg.ID, arg.Status)
+	var i ResourceDefinition
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Icon,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateDefinition = `-- name: UpdateDefinition :one
+UPDATE resource_definitions
+SET name = $1,
+    description = $2,
+    updated_at = now()
+WHERE id = $3
+RETURNING id, key, name, description, icon, status, created_at, updated_at
+`
+
+type UpdateDefinitionParams struct {
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	ID          uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateDefinition(ctx context.Context, arg UpdateDefinitionParams) (ResourceDefinition, error) {
+	row := q.db.QueryRow(ctx, updateDefinition, arg.Name, arg.Description, arg.ID)
 	var i ResourceDefinition
 	err := row.Scan(
 		&i.ID,

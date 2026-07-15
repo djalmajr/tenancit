@@ -6,6 +6,7 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func TestComputeETagIsOrderIndependentAndTracksResourceState(t *testing.T) {
@@ -37,6 +38,14 @@ func TestComputeETagIsOrderIndependentAndTracksResourceState(t *testing.T) {
 	hb.DefinitionUpdatedAt = base.Add(time.Second)
 	if got := computeETag(tenant, []ResourceHeader{ha, hb}); got == first {
 		t.Fatal("ETag did not change with definition updated_at")
+	}
+	hb.DefinitionUpdatedAt = base
+	hb.Resource.SourceResourceID = pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	hb.SourceUpdatedAt = base.Add(time.Second)
+	linked := computeETag(tenant, []ResourceHeader{ha, hb})
+	hb.SourceUpdatedAt = hb.SourceUpdatedAt.Add(time.Second)
+	if got := computeETag(tenant, []ResourceHeader{ha, hb}); got == linked {
+		t.Fatal("ETag did not change with linked source updated_at")
 	}
 }
 

@@ -107,8 +107,8 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleResolveOne(w http.ResponseWriter, r *http.Request) {
 	hostname := chi.URLParam(r, "hostname")
-	defKey := chi.URLParam(r, "definitionKey")
-	res, found, err := s.Resolver.ByHostnameAndDefinition(r.Context(), hostname, defKey)
+	alias := chi.URLParam(r, "alias")
+	res, found, err := s.Resolver.ByHostnameAndAlias(r.Context(), hostname, alias)
 	if err != nil {
 		if tenantUnavailable(err) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})

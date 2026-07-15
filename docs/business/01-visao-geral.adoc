@@ -61,8 +61,9 @@ estão em <<eng-contratos-http,Contratos HTTP>>.
 
 ==== Princípios de produto
 
-* *Configuração única e vigente.* Para cada tenant e definition, há no máximo
-  um recurso ativo.
+* *Instâncias endereçáveis por alias.* Um tenant pode ter várias instâncias da
+  mesma definition. Cada uma possui alias único e pode ser independente ou
+  herdar valores de uma origem com overrides locais explícitos.
 * *Definitions dinâmicas.* Novo tipo de recurso não exige migration, apenas uma
   nova definition e seus fields.
 * *Admin seguro por padrão.* O painel admin exige `TENANCIT_ADMIN_TOKEN`; segredos

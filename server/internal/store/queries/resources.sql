@@ -1,6 +1,13 @@
 -- name: CreateTenantResource :one
-INSERT INTO tenant_resources (tenant_id, resource_definition_id)
-VALUES ($1, $2) RETURNING *;
+INSERT INTO tenant_resources (tenant_id, resource_definition_id, alias, display_name, source_resource_id)
+VALUES ($1, $2, $3, $4, $5) RETURNING *;
+
+-- name: UpdateTenantResourceIdentity :one
+UPDATE tenant_resources
+SET alias = sqlc.arg(alias), display_name = sqlc.arg(display_name), updated_at = now()
+WHERE id = sqlc.arg(id)
+  AND tenant_id = sqlc.arg(tenant_id)
+RETURNING *;
 
 -- name: SetTenantResourceStatus :one
 UPDATE tenant_resources SET status = sqlc.arg(status), updated_at = now()
@@ -23,14 +30,20 @@ SELECT * FROM tenant_resources WHERE tenant_id = $1 AND status = 'active';
 SELECT tr.id,
        tr.tenant_id,
        tr.resource_definition_id,
+       tr.alias,
+       tr.display_name,
+       tr.source_resource_id,
        tr.status,
        tr.created_at,
        tr.updated_at,
        rd.key AS definition_key,
        rd.name AS definition_name,
-       rd.updated_at AS definition_updated_at
+       rd.updated_at AS definition_updated_at,
+       source.alias AS source_alias,
+       source.updated_at AS source_updated_at
 FROM tenant_resources tr
 JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+LEFT JOIN tenant_resources source ON source.id = tr.source_resource_id
 WHERE tr.tenant_id = sqlc.arg(tenant_id)
   AND (sqlc.arg(include_inactive)::boolean OR tr.status = 'active')
 ORDER BY tr.created_at, tr.id;
@@ -39,14 +52,20 @@ ORDER BY tr.created_at, tr.id;
 SELECT tr.id,
        tr.tenant_id,
        tr.resource_definition_id,
+       tr.alias,
+       tr.display_name,
+       tr.source_resource_id,
        tr.status,
        tr.created_at,
        tr.updated_at,
        rd.key AS definition_key,
        rd.name AS definition_name,
-       rd.updated_at AS definition_updated_at
+       rd.updated_at AS definition_updated_at,
+       source.alias AS source_alias,
+       source.updated_at AS source_updated_at
 FROM tenant_resources tr
 JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
+LEFT JOIN tenant_resources source ON source.id = tr.source_resource_id
 WHERE tr.id = $1;
 
 -- name: GetTenantResource :one
@@ -54,13 +73,21 @@ SELECT * FROM tenant_resources
 WHERE id = sqlc.arg(id) AND tenant_id = sqlc.arg(tenant_id)
 FOR UPDATE;
 
--- name: GetActiveResourceByTenantAndDefinitionKey :one
+-- name: GetActiveResourceByTenantAndAlias :one
 SELECT tr.*
 FROM tenant_resources tr
-JOIN resource_definitions rd ON rd.id = tr.resource_definition_id
 WHERE tr.tenant_id = $1
-  AND rd.key = $2
+  AND lower(btrim(tr.alias)) = lower(btrim($2))
   AND tr.status = 'active';
+
+-- name: GetResourceForLink :one
+SELECT * FROM tenant_resources
+WHERE id = sqlc.arg(id) AND tenant_id = sqlc.arg(tenant_id);
+
+-- name: DeleteResourceValue :execrows
+DELETE FROM tenant_resource_values
+WHERE tenant_resource_id = sqlc.arg(tenant_resource_id)
+  AND resource_field_id = sqlc.arg(resource_field_id);
 
 -- name: UpsertResourceValue :one
 WITH upserted AS (
@@ -95,16 +122,20 @@ SELECT tr.id AS tenant_resource_id,
        rf.data_type,
        rf.required,
        rf.is_secret,
-       (trv.id IS NOT NULL)::boolean AS has_value,
-       trv.value_plain,
-       trv.value_cipher,
-       trv.nonce,
-       trv.key_version
+       (local_value.id IS NOT NULL OR source_value.id IS NOT NULL)::boolean AS has_value,
+       (local_value.id IS NOT NULL)::boolean AS is_override,
+       coalesce(local_value.value_plain, source_value.value_plain) AS value_plain,
+       coalesce(local_value.value_cipher, source_value.value_cipher) AS value_cipher,
+       coalesce(local_value.nonce, source_value.nonce) AS nonce,
+       coalesce(local_value.key_version, source_value.key_version) AS key_version
 FROM tenant_resources tr
 JOIN resource_fields rf ON rf.resource_definition_id = tr.resource_definition_id
-LEFT JOIN tenant_resource_values trv
-  ON trv.tenant_resource_id = tr.id
- AND trv.resource_field_id = rf.id
+LEFT JOIN tenant_resource_values local_value
+  ON local_value.tenant_resource_id = tr.id
+ AND local_value.resource_field_id = rf.id
+LEFT JOIN tenant_resource_values source_value
+  ON source_value.tenant_resource_id = tr.source_resource_id
+ AND source_value.resource_field_id = rf.id
 WHERE tr.id = ANY(sqlc.arg(resource_ids)::uuid[])
 ORDER BY tr.id, rf.sort_order, rf.key;
 

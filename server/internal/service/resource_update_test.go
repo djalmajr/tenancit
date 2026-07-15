@@ -28,6 +28,14 @@ func (f *fakeResourceUpdateQuerier) UpsertResourceValue(_ context.Context, arg d
 	return db.UpsertResourceValueRow{}, nil
 }
 
+func (f *fakeResourceUpdateQuerier) DeleteResourceValue(context.Context, db.DeleteResourceValueParams) (int64, error) {
+	return 1, nil
+}
+
+func (f *fakeResourceUpdateQuerier) ListResourceValues(context.Context, uuid.UUID) ([]db.TenantResourceValue, error) {
+	return nil, nil
+}
+
 func TestUpdateResourceFieldRejectsUnknownAndEmptyRequiredFields(t *testing.T) {
 	definitionID := uuid.New()
 	resourceID := uuid.New()

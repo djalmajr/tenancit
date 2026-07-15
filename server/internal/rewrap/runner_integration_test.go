@@ -345,8 +345,8 @@ func seedResource(t *testing.T, pool *pgxpool.Pool, cryptor *appcrypto.Cryptor, 
 	var resourceID uuid.UUID
 	err := pool.QueryRow(t.Context(), `WITH tenant AS (INSERT INTO tenants(slug,name) VALUES($1,$1) RETURNING id),
 		definition AS (INSERT INTO resource_definitions(key,name) VALUES($2,$2) RETURNING id)
-		INSERT INTO tenant_resources(tenant_id,resource_definition_id)
-		SELECT tenant.id,definition.id FROM tenant,definition RETURNING id`, "tenant-"+uuid.NewString(), "definition-"+uuid.NewString()).Scan(&resourceID)
+		INSERT INTO tenant_resources(tenant_id,resource_definition_id,display_name)
+		SELECT tenant.id,definition.id,$2 FROM tenant,definition RETURNING id`, "tenant-"+uuid.NewString(), "definition-"+uuid.NewString()).Scan(&resourceID)
 	if err != nil {
 		t.Fatal(err)
 	}

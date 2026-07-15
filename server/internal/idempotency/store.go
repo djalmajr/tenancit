@@ -67,10 +67,10 @@ func (s *Store) Begin(ctx context.Context, tx pgx.Tx, request Request) (Replay, 
 	}
 	now := s.now().UTC()
 	command, err := tx.Exec(ctx, `INSERT INTO admin_idempotency_records
-		(actor_kind,actor_issuer,actor_subject,operation,idempotency_key,request_fingerprint,expires_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`,
+		(actor_kind,actor_issuer,actor_subject,operation,idempotency_key,request_fingerprint,created_at,expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`,
 		request.Actor.Kind, request.Actor.Issuer, request.Actor.Subject, request.Operation,
-		request.Key, request.Fingerprint[:], now.Add(request.TTL))
+		request.Key, request.Fingerprint[:], now, now.Add(request.TTL))
 	if err != nil {
 		return Replay{}, err
 	}

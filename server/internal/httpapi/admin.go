@@ -11,7 +11,6 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func parseID(r *http.Request) (uuid.UUID, error) { return uuid.Parse(chi.URLParam(r, "id")) }
@@ -23,10 +22,17 @@ func (s *Server) createTenant(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	if in.Slug == "" || in.Name == "" {
+	slug, slugOK := service.NormalizeTenantSlug(in.Slug)
+	if !slugOK {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid tenant slug"})
+		return
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "slug and name required"})
 		return
 	}
+	in.Slug = slug
 	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/tenants", in, adminMutationTTL)
 	if !ok {
 		return
@@ -157,10 +163,17 @@ func (s *Server) createDefinition(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	if in.Key == "" || in.Name == "" {
+	key, keyOK := service.NormalizeDefinitionKey(in.Key)
+	if !keyOK {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid definition key"})
+		return
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "key and name required"})
 		return
 	}
+	in.Key = key
 	tx, err := s.DB.Begin(r.Context())
 	if err != nil {
 		writeInternalError(w, r, "begin definition create", err)
@@ -234,10 +247,12 @@ func (s *Server) addField(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	if in.Key == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "key required"})
+	key, keyOK := service.NormalizeDefinitionKey(in.Key)
+	if !keyOK {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid field key"})
 		return
 	}
+	in.Key = key
 	if in.DataType == "" {
 		in.DataType = "string"
 	}
@@ -285,8 +300,11 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		DefinitionKey string            `json:"definitionKey"`
-		Values        map[string]string `json:"values"`
+		Name             string            `json:"name"`
+		Alias            string            `json:"alias"`
+		DefinitionKey    string            `json:"definitionKey"`
+		SourceResourceID *uuid.UUID        `json:"sourceResourceId"`
+		Values           map[string]string `json:"values"`
 	}
 	if !decodeJSON(w, r, &in) {
 		return
@@ -313,7 +331,8 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 	}
 	q := s.Q.WithTx(tx)
 	res, err := service.ProvisionResourceInTx(r.Context(), q, s.Cryptor, service.ProvisionResourceInput{
-		DefinitionKey: in.DefinitionKey, TenantID: tenantID, Values: in.Values,
+		Name: in.Name, Alias: in.Alias, DefinitionKey: in.DefinitionKey, SourceResourceID: in.SourceResourceID,
+		TenantID: tenantID, Values: in.Values,
 	})
 	if err != nil {
 		writeProvisionError(w, r, err)
@@ -325,7 +344,7 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := insertAdminAuditSuccess(r, q, "resource.provisioned", "resource", res.ID.String(),
 		"/v1/admin/tenants/{id}/resources", http.StatusCreated,
-		map[string]any{"tenant_id": tenantID.String(), "definition_key": in.DefinitionKey, "field_names": fieldNames}); err != nil {
+		map[string]any{"tenant_id": tenantID.String(), "definition_key": in.DefinitionKey, "alias": res.Alias, "field_names": fieldNames}); err != nil {
 		writeInternalError(w, r, "audit resource provisioning", err)
 		return
 	}
@@ -346,8 +365,76 @@ func (s *Server) createResource(w http.ResponseWriter, r *http.Request) {
 	writeIdempotentResponse(w, http.StatusCreated, responseBody, false)
 }
 
+func (s *Server) duplicateResource(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	resourceID, err := parseParam(r, "resourceId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad resource id"})
+		return
+	}
+	var in struct {
+		Alias string `json:"alias"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	idempotencyRequest, ok := prepareAdminIdempotency(w, r, "POST /v1/admin/tenants/{id}/resources/{resourceId}/duplicate", struct {
+		TenantID   uuid.UUID `json:"tenant_id"`
+		ResourceID uuid.UUID `json:"resource_id"`
+		Alias      string    `json:"alias"`
+	}{TenantID: tenantID, ResourceID: resourceID, Alias: in.Alias}, adminMutationTTL)
+	if !ok {
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource duplicate", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	if proceed, _ := s.beginAdminIdempotency(w, r, tx, idempotencyRequest); !proceed {
+		return
+	}
+	q := s.Q.WithTx(tx)
+	duplicate, err := service.DuplicateResourceInTx(r.Context(), q, s.Cryptor, tenantID, resourceID, in.Alias)
+	if err != nil {
+		if errors.Is(err, service.ErrUnknownResource) {
+			writeNotFound(w)
+			return
+		}
+		writeProvisionError(w, r, err)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "resource.duplicated", "resource", duplicate.ID.String(),
+		"/v1/admin/tenants/{id}/resources/{resourceId}/duplicate", http.StatusCreated,
+		map[string]any{"tenant_id": tenantID.String(), "source_resource_id": resourceID.String(), "alias": duplicate.Alias}); err != nil {
+		writeInternalError(w, r, "audit resource duplicate", err)
+		return
+	}
+	responseBody, err := encodeIdempotentResponse(duplicate)
+	if err != nil {
+		writeInternalError(w, r, "encode resource duplicate response", err)
+		return
+	}
+	defer clear(responseBody)
+	if err := s.completeAdminIdempotency(r, tx, idempotencyRequest, http.StatusCreated, responseBody); err != nil {
+		writeInternalError(w, r, "complete resource duplicate idempotency", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource duplicate", err)
+		return
+	}
+	writeIdempotentResponse(w, http.StatusCreated, responseBody, false)
+}
+
 func writeProvisionError(w http.ResponseWriter, r *http.Request, err error) {
 	var missing service.MissingRequiredFieldError
+	var invalid service.InvalidFieldValueError
 	switch {
 	case errors.Is(err, service.ErrUnknownDefinition):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown definition"})
@@ -357,8 +444,16 @@ func writeProvisionError(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "definition is inactive"})
 	case errors.As(err, &missing):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": missing.Error()})
-	case errors.Is(err, service.ErrActiveResourceExists):
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "an active resource of this type already exists"})
+	case errors.As(err, &invalid):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": invalid.Error()})
+	case errors.Is(err, service.ErrResourceAliasExists):
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "resource alias already exists"})
+	case errors.Is(err, service.ErrInvalidResourceAlias):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid resource alias"})
+	case errors.Is(err, service.ErrInvalidResourceName):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid resource name"})
+	case errors.Is(err, service.ErrInvalidResourceSource):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid resource source"})
 	default:
 		writeInternalError(w, r, "provision tenant resource", err)
 	}
@@ -406,8 +501,8 @@ func (s *Server) createAPIClient(w http.ResponseWriter, r *http.Request) {
 	txq := s.Q.WithTx(tx)
 	preview := service.APITokenPreview(token)
 	c, err := txq.CreateAPIClient(r.Context(), db.CreateAPIClientParams{
-		Name: in.Name, KeyHash: service.HashAPIKey(token), TokenPreview: &preview,
-		RpmLimit: &in.RPMLimit, ExpiresAt: pgtype.Timestamptz{Time: in.ExpiresAt, Valid: true},
+		Name: in.Name, KeyHash: service.HashAPIKey(token), TokenPreview: preview,
+		RpmLimit: in.RPMLimit, ExpiresAt: in.ExpiresAt,
 	})
 	if err != nil {
 		if store.IsPostgresCode(err, store.PostgresUniqueViolation) {

@@ -8,19 +8,23 @@ import { useTransientResourceReveal } from "./use-transient-resource-reveal";
 
 const maskedResources: TenantResource[] = [
   {
+    alias: "postgres",
     definitionId: "definition-1",
     definitionKey: "postgres",
     fields: [
       {
         dataType: "string",
+        isOverride: true,
         isSecret: true,
         key: "password",
         label: "Password",
+        origin: "local",
         required: true,
         value: "••••••••••••",
       },
     ],
     id: "resource-1",
+    linked: false,
     name: "Postgres",
     status: "active",
   },

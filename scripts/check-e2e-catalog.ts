@@ -14,6 +14,7 @@ type Flow = {
   id: string;
   path: string;
   steps: number[];
+  status: "confirmed" | "draft";
 };
 
 type SpecStep = {
@@ -47,13 +48,14 @@ function readFlows(): Map<string, Flow> {
       errors.push(`${path}: id ${id} diverge do nome do arquivo`);
     }
     if (flows.has(id)) errors.push(`${path}: flow-id duplicado ${id}`);
+    const status = source.match(/^status:\s*(confirmed|draft)\s*$/m)?.[1] as Flow["status"] | undefined;
     const steps = [...source.matchAll(/^(\d+)\.\s+\(`[^`]+`\)\s+/gm)].map((match) => Number(match[1]));
     if (steps.length === 0) errors.push(`${path}: nenhum passo numerado encontrado`);
     steps.forEach((number, index) => {
       const expected = index + 1;
       if (number !== expected) errors.push(`${path}: passo ${number} fora da sequência; esperado ${expected}`);
     });
-    flows.set(id, { id, path, steps });
+    flows.set(id, { id, path, steps, status: status ?? "confirmed" });
   }
   return flows;
 }
@@ -96,7 +98,9 @@ function readReadme(): ReadmeRow[] {
   return rows;
 }
 
-const flows = readFlows();
+const allFlows = readFlows();
+const flows = new Map([...allFlows].filter(([, flow]) => flow.status === "confirmed"));
+const drafts = [...allFlows.values()].filter((flow) => flow.status === "draft");
 const markdownStepTotal = [...flows.values()].reduce((total, flow) => total + flow.steps.length, 0);
 if (flows.size !== EXPECTED_FLOWS) errors.push(`Markdown: ${flows.size}/${EXPECTED_FLOWS} flows`);
 if (markdownStepTotal !== EXPECTED_STEPS) errors.push(`Markdown: ${markdownStepTotal}/${EXPECTED_STEPS} passos`);
@@ -187,5 +191,5 @@ const tiers = readmeRows.reduce<Record<string, number>>((counts, row) => {
 }, {});
 console.log(
   `Catálogo E2E válido: ${flows.size}/${EXPECTED_FLOWS} flows, ${specSteps.length}/${EXPECTED_STEPS} passos, ` +
-    `${tiers["pr-critical"] ?? 0} pr-critical e ${tiers.full ?? 0} full.`,
+    `${tiers["pr-critical"] ?? 0} pr-critical e ${tiers.full ?? 0} full; ${drafts.length} rascunho(s) UX aguardando confirmação.`,
 );

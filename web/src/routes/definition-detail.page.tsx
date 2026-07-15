@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Boxes, ChevronRight, Plus, Check, Trash2, Power, PowerOff } from "lucide-react";
+import { Boxes, ChevronRight, Plus, Check, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DefinitionActions } from "@/components/definition-actions";
 import { toast } from "sonner";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
@@ -38,6 +39,7 @@ import {
 } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
 import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
+import { isValidDefinitionKey } from "@/lib/validation";
 
 const routeApi = getRouteApi("/resource-definitions/$id");
 
@@ -47,12 +49,17 @@ export default function DefinitionDetailPage() {
   const { can } = useAdminCapabilities();
   const { t } = useI18n();
   const { id } = routeApi.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...EMPTY });
+  const fieldKeyValid = isValidDefinitionKey(f.key);
   const [pendingField, setPendingField] = useState<DefinitionDetail["fields"][number] | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", description: "" });
   const detailQuery = useQuery(adminQueryOptions.definition(id));
   const detail = detailQuery.data;
   const addFieldMutation = useMutation({
@@ -76,9 +83,18 @@ export default function DefinitionDetailPage() {
       invalidateAllTenantResources(queryClient),
     ]),
   });
+  const updateDefinitionMutation = useMutation({
+    mutationFn: (body: { name: string; description: string }) => api.updateDefinition(id, body),
+    onSuccess: () => Promise.all([
+      invalidateDefinition(queryClient, id),
+      invalidateAllTenantResources(queryClient),
+    ]),
+  });
+  const deleteDefinitionMutation = useMutation({ mutationFn: () => api.deleteDefinition(id) });
   const visibleError = error || (detailQuery.error ? apiErrorMessage(detailQuery.error, t) : "");
 
   async function addField() {
+    if (!fieldKeyValid) return;
     if (!f.key.trim()) return;
     try {
       await addFieldMutation.mutateAsync(f);
@@ -113,6 +129,38 @@ export default function DefinitionDetailPage() {
     }
   }
 
+  function openEditor() {
+    if (!detail) return;
+    setError("");
+    setEditForm({ name: detail.definition.name, description: detail.definition.description });
+    setEditOpen(true);
+  }
+
+  async function saveDefinition() {
+    if (!editForm.name.trim()) return;
+    try {
+      await updateDefinitionMutation.mutateAsync(editForm);
+      setEditOpen(false);
+      setError("");
+      toast.success(t("definitionDetail.updated"));
+    } catch (e) {
+      setError(apiErrorMessage(e, t));
+    }
+  }
+
+  async function removeDefinition() {
+    try {
+      await deleteDefinitionMutation.mutateAsync();
+      await invalidateAllTenantResources(queryClient);
+      setRemoveOpen(false);
+      toast.success(t("definitionDetail.removed"));
+      await navigate({ to: "/resource-definitions" });
+    } catch (e) {
+      setRemoveOpen(false);
+      setError(apiErrorMessage(e, t));
+    }
+  }
+
   if (!detail) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -140,7 +188,7 @@ export default function DefinitionDetailPage() {
         <span className="text-foreground">{d.name}</span>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-lg bg-muted">
             <Boxes className="size-5" />
@@ -153,14 +201,16 @@ export default function DefinitionDetailPage() {
             </div>
           </div>
         </div>
-        {can("resource.write") && <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { void toggleStatus(); }}>
-            {d.status === "active" ? <PowerOff className="size-4" /> : <Power className="size-4" />}
-            {d.status === "active" ? t("definitionDetail.deactivate") : t("definitionDetail.activate")}
-          </Button>
+        {can("resource.write") && <div className="flex items-end gap-2">
           <Button onClick={() => { setF({ ...EMPTY }); setFieldError(""); setOpen(true); }}>
             <Plus className="size-4" /> {t("definitionDetail.newField")}
           </Button>
+          <DefinitionActions
+            definition={d}
+            onEdit={openEditor}
+            onRemove={() => setRemoveOpen(true)}
+            onToggleStatus={() => { void toggleStatus(); }}
+          />
         </div>}
       </div>
 
@@ -215,7 +265,19 @@ export default function DefinitionDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium" htmlFor="definition-field-key">{t("common.key")}</label>
-                <Input id="definition-field-key" placeholder="host" value={f.key} onChange={(e) => setF({ ...f, key: e.target.value })} />
+                <Input
+                  aria-describedby="definition-field-key-hint"
+                  aria-invalid={f.key.length > 0 && !fieldKeyValid}
+                  autoComplete="off"
+                  id="definition-field-key"
+                  maxLength={63}
+                  placeholder="host"
+                  value={f.key}
+                  onChange={(e) => setF({ ...f, key: e.target.value })}
+                />
+                <p className={f.key.length > 0 && !fieldKeyValid ? "text-xs text-destructive" : "text-xs text-muted-foreground"} id="definition-field-key-hint">
+                  {t("validation.definitionKey")}
+                </p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium" htmlFor="definition-field-label">{t("common.label")}</label>
@@ -224,15 +286,23 @@ export default function DefinitionDetailPage() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.type")}</label>
-              <Select value={f.dataType} onValueChange={(value) => setF({ ...f, dataType: String(value) })}>
+              <Select
+                items={{
+                  bool: t("definitionDetail.dataTypeBool"),
+                  int: t("definitionDetail.dataTypeInt"),
+                  string: t("definitionDetail.dataTypeString"),
+                }}
+                value={f.dataType}
+                onValueChange={(value) => setF({ ...f, dataType: String(value) })}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="string">string</SelectItem>
-                    <SelectItem value="int">int</SelectItem>
-                    <SelectItem value="bool">bool</SelectItem>
+                    <SelectItem value="string">{t("definitionDetail.dataTypeString")}</SelectItem>
+                    <SelectItem value="int">{t("definitionDetail.dataTypeInt")}</SelectItem>
+                    <SelectItem value="bool">{t("definitionDetail.dataTypeBool")}</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -255,7 +325,31 @@ export default function DefinitionDetailPage() {
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
-            <Button disabled={!f.key.trim() || addFieldMutation.isPending} onClick={() => { void addField(); }}>{t("definitionDetail.addField")}</Button>
+            <Button disabled={!fieldKeyValid || addFieldMutation.isPending} onClick={() => { void addField(); }}>{t("definitionDetail.addField")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("definitionDetail.editTitle")}</DialogTitle>
+            <DialogDescription>{t("definitionDetail.editDescription", { key: d.key })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="detail-definition-name">{t("common.name")}</label>
+              <Input id="detail-definition-name" maxLength={120} value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="detail-definition-description">{t("common.description")}</label>
+              <Input id="detail-definition-description" maxLength={500} value={editForm.description} onChange={(event) => setEditForm({ ...editForm, description: event.target.value })} />
+            </div>
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button disabled={!editForm.name.trim() || updateDefinitionMutation.isPending} onClick={() => { void saveDefinition(); }}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -270,6 +364,16 @@ export default function DefinitionDetailPage() {
         }}
         open={Boolean(pendingField)}
         title={t("definitionDetail.removeFieldTitle")}
+      />
+      <ConfirmDialog
+        cancelLabel={t("common.cancel")}
+        confirmDisabled={deleteDefinitionMutation.isPending}
+        confirmLabel={t("common.removeConfirm")}
+        description={t("definitionDetail.removeDescription", { name: d.name })}
+        onConfirm={() => { void removeDefinition(); }}
+        onOpenChange={setRemoveOpen}
+        open={removeOpen}
+        title={t("definitionDetail.removeTitle")}
       />
     </div>
   );

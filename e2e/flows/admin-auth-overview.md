@@ -23,8 +23,8 @@ Acessar o painel, autenticar-se quando necessário e entender rapidamente o esta
 2. (`overview`) Usar o dropdown de idioma no login alternando entre **Português**, **English** e **Español** → o trigger fechado exibe apenas a bandeira, o menu aberto exibe bandeira e nome nativo, e título, descrição, botão e rótulos mudam para o idioma selecionado.
 3. (`overview`) Usar o dropdown de tema no login alternando entre **Claro**, **Escuro** e **Sistema** → a tela aplica a preferência sem deslocar o card.
 4. (`overview`) Preencher o campo **Token** com `tenancit_admin_dev` e clicar em **Entrar** → a página recarrega com os dados da visão geral e mantém idioma/tema escolhidos.
-5. (`overview`) Conferir os cards de KPI → a tela exibe **Tenants ativos**, **Domínios**, **Recursos provisionados** e **Definições ativas**.
-6. (`overview`) Revisar a lista de tenants no card **"Tenants"** → cada tenant mostra nome, host primário ou "sem domínio", quantidade de recursos, status e ação de navegação.
+5. (`overview`) Conferir a primeira linha de indicadores → a tela exibe **Tenants ativos**, **Domínios**, **Recursos provisionados** e **Definições ativas**.
+6. (`overview`) Conferir a segunda linha de indicadores → a tela resume **Saúde operacional**, **Requisições no mês**, **Chaves expirando** e **Dead letters**, sem repetir um diretório de tenants.
 7. (`shell`) Usar o dropdown de idioma no header alternando entre **Português**, **English** e **Español** → navegação, header e conteúdo da visão geral mudam para o idioma selecionado.
 8. (`shell`) Usar o dropdown de tema no header alternando entre **Claro**, **Escuro** e **Sistema** → o shell aplica a preferência sem perder contraste ou legibilidade.
 9. (`shell`) Clicar nos itens da sidebar **Visão geral**, **Tenants**, **Recursos** e **Chaves de API** → cada item leva à tela correspondente e o título do header acompanha a seção.
@@ -33,7 +33,7 @@ Acessar o painel, autenticar-se quando necessário e entender rapidamente o esta
 
 ## Resultado esperado
 
-O operador consegue autenticar-se, escolher idioma, alternar tema, ver KPIs reais, navegar pelas seções principais, encerrar a sessão administrativa e reconhecer o estado operacional inicial sem acessar URLs manualmente.
+O operador consegue autenticar-se, escolher idioma, alternar tema, ver indicadores de inventário e pulso operacional, navegar pelas seções principais, encerrar a sessão administrativa e reconhecer o estado inicial sem acessar URLs manualmente.
 
 ## Estado atual × design
 

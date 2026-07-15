@@ -4,10 +4,12 @@ import { summarizeTenantOverview } from "./tenant-overview";
 
 function resource(overrides: Partial<TenantResource> = {}): TenantResource {
   return {
+    alias: "postgres",
     definitionId: "definition-1",
     definitionKey: "postgres",
-    fields: [{ dataType: "string", isSecret: false, key: "host", label: "Host", required: true, value: "db.local" }],
+    fields: [{ dataType: "string", isOverride: true, isSecret: false, key: "host", label: "Host", origin: "local", required: true, value: "db.local" }],
     id: "resource-1",
+    linked: false,
     name: "PostgreSQL",
     status: "active",
     ...overrides,
@@ -29,7 +31,7 @@ describe("summarizeTenantOverview", () => {
 
   it("reports missing requirements and incomplete configuration", () => {
     const incomplete = resource({
-      fields: [{ dataType: "string", isSecret: false, key: "host", label: "Host", required: true, value: "" }],
+      fields: [{ dataType: "string", isOverride: false, isSecret: false, key: "host", label: "Host", origin: "local", required: true, value: "" }],
     });
 
     expect(summarizeTenantOverview({ domainCount: 0, resources: [incomplete], tenantStatus: "inactive" }))

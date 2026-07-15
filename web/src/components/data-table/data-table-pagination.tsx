@@ -116,6 +116,7 @@ export function DataTablePagination<TData>({
           </Button>
         </div>
         <Select
+          items={pageSizeOptions.map((pageSize) => ({ label: String(pageSize), value: String(pageSize) }))}
           onValueChange={(value) => table.setPageSize(Number(value))}
           value={`${table.getState().pagination.pageSize}`}
         >

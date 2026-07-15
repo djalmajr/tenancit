@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DomainStatus } from "@/components/domain-status";
 import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
+import { isIntegerInRange } from "@/lib/validation";
 
 const EMPTY_API_CLIENTS: ApiClient[] = [];
 const FILTER_REFERENCE_TIME = Date.now();
@@ -48,6 +49,7 @@ export default function ApiClients() {
     "resource:resolve",
   ]);
   const [rpmLimit, setRpmLimit] = useState("300");
+  const rpmLimitValid = isIntegerInRange(rpmLimit, 1, 2_147_483_647);
   const [expirationDays, setExpirationDays] = useState("90");
   const [editingClient, setEditingClient] = useState<ApiClient | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ApiClient | null>(null);
@@ -247,7 +249,7 @@ export default function ApiClients() {
   }
   async function create() {
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName || !rpmLimitValid) return;
     if (isDuplicateAPIClientName(trimmedName, clients.map((client) => client.name))) {
       setError(t("errors.conflict"));
       return;
@@ -487,7 +489,16 @@ export default function ApiClients() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium" htmlFor="new-api-client-rpm">{t("apiClients.rpmLimit")}</label>
-                  <Input id="new-api-client-rpm" min="1" onChange={(event) => setRpmLimit(event.target.value)} type="number" value={rpmLimit} />
+                  <Input
+                    aria-invalid={rpmLimit.length > 0 && !rpmLimitValid}
+                    id="new-api-client-rpm"
+                    max="2147483647"
+                    min="1"
+                    onChange={(event) => setRpmLimit(event.target.value)}
+                    step="1"
+                    type="number"
+                    value={rpmLimit}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium" htmlFor="new-api-client-expiration">{t("apiClients.expiration")}</label>
@@ -497,7 +508,7 @@ export default function ApiClients() {
               {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
               <DialogFooter>
                 <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
-                <Button disabled={!name.trim() || scopes.length === 0 || Number(rpmLimit) <= 0 || isCreating} onClick={() => { void create(); }}>{t(editingClient ? "common.save" : "apiClients.generateToken")}</Button>
+                <Button disabled={!name.trim() || scopes.length === 0 || !rpmLimitValid || isCreating} onClick={() => { void create(); }}>{t(editingClient ? "common.save" : "apiClients.generateToken")}</Button>
               </DialogFooter>
             </>
           ) : (

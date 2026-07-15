@@ -26,8 +26,8 @@ Receber feedback claro e recuperável quando envia dados inválidos ou em confli
 4. (`tenants-list`) Clicar em **Cancelar** no diálogo → fecha sem criar nada e sem efeito colateral.
 5. (`definitions-list`) Criar uma definition com key `dupkey-e2e`; tentar criar outra com a mesma key → o erro aparece no diálogo (conflito/payload inválido) e não há navegação.
 6. (`tenant-detail`) Num tenant, abrir aba **Domínios**, adicionar o hostname `dup.e2e.local`; tentar adicionar o **mesmo** hostname novamente (no mesmo tenant ou em outro) → falha por unicidade (409) com mensagem visível no diálogo de domínio.
-7. (`tenant-detail`) Abrir **Adicionar recurso** num tenant sem definitions ativas disponíveis (ou com todas já provisionadas) → o diálogo mostra a mensagem de "nenhum tipo disponível / todos provisionados" e o botão **Salvar recurso** fica desabilitado.
-8. (`tenant-detail`) Selecionar uma definition com campo obrigatório e deixar o obrigatório vazio → **Salvar recurso** permanece desabilitado; campos do tipo `int` aceitam número e campos secretos aparecem mascarados (input password) no formulário.
+7. (`tenant-detail`) Abrir **Adicionar recurso**, escolher uma definition já usada pelo tenant e informar um alias existente → o diálogo mantém os dados, sinaliza conflito de alias e não cria uma segunda linha ambígua.
+8. (`tenant-detail`) Informar um alias fora do padrão ou deixar um campo obrigatório vazio → **Salvar recurso** permanece desabilitado; campos do tipo `int` aceitam número e campos secretos aparecem mascarados no formulário.
 
 ## Resultado esperado
 
@@ -36,5 +36,5 @@ Todo caminho inválido produz um erro visível e em contexto (no próprio diálo
 ## Estado atual × design
 
 - A SPA propaga erros via `setError(String(e))`, exibindo o texto cru do backend (ex.: `409: ...`). Avaliar se a mensagem é legível o suficiente para o operador — texto excessivamente técnico é um achado de usabilidade.
-- O contrato HTTP define 400 (payload/obrigatório), 401 (token), 404 (consumo) e 409 (unicidade: hostname duplicado e segundo resource ativo do mesmo tipo) em `docs/developers/03-contratos-http.adoc`.
-- A regra de "1 recurso ativo por definition" é prevenida na UI ao filtrar definitions já ativas no tenant; este fluxo cobre o lado de erro/validação dos formulários admin.
+- O contrato HTTP define 400 (payload/obrigatório), 401 (token), 404 (consumo) e 409 (unicidade de slug, hostname e alias normalizado) em `docs/developers/03-contratos-http.adoc`.
+- Um tenant pode ter várias instâncias da mesma definition; o alias único, e não o tipo, diferencia cada configuração.

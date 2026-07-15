@@ -16,7 +16,7 @@ import (
 
 // ResolveQuerier is the read surface needed to resolve a tenant's config.
 type ResolveQuerier interface {
-	GetActiveResourceByTenantAndDefinitionKey(ctx context.Context, arg db.GetActiveResourceByTenantAndDefinitionKeyParams) (db.TenantResource, error)
+	GetActiveResourceByTenantAndAlias(ctx context.Context, arg db.GetActiveResourceByTenantAndAliasParams) (db.TenantResource, error)
 	GetResourceHeader(ctx context.Context, id uuid.UUID) (db.GetResourceHeaderRow, error)
 	GetTenantByHostname(ctx context.Context, hostname string) (db.Tenant, error)
 	GetTenantBySlug(ctx context.Context, slug string) (db.Tenant, error)
@@ -26,6 +26,7 @@ type ResolveQuerier interface {
 
 // ResolvedResource is one resource (definition + decrypted values) for a tenant.
 type ResolvedResource struct {
+	Alias         string            `json:"alias"`
 	DefinitionKey string            `json:"definitionKey"`
 	Values        map[string]string `json:"values"`
 }
@@ -101,7 +102,7 @@ func (r *Resolver) ResolveTenant(ctx context.Context, tenant db.Tenant, headers 
 	}
 	out := ResolvedTenant{TenantSlug: tenant.Slug}
 	for _, resource := range built {
-		rr := ResolvedResource{DefinitionKey: resource.Header.DefinitionKey, Values: map[string]string{}}
+		rr := ResolvedResource{Alias: resource.Header.Resource.Alias, DefinitionKey: resource.Header.DefinitionKey, Values: map[string]string{}}
 		for _, field := range resource.Fields {
 			rr.Values[field.Key] = field.Value
 		}
@@ -150,18 +151,21 @@ func computeETag(t db.Tenant, headers []ResourceHeader) string {
 		fmt.Fprintf(h, "r:%s:%s:%d:d:%s:%s:%d\n",
 			res.ID, res.Status, res.UpdatedAt.UnixNano(), res.ResourceDefinitionID,
 			header.DefinitionKey, header.DefinitionUpdatedAt.UnixNano())
+		if res.SourceResourceID.Valid {
+			fmt.Fprintf(h, "s:%s:%d\n", res.SourceResourceID.Bytes, header.SourceUpdatedAt.UnixNano())
+		}
 	}
 	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
 }
 
-// ByHostnameAndDefinition returns a single resource by definition key.
-func (r *Resolver) ByHostnameAndDefinition(ctx context.Context, hostname, defKey string) (ResolvedResource, bool, error) {
+// ByHostnameAndAlias returns one active resource by its tenant-scoped alias.
+func (r *Resolver) ByHostnameAndAlias(ctx context.Context, hostname, alias string) (ResolvedResource, bool, error) {
 	tenant, err := r.TenantByHostname(ctx, hostname)
 	if err != nil {
 		return ResolvedResource{}, false, err
 	}
-	res, err := r.q.GetActiveResourceByTenantAndDefinitionKey(ctx, db.GetActiveResourceByTenantAndDefinitionKeyParams{
-		Key: defKey, TenantID: tenant.ID,
+	res, err := r.q.GetActiveResourceByTenantAndAlias(ctx, db.GetActiveResourceByTenantAndAliasParams{
+		Btrim: alias, TenantID: tenant.ID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ResolvedResource{}, false, nil
@@ -177,7 +181,7 @@ func (r *Resolver) ByHostnameAndDefinition(ctx context.Context, hostname, defKey
 	if err != nil {
 		return ResolvedResource{}, false, err
 	}
-	rr := ResolvedResource{DefinitionKey: headerRow.DefinitionKey, Values: map[string]string{}}
+	rr := ResolvedResource{Alias: headerRow.Alias, DefinitionKey: headerRow.DefinitionKey, Values: map[string]string{}}
 	for _, field := range built[0].Fields {
 		rr.Values[field.Key] = field.Value
 	}

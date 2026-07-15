@@ -274,3 +274,29 @@ func (q *Queries) UpdateTenant(ctx context.Context, arg UpdateTenantParams) (Ten
 	)
 	return i, err
 }
+
+const updateTenantDomain = `-- name: UpdateTenantDomain :one
+UPDATE tenant_domains
+SET hostname = $1
+WHERE id = $2
+  AND tenant_id = $3
+RETURNING id, tenant_id, hostname, created_at
+`
+
+type UpdateTenantDomainParams struct {
+	Hostname string    `json:"hostname"`
+	ID       uuid.UUID `json:"id"`
+	TenantID uuid.UUID `json:"tenant_id"`
+}
+
+func (q *Queries) UpdateTenantDomain(ctx context.Context, arg UpdateTenantDomainParams) (TenantDomain, error) {
+	row := q.db.QueryRow(ctx, updateTenantDomain, arg.Hostname, arg.ID, arg.TenantID)
+	var i TenantDomain
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Hostname,
+		&i.CreatedAt,
+	)
+	return i, err
+}

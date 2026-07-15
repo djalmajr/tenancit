@@ -1,6 +1,6 @@
 ---
 id: admin-to-consumer-golden-path
-name: Configurar tenant no admin e consumir pelo caminho seguro identify → tenantId
+name: Configurar tenant no admin e consumir pelo caminho seguro identify → alias
 reference: planning/tenancit/epics/01-tenancit/05-consumer-api-auth.md
 persona: service-integrator
 entry: "http://localhost:5180/"
@@ -19,8 +19,8 @@ design_refs:
 ## Objetivo do usuário
 
 Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio,
-resource e API client; identificar o tenant na borda sem segredos e resolver a
-configuração no app pelo `tenantId` com revalidação por ETag.
+resource e API client; identificar o tenant na borda sem segredos e resolver uma
+configuração específica pelo hostname e alias estável com revalidação por ETag.
 
 ## Passos (cada passo é uma AÇÃO de UI/API + o resultado esperado)
 
@@ -28,10 +28,10 @@ configuração no app pelo `tenantId` com revalidação por ETag.
 2. (`definitions-list`) Abrir **Recursos**, criar uma definition ativa com key única e adicionar campos `host` obrigatório e `password` obrigatório/segredo → a definition aparece com os campos corretos.
 3. (`tenants-list`) Abrir **Tenants** e criar um tenant com slug único → a aplicação navega para o detalhe do tenant.
 4. (`tenant-detail`) Abrir a aba **Domínios** e adicionar um hostname único → o hostname aparece na tabela do tenant.
-5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada e preencher `host` e `password` → o recurso fica ativo no tenant, o segredo aparece mascarado e **Prontidão para consumo** indica domínio/recurso/chave quando aplicável.
-6. (`api-clients`) Abrir **Chaves de API**, conferir os snippets ordenados de `identify` e `resolve?tenantId=`, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
+5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada, definir um alias único e preencher `host` e `password` → o recurso fica ativo na tabela e o segredo aparece mascarado no detalhe.
+6. (`api-clients`) Abrir **Chaves de API**, conferir a orientação de `identify` e resolução por alias, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
 7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/identify?hostname=<hostname>` com `Authorization: Bearer <token>` → a resposta 200 contém somente `tenantSlug`, sem `resources` nem valores secretos.
-8. (`consumer-api`) Chamar `GET /v1/resolve?tenantId=<tenantSlug>` com o mesmo token → a resposta 200 retorna o recurso ativo, `ETag` e `Cache-Control: private, no-store`.
+8. (`consumer-api`) Chamar `GET /v1/resolve/<hostname>/resources/<alias>` com o mesmo token → a resposta 200 retorna somente o recurso solicitado, `ETag` e `Cache-Control: private, no-store`.
 9. (`consumer-api`) Repetir a chamada anterior com `If-None-Match: <etag>` → a resposta retorna 304 sem corpo.
 10. (`consumer-api`) Repetir `identify`/`resolve` sem o token → a resposta retorna 401.
 11. (`consumer-api`) Chamar `identify` com hostname desconhecido e token válido → a resposta retorna 404.
@@ -39,8 +39,8 @@ configuração no app pelo `tenantId` com revalidação por ETag.
 ## Resultado esperado
 
 O caminho admin-to-consumer funciona de ponta a ponta sem entregar segredos à
-borda: `identify` produz a identidade, o app resolve por `tenantId`, revalida
-com ETag e recebe erros corretos para ausência de token ou hostname desconhecido.
+borda: `identify` produz a identidade, o app resolve o alias necessário, revalida
+com ETag e recebe erros corretos para ausência de token, hostname ou alias.
 
 ## Estado atual × design
 

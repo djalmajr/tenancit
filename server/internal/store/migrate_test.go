@@ -51,14 +51,14 @@ func TestMigrate_CreatesSchemaAndInvariant(t *testing.T) {
 	if err := conn.QueryRow(ctx, `INSERT INTO resource_definitions (key, name) VALUES ('postgres','PG') RETURNING id`).Scan(&defID); err != nil {
 		t.Fatalf("def: %v", err)
 	}
-	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, status) VALUES ($1,$2,'active')`, tenantID, defID); err != nil {
+	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, alias, display_name, status) VALUES ($1,$2,'postgres.main','Postgres main','active')`, tenantID, defID); err != nil {
 		t.Fatalf("first active: %v", err)
 	}
-	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, status) VALUES ($1,$2,'active')`, tenantID, defID); err == nil {
-		t.Fatal("expected unique violation for 2nd active (RN-01)")
+	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, alias, display_name, status) VALUES ($1,$2,'POSTGRES.MAIN','Duplicate','active')`, tenantID, defID); err == nil {
+		t.Fatal("expected unique violation for duplicate alias")
 	}
-	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, status) VALUES ($1,$2,'inactive')`, tenantID, defID); err != nil {
-		t.Fatalf("inactive should be allowed: %v", err)
+	if _, err := conn.Exec(ctx, `INSERT INTO tenant_resources (tenant_id, resource_definition_id, alias, display_name, status) VALUES ($1,$2,'postgres.secondary','Postgres secondary','active')`, tenantID, defID); err != nil {
+		t.Fatalf("same definition with another alias should be allowed: %v", err)
 	}
 }
 

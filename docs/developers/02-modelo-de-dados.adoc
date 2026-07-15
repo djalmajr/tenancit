@@ -23,8 +23,8 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
 | Campos de cada definition, com flags `required` e `is_secret`.
 
 | `tenant_resources`
-| Instância de uma definition para um tenant. Índice parcial garante uma
-  instância ativa por `(tenant_id, resource_definition_id)`.
+| Instância com nome legível (`display_name`) e endereçável por alias de uma definition para um tenant. Pode ser
+  independente ou vinculada a outra instância independente da mesma definition.
 
 | `tenant_resource_values`
 | Valores dos fields. Guarda `value_plain` para campos não secretos e
@@ -61,9 +61,12 @@ e a instância por tenant fica em `tenant_resources` + `tenant_resource_values`.
   representam o mesmo hostname.
 * `resource_definitions.key` é único.
 * `resource_fields` é único por `(resource_definition_id, key)`.
-* `tenant_resources` tem no máximo um registro ativo por `(tenant, definition)`.
+* `tenant_resources.alias` é único por tenant, ignorando caixa e espaços nas bordas.
+* `tenant_resources.display_name` é o rótulo humano editável; o alias permanece o contrato técnico estável da Consumer API.
+* Um recurso vinculado pertence ao mesmo tenant e definition da origem; cadeias
+  de vínculos não são aceitas.
 * `tenant_resource_values` é único por `(tenant_resource_id, resource_field_id)`.
-* Campos obrigatórios são validados no provisionamento.
+* Campos obrigatórios são validados contra o valor local ou herdado no provisionamento.
 * Recurso só pode ser provisionado a partir de definition ativa.
 
 ==== Transação de provisionamento
@@ -72,6 +75,9 @@ Criar um tenant resource e seus values é uma unidade atômica. O serviço
 `ProvisionResource` abre transação, valida definition/fields, insere o resource
 e grava todos os values. Se qualquer etapa falhar, nenhuma linha parcial deve
 ficar persistida.
+Em recursos vinculados, apenas overrides locais são gravados; a leitura efetiva
+faz `local -> origem`. Duplicação materializa o valor efetivo numa nova instância
+independente e não expõe secrets ao cliente administrativo.
 Para rotas idempotentes, claim, domínio, outbox, auditoria e resposta cifrada
 também pertencem à mesma transação; rollback libera o claim e commit torna o
 resultado repetível sem executar o domínio novamente.

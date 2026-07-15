@@ -8,7 +8,6 @@ import (
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type apiClientPolicyInput struct {
@@ -49,13 +48,13 @@ func (s *Server) updateAPIClient(w http.ResponseWriter, r *http.Request) {
 		writeNotFound(w)
 		return
 	}
-	if previous.Status != "active" || (previous.ExpiresAt.Valid && !s.Now().UTC().Before(previous.ExpiresAt.Time)) {
+	if previous.Status != "active" || !s.Now().UTC().Before(previous.ExpiresAt) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "client_must_rotate"})
 		return
 	}
 	updated, err := q.UpdateAPIClientPolicy(r.Context(), db.UpdateAPIClientPolicyParams{
-		ID: id, Name: in.Name, RpmLimit: &in.RPMLimit,
-		ExpiresAt: pgtype.Timestamptz{Time: in.ExpiresAt, Valid: true},
+		ID: id, Name: in.Name, RpmLimit: in.RPMLimit,
+		ExpiresAt: in.ExpiresAt,
 	})
 	if err != nil {
 		if store.IsPostgresCode(err, store.PostgresUniqueViolation) {
@@ -142,7 +141,7 @@ func (s *Server) rotateAPIClient(w http.ResponseWriter, r *http.Request) {
 	}
 	preview := service.APITokenPreview(token)
 	rotated, err := q.RotateAPIClientToken(r.Context(), db.RotateAPIClientTokenParams{
-		ID: id, KeyHash: service.HashAPIKey(token), TokenPreview: &preview,
+		ID: id, KeyHash: service.HashAPIKey(token), TokenPreview: preview,
 	})
 	if err != nil {
 		writeInternalError(w, r, "rotate API client token", err)

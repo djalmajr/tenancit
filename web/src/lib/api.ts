@@ -241,10 +241,16 @@ export interface ResourceFieldValue {
   required: boolean;
   isSecret: boolean;
   value: string;
+  isOverride: boolean;
+  origin: "local" | "inherited";
 }
 
 export interface TenantResource {
   id: string;
+  alias: string;
+  sourceResourceId?: string;
+  sourceAlias?: string;
+  linked: boolean;
   definitionKey: string;
   definitionId: string;
   name: string;
@@ -442,6 +448,11 @@ export const api = {
     req<TenantDomain[]>(`/tenants/${id}/domains`, { signal }),
   addDomain: (id: string, hostname: string) =>
     req(`/tenants/${id}/domains`, { method: "POST", body: JSON.stringify({ hostname }) }),
+  updateDomain: (id: string, domainId: string, hostname: string) =>
+    req<TenantDomain>(`/tenants/${id}/domains/${domainId}`, {
+      method: "PUT",
+      body: JSON.stringify({ hostname }),
+    }),
   removeDomain: (id: string, domainId: string) =>
     req(`/tenants/${id}/domains/${domainId}`, { method: "DELETE" }),
   listTenantResources: (id: string, reveal = false, signal?: AbortSignal) =>
@@ -449,8 +460,13 @@ export const api = {
       `/tenants/${id}/resources${reveal ? "?reveal=true" : ""}`,
       { ...(reveal ? { cache: "no-store" as const } : {}), signal },
     ),
-  createResource: (id: string, body: { definitionKey: string; values: Record<string, string> }, idempotencyKey: string = crypto.randomUUID()) =>
+  createResource: (id: string, body: { name: string; alias: string; definitionKey: string; sourceResourceId?: string; values: Record<string, string> }, idempotencyKey: string = crypto.randomUUID()) =>
     req(`/tenants/${id}/resources`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) }),
+  updateResourceIdentity: (id: string, resourceId: string, body: { name: string; alias: string }) =>
+    req(`/tenants/${id}/resources/${resourceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   setResourceStatus: (id: string, resourceId: string, status: string) =>
     req(`/tenants/${id}/resources/${resourceId}/status`, {
       method: "PUT",
@@ -460,6 +476,14 @@ export const api = {
     req(`/tenants/${id}/resources/${resourceId}/fields/${encodeURIComponent(fieldKey)}`, {
       method: "PUT",
       body: JSON.stringify({ value }),
+    }),
+  clearResourceFieldOverride: (id: string, resourceId: string, fieldKey: string) =>
+    req(`/tenants/${id}/resources/${resourceId}/fields/${encodeURIComponent(fieldKey)}`, { method: "DELETE" }),
+  duplicateResource: (id: string, resourceId: string, alias: string, idempotencyKey: string = crypto.randomUUID()) =>
+    req(`/tenants/${id}/resources/${resourceId}/duplicate`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ alias }),
     }),
   deleteResource: (id: string, resourceId: string) =>
     req(`/tenants/${id}/resources/${resourceId}`, { method: "DELETE" }),
@@ -471,8 +495,12 @@ export const api = {
     req<DefinitionDetail>(`/resource-definitions/${id}`, { signal }),
   createDefinition: (body: { key: string; name: string; description?: string; icon?: string }) =>
     req<Definition>("/resource-definitions", { method: "POST", body: JSON.stringify(body) }),
+  updateDefinition: (id: string, body: { name: string; description: string }) =>
+    req<Definition>(`/resource-definitions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   setDefinitionStatus: (id: string, status: string) =>
     req(`/resource-definitions/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
+  deleteDefinition: (id: string) =>
+    req<void>(`/resource-definitions/${id}`, { method: "DELETE" }),
   addField: (
     id: string,
     body: { key: string; label?: string; dataType?: string; required?: boolean; isSecret?: boolean },

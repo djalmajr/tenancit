@@ -416,6 +416,7 @@ func TestE2E_HostnameCanonicalization(t *testing.T) {
 	}
 
 	var domains []struct {
+		ID       string `json:"id"`
 		Hostname string `json:"hostname"`
 	}
 	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantID+"/domains", nil), &domains)
@@ -438,11 +439,70 @@ func TestE2E_HostnameCanonicalization(t *testing.T) {
 		}
 	}
 
+	renamed := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/domains/"+domains[0].ID,
+		map[string]string{"hostname": "  Renamed.Example.COM. "})
+	if renamed.Code != http.StatusOK {
+		t.Fatalf("rename domain = %d, want 200 (%s)", renamed.Code, renamed.Body)
+	}
+	var renamedDomain struct {
+		Hostname string `json:"hostname"`
+	}
+	mustJSON(t, renamed, &renamedDomain)
+	if renamedDomain.Hostname != "renamed.example.com" {
+		t.Fatalf("renamed hostname = %q, want canonical hostname", renamedDomain.Hostname)
+	}
+
 	otherTenant := seedTenant(t, h, "case-other", "")
 	duplicate := do(t, h, http.MethodPost, "/v1/admin/tenants/"+otherTenant+"/domains",
-		map[string]string{"hostname": "app.example.com"})
+		map[string]string{"hostname": "RENAMED.EXAMPLE.COM."})
 	if duplicate.Code != http.StatusConflict {
 		t.Fatalf("case-variant duplicate = %d, want 409 (%s)", duplicate.Code, duplicate.Body)
+	}
+}
+
+func TestE2E_ResourceDefinitionLifecycle(t *testing.T) {
+	srv, h := newTestServer(t)
+	definitionID := seedDefinition(t, h, "definition-lifecycle")
+
+	updated := do(t, h, http.MethodPatch, "/v1/admin/resource-definitions/"+definitionID, map[string]string{
+		"name": "PostgreSQL updated", "description": "Updated catalog metadata",
+	})
+	if updated.Code != http.StatusOK {
+		t.Fatalf("update definition = %d, want 200 (%s)", updated.Code, updated.Body)
+	}
+	var updatedBody struct {
+		Key, Name, Description string
+	}
+	mustJSON(t, updated, &updatedBody)
+	if updatedBody.Key != "definition-lifecycle" || updatedBody.Name != "PostgreSQL updated" || updatedBody.Description != "Updated catalog metadata" {
+		t.Fatalf("updated definition = %+v", updatedBody)
+	}
+
+	tenantID := seedTenant(t, h, "definition-lifecycle", "definition-lifecycle.example.com")
+	createdResource := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantID+"/resources", map[string]any{
+		"definitionKey": "definition-lifecycle",
+		"values":        map[string]string{"host": "db", "password": "secret"},
+	})
+	if createdResource.Code != http.StatusCreated {
+		t.Fatalf("create linked resource = %d (%s)", createdResource.Code, createdResource.Body)
+	}
+	if rec := do(t, h, http.MethodDelete, "/v1/admin/resource-definitions/"+definitionID, nil); rec.Code != http.StatusConflict {
+		t.Fatalf("delete linked definition = %d, want 409 (%s)", rec.Code, rec.Body)
+	}
+
+	unused := do(t, h, http.MethodPost, "/v1/admin/resource-definitions", map[string]string{
+		"key": "unused-definition", "name": "Unused definition",
+	})
+	unusedID := idOf(t, unused)
+	if rec := do(t, h, http.MethodDelete, "/v1/admin/resource-definitions/"+unusedID, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete unused definition = %d, want 204 (%s)", rec.Code, rec.Body)
+	}
+
+	for _, action := range []string{"definition.updated", "definition.deleted"} {
+		var count int
+		if err := srv.DB.QueryRow(context.Background(), `SELECT count(*) FROM admin_audit_events WHERE action = $1`, action).Scan(&count); err != nil || count != 1 {
+			t.Fatalf("audit action %s count=%d err=%v", action, count, err)
+		}
 	}
 }
 
@@ -671,6 +731,10 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 		ID string `json:"id"`
 	}
 	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantID+"/domains", nil), &domains)
+	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/domains/"+domains[0].ID,
+		map[string]string{"hostname": "audit-renamed.example.com"}); rec.Code != http.StatusOK {
+		t.Fatalf("update domain: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(t, h, http.MethodDelete, "/v1/admin/tenants/"+tenantID+"/domains/"+domains[0].ID, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete domain: %d %s", rec.Code, rec.Body)
 	}
@@ -684,6 +748,10 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 		"definitionKey": "audit-definition", "values": map[string]string{"host": "db", "password": "audit-secret"},
 	})
 	resourceID := idOf(t, resource)
+	if rec := do(t, h, http.MethodPatch, "/v1/admin/tenants/"+tenantID+"/resources/"+resourceID,
+		map[string]string{"name": "Audit database", "alias": "audit.database"}); rec.Code != http.StatusOK {
+		t.Fatalf("resource identity update: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/resources/"+resourceID+"/fields/password", map[string]string{"value": "rotated-audit-secret"}); rec.Code != http.StatusNoContent {
 		t.Fatalf("resource field update: %d %s", rec.Code, rec.Body)
 	}
@@ -701,9 +769,9 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 	}
 
 	expected := []string{
-		"tenant.created", "tenant.updated", "domain.added", "domain.deleted",
+		"tenant.created", "tenant.updated", "domain.added", "domain.updated", "domain.deleted",
 		"definition.created", "definition.field_added", "definition.field_deleted",
-		"resource.provisioned", "resource.field_updated", "resource.status_changed", "resource.deleted",
+		"resource.provisioned", "resource.updated", "resource.field_updated", "resource.status_changed", "resource.deleted",
 		"definition.status_changed", "tenant.deleted",
 	}
 	for _, action := range expected {

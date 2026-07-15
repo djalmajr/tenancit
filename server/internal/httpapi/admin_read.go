@@ -5,6 +5,7 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
+	"github.com/google/uuid"
 )
 
 // listTenantDomains: GET /v1/admin/tenants/{id}/domains
@@ -26,12 +27,16 @@ func (s *Server) listTenantDomains(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminResource struct {
-	ID            string                       `json:"id"`
-	DefinitionKey string                       `json:"definitionKey"`
-	DefinitionID  string                       `json:"definitionId"`
-	Name          string                       `json:"name"`
-	Status        string                       `json:"status"`
-	Fields        []service.ResourceFieldValue `json:"fields"`
+	ID               string                       `json:"id"`
+	Alias            string                       `json:"alias"`
+	SourceResourceID string                       `json:"sourceResourceId,omitempty"`
+	SourceAlias      string                       `json:"sourceAlias,omitempty"`
+	Linked           bool                         `json:"linked"`
+	DefinitionKey    string                       `json:"definitionKey"`
+	DefinitionID     string                       `json:"definitionId"`
+	Name             string                       `json:"name"`
+	Status           string                       `json:"status"`
+	Fields           []service.ResourceFieldValue `json:"fields"`
 }
 
 // listTenantResources: GET /v1/admin/tenants/{id}/resources?reveal=true
@@ -104,11 +109,17 @@ func (s *Server) listTenantResources(w http.ResponseWriter, r *http.Request) {
 		header := resource.Header
 		ar := adminResource{
 			ID:            header.Resource.ID.String(),
+			Alias:         header.Resource.Alias,
+			SourceAlias:   header.SourceAlias,
+			Linked:        header.Resource.SourceResourceID.Valid,
 			DefinitionKey: header.DefinitionKey,
 			DefinitionID:  header.Resource.ResourceDefinitionID.String(),
-			Name:          header.DefinitionName,
+			Name:          header.Resource.DisplayName,
 			Status:        header.Resource.Status,
 			Fields:        resource.Fields,
+		}
+		if header.Resource.SourceResourceID.Valid {
+			ar.SourceResourceID = uuid.UUID(header.Resource.SourceResourceID.Bytes).String()
 		}
 		out = append(out, ar)
 	}

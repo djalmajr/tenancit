@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store"
@@ -13,6 +14,79 @@ import (
 
 func parseParam(r *http.Request, name string) (uuid.UUID, error) {
 	return uuid.Parse(chi.URLParam(r, name))
+}
+
+// PATCH /v1/admin/tenants/{id}/resources/{resourceId} body {name, alias}
+func (s *Server) updateResourceIdentity(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	resourceID, err := parseParam(r, "resourceId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad resource id"})
+		return
+	}
+	var in struct {
+		Name  string `json:"name"`
+		Alias string `json:"alias"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	name, alias, err := service.NormalizeResourceIdentity(in.Name, in.Alias)
+	if err != nil || name == "" || alias == "" {
+		switch {
+		case errors.Is(err, service.ErrInvalidResourceAlias), alias == "":
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid resource alias"})
+		default:
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid resource name"})
+		}
+		return
+	}
+
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource identity update", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	previous, err := q.GetTenantResource(r.Context(), db.GetTenantResourceParams{ID: resourceID, TenantID: tenantID})
+	if err != nil {
+		writeNotFound(w)
+		return
+	}
+	resource, err := q.UpdateTenantResourceIdentity(r.Context(), db.UpdateTenantResourceIdentityParams{
+		ID: resourceID, TenantID: tenantID, DisplayName: name, Alias: alias,
+	})
+	if err != nil {
+		switch {
+		case isNotFound(err):
+			writeNotFound(w)
+		case store.IsPostgresCode(err, store.PostgresUniqueViolation):
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "resource alias already exists"})
+		default:
+			writeInternalError(w, r, "update resource identity", err)
+		}
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "resource.updated", "resource", resourceID.String(),
+		"/v1/admin/tenants/{id}/resources/{resourceId}", http.StatusOK,
+		map[string]any{
+			"tenant_id": tenantID.String(),
+			"before":    map[string]string{"name": previous.DisplayName, "alias": previous.Alias},
+			"after":     map[string]string{"name": resource.DisplayName, "alias": resource.Alias},
+		}); err != nil {
+		writeInternalError(w, r, "audit resource identity update", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource identity update", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resource)
 }
 
 // PUT /v1/admin/tenants/{id}/resources/{resourceId}/fields/{fieldKey} body {value}
@@ -50,6 +124,7 @@ func (s *Server) updateResourceField(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		var missing service.MissingRequiredFieldError
+		var invalid service.InvalidFieldValueError
 		switch {
 		case errors.Is(err, service.ErrUnknownResource):
 			writeNotFound(w)
@@ -57,6 +132,8 @@ func (s *Server) updateResourceField(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown resource field"})
 		case errors.As(err, &missing):
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": missing.Error()})
+		case errors.As(err, &invalid):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": invalid.Error()})
 		default:
 			writeInternalError(w, r, "update resource field", err)
 		}
@@ -75,6 +152,57 @@ func (s *Server) updateResourceField(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DELETE /v1/admin/tenants/{id}/resources/{resourceId}/fields/{fieldKey}
+// removes a local override so the linked resource inherits the source again.
+func (s *Server) clearResourceFieldOverride(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	resourceID, err := parseParam(r, "resourceId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad resource id"})
+		return
+	}
+	fieldKey := chi.URLParam(r, "fieldKey")
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource override clear", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	field, err := service.ClearResourceFieldOverrideInTx(r.Context(), q, service.UpdateResourceFieldInput{
+		FieldKey: fieldKey, ResourceID: resourceID, TenantID: tenantID,
+	})
+	if err != nil {
+		var missing service.MissingRequiredFieldError
+		switch {
+		case errors.Is(err, service.ErrUnknownResource):
+			writeNotFound(w)
+		case errors.Is(err, service.ErrUnknownResourceField), errors.Is(err, service.ErrInvalidResourceSource):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "field cannot inherit from source"})
+		case errors.As(err, &missing):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": missing.Error()})
+		default:
+			writeInternalError(w, r, "clear resource field override", err)
+		}
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "resource.field_override_cleared", "resource", resourceID.String(),
+		"/v1/admin/tenants/{id}/resources/{resourceId}/fields/{fieldKey}", http.StatusNoContent,
+		map[string]any{"tenant_id": tenantID.String(), "field_key": field.Key, "is_secret": field.IsSecret}); err != nil {
+		writeInternalError(w, r, "audit resource override clear", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource override clear", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // PUT /v1/admin/tenants/{id} — update name/slug/status.
 func (s *Server) updateTenant(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
@@ -86,10 +214,17 @@ func (s *Server) updateTenant(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	if in.Name == "" || in.Slug == "" {
+	slug, slugOK := service.NormalizeTenantSlug(in.Slug)
+	if !slugOK {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid tenant slug"})
+		return
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and slug required"})
 		return
 	}
+	in.Slug = slug
 	if in.Status == "" {
 		in.Status = "active"
 	}
@@ -181,6 +316,69 @@ func (s *Server) deleteTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// PUT /v1/admin/tenants/{id}/domains/{domainId} body {hostname}
+func (s *Server) updateDomain(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	domainID, err := parseParam(r, "domainId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad domain id"})
+		return
+	}
+	var in struct {
+		Hostname string `json:"hostname"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	hostname := service.CanonicalHostname(in.Hostname)
+	if hostname == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid hostname"})
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin tenant domain update", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	previous, err := q.GetTenantDomain(r.Context(), db.GetTenantDomainParams{DomainID: domainID, TargetTenantID: tenantID})
+	if err != nil {
+		writeNotFound(w)
+		return
+	}
+	domain, err := q.UpdateTenantDomain(r.Context(), db.UpdateTenantDomainParams{
+		ID: domainID, TenantID: tenantID, Hostname: hostname,
+	})
+	if err != nil {
+		if store.IsPostgresCode(err, store.PostgresUniqueViolation) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "this hostname is already mapped to a tenant"})
+			return
+		}
+		if isNotFound(err) {
+			writeNotFound(w)
+			return
+		}
+		writeInternalError(w, r, "update tenant domain", err)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "domain.updated", "domain", domainID.String(),
+		"/v1/admin/tenants/{id}/domains/{domainId}", http.StatusOK,
+		map[string]string{"tenant_id": tenantID.String(), "previous_hostname": previous.Hostname, "hostname": hostname}); err != nil {
+		writeInternalError(w, r, "audit tenant domain update", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit tenant domain update", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, domain)
 }
 
 // DELETE /v1/admin/tenants/{id}/domains/{domainId}
@@ -315,6 +513,10 @@ func (s *Server) deleteResource(w http.ResponseWriter, r *http.Request) {
 	}
 	n, err := q.DeleteTenantResource(r.Context(), db.DeleteTenantResourceParams{ID: rid, TenantID: tenantID})
 	if err != nil {
+		if store.IsPostgresCode(err, store.PostgresForeignKeyViolation) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "resource_has_linked_dependents"})
+			return
+		}
 		writeInternalError(w, r, "delete tenant resource", err)
 		return
 	}
@@ -382,6 +584,107 @@ func (s *Server) setDefinitionStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+// PATCH /v1/admin/resource-definitions/{id} — update the mutable catalog metadata.
+// The key is intentionally immutable because consumers and provisioned resources use it as a contract.
+func (s *Server) updateDefinition(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	var in struct{ Name, Description string }
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	in.Description = strings.TrimSpace(in.Description)
+	if in.Name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name required"})
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin definition update", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	previous, err := q.GetDefinition(r.Context(), id)
+	if err != nil {
+		writeNotFound(w)
+		return
+	}
+	d, err := q.UpdateDefinition(r.Context(), db.UpdateDefinitionParams{ID: id, Name: in.Name, Description: in.Description})
+	if err != nil {
+		if isNotFound(err) {
+			writeNotFound(w)
+			return
+		}
+		writeInternalError(w, r, "update resource definition", err)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "definition.updated", "resource_definition", id.String(),
+		"/v1/admin/resource-definitions/{id}", http.StatusOK,
+		map[string]any{
+			"before": map[string]string{"name": previous.Name, "description": previous.Description},
+			"after":  map[string]string{"name": d.Name, "description": d.Description},
+		}); err != nil {
+		writeInternalError(w, r, "audit definition update", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit definition update", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+// DELETE /v1/admin/resource-definitions/{id} — delete an unused catalog type.
+// PostgreSQL prevents deletion while tenant resources still reference the definition.
+func (s *Server) deleteDefinition(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin definition delete", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	d, err := q.GetDefinition(r.Context(), id)
+	if err != nil {
+		writeNotFound(w)
+		return
+	}
+	n, err := q.DeleteDefinition(r.Context(), id)
+	if err != nil {
+		if store.IsPostgresCode(err, store.PostgresForeignKeyViolation) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "definition_in_use"})
+			return
+		}
+		writeInternalError(w, r, "delete resource definition", err)
+		return
+	}
+	if n == 0 {
+		writeNotFound(w)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "definition.deleted", "resource_definition", id.String(),
+		"/v1/admin/resource-definitions/{id}", http.StatusNoContent,
+		map[string]string{"key": d.Key, "name": d.Name}); err != nil {
+		writeInternalError(w, r, "audit definition delete", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit definition delete", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // DELETE /v1/admin/resource-definitions/{id}/fields/{fieldId}

@@ -13,10 +13,8 @@ import (
 
 // Schema invariants verified against a real Postgres (testcontainers).
 
-// RN-01: at most one ACTIVE resource per (tenant, definition).
-// Mutation captured: dropping the partial unique index uq_tenant_resource_active
-// lets the second active insert succeed.
-func TestSchema_OneActiveResourcePerType(t *testing.T) {
+// Multiple resources may share a definition, but aliases are unique per tenant.
+func TestSchema_ResourceAliasUniquePerTenant(t *testing.T) {
 	pool := testsupport.NewDB(t)
 	q := db.New(pool)
 	ctx := context.Background()
@@ -30,14 +28,51 @@ func TestSchema_OneActiveResourcePerType(t *testing.T) {
 		t.Fatalf("def: %v", err)
 	}
 	if _, err := q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
-		TenantID: tenant.ID, ResourceDefinitionID: def.ID,
+		TenantID: tenant.ID, ResourceDefinitionID: def.ID, Alias: "postgres.main", DisplayName: "Postgres main",
 	}); err != nil {
 		t.Fatalf("first active: %v", err)
 	}
 	if _, err := q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
-		TenantID: tenant.ID, ResourceDefinitionID: def.ID,
+		TenantID: tenant.ID, ResourceDefinitionID: def.ID, Alias: "POSTGRES.MAIN", DisplayName: "Duplicate",
 	}); err == nil {
-		t.Fatal("expected unique violation for 2nd active resource (RN-01)")
+		t.Fatal("expected unique violation for duplicate normalized alias")
+	}
+	if _, err := q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
+		TenantID: tenant.ID, ResourceDefinitionID: def.ID, Alias: "postgres.secondary", DisplayName: "Postgres secondary",
+	}); err != nil {
+		t.Fatalf("second resource with same definition: %v", err)
+	}
+}
+
+func TestSchema_ResourceLinksStayWithinTenantAndDefinitionAndOneLevel(t *testing.T) {
+	pool := testsupport.NewDB(t)
+	q := db.New(pool)
+	ctx := context.Background()
+	tenantA, _ := q.CreateTenant(ctx, db.CreateTenantParams{Slug: "source-a", Name: "Source A"})
+	tenantB, _ := q.CreateTenant(ctx, db.CreateTenantParams{Slug: "source-b", Name: "Source B"})
+	postgres, _ := q.CreateDefinition(ctx, db.CreateDefinitionParams{Key: "source-pg", Name: "PG"})
+	minio, _ := q.CreateDefinition(ctx, db.CreateDefinitionParams{Key: "source-minio", Name: "MinIO"})
+	source, err := q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
+		TenantID: tenantA.ID, ResourceDefinitionID: postgres.ID, Alias: "pg.base", DisplayName: "PG base",
+	})
+	if err != nil {
+		t.Fatalf("source: %v", err)
+	}
+	sourceID := pgtype.UUID{Bytes: source.ID, Valid: true}
+	linked, err := q.CreateTenantResource(ctx, db.CreateTenantResourceParams{
+		TenantID: tenantA.ID, ResourceDefinitionID: postgres.ID, Alias: "pg.linked", DisplayName: "PG linked", SourceResourceID: sourceID,
+	})
+	if err != nil {
+		t.Fatalf("valid link: %v", err)
+	}
+	for name, params := range map[string]db.CreateTenantResourceParams{
+		"another tenant": {TenantID: tenantB.ID, ResourceDefinitionID: postgres.ID, Alias: "pg.cross-tenant", DisplayName: "Cross tenant", SourceResourceID: sourceID},
+		"another type":   {TenantID: tenantA.ID, ResourceDefinitionID: minio.ID, Alias: "minio.cross-type", DisplayName: "Cross type", SourceResourceID: sourceID},
+		"linked source":  {TenantID: tenantA.ID, ResourceDefinitionID: postgres.ID, Alias: "pg.second-level", DisplayName: "Second level", SourceResourceID: pgtype.UUID{Bytes: linked.ID, Valid: true}},
+	} {
+		if _, err := q.CreateTenantResource(ctx, params); err == nil {
+			t.Fatalf("database accepted %s source", name)
+		}
 	}
 }
 

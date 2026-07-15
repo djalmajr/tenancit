@@ -2,7 +2,7 @@
 id: api-client-usage-audit
 name: Investigar uso e auditoria de chaves
 persona: platform-operator
-entry: "http://localhost:5180/usage"
+entry: "http://localhost:5180/"
 preconditions:
   - app no ar e operador autenticado
   - ao menos uma chamada consumer realizada
@@ -14,9 +14,9 @@ Relacionar atividade operacional de uma chave às ações administrativas que de
 
 ## Passos
 
-1. (`usage`) Abrir **Uso mensal** → cards e série mensal mostram chamadas, erros e limitações sem expor secrets.
+1. (`usage`) Na entrada, clicar em **Uso mensal** na sidebar → cards e série mensal mostram chamadas, erros e limitações sem expor secrets.
 2. (`usage`) Filtrar por chave, operação e período → apenas os agregados correspondentes permanecem.
-3. (`audit-events`) Abrir **Auditoria** → eventos exibem ator-credencial, ação, alvo, resultado e request ID.
+3. (`audit-events`) Clicar em **Auditoria** na sidebar e selecionar **Eventos** → eventos exibem ator-credencial, ação, alvo, resultado e request ID.
 4. (`audit-events`) Filtrar pela ação e pelo alvo da chave → criação, edição, rotação e revogação são localizáveis.
 
 ## Resultado esperado

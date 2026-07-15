@@ -30,7 +30,7 @@ Um token ativo autentica igualmente:
 
 - `GET /v1/identify`;
 - `GET /v1/resolve` por hostname ou `tenantId`;
-- `GET /v1/resolve/{hostname}/resources/{definitionKey}`.
+- `GET /v1/resolve/{hostname}/resources/{alias}`.
 
 Não há escopo, expiração, limite de requisições, `last_used_at` nem histórico
 agregado de uso. A listagem admin já omite `key_hash` e a criação já devolve o
@@ -63,7 +63,7 @@ token bruto apenas uma vez; esses invariantes devem permanecer.
 | Scope | Rotas | Dados acessíveis |
 |---|---|---|
 | `tenant:identify` | `/v1/identify` | apenas `tenantSlug`; nunca resources ou secrets |
-| `resource:resolve` | `/v1/resolve` e `/v1/resolve/{hostname}/resources/{definitionKey}` | configuração do tenant, inclusive fields secretos descriptografados |
+| `resource:resolve` | `/v1/resolve` e `/v1/resolve/{hostname}/resources/{alias}` | configuração do tenant, inclusive fields secretos descriptografados |
 
 Os scopes são independentes. `resource:resolve` não concede implicitamente
 `tenant:identify`, e vice-versa. A criação exige pelo menos um scope conhecido;

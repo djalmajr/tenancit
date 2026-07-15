@@ -29,6 +29,17 @@ ORDER BY rd.name;
 UPDATE resource_definitions SET status = $2, updated_at = now()
 WHERE id = $1 RETURNING *;
 
+-- name: UpdateDefinition :one
+UPDATE resource_definitions
+SET name = sqlc.arg(name),
+    description = sqlc.arg(description),
+    updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: DeleteDefinition :execrows
+DELETE FROM resource_definitions WHERE id = $1;
+
 -- name: AddField :one
 WITH inserted AS (
     INSERT INTO resource_fields

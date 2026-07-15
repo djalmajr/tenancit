@@ -93,7 +93,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		cr.Use(RequireAPIKey(s.Q, s.Now))
 		cr.With(RequireAPIClientScope(service.ScopeTenantIdentify), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "identify", s.Now), RecordAPIUsage(s.Usage, "identify", s.Now)).Get("/v1/identify", s.handleIdentify)
 		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve", s.handleResolve)
-		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve/{hostname}/resources/{definitionKey}", s.handleResolveOne)
+		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve/{hostname}/resources/{alias}", s.handleResolveOne)
 		cr.With(RequireAPIClientScope(service.ScopeEventsRead), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "events", s.Now), RecordAPIUsage(s.Usage, "events", s.Now)).Get("/v1/events", s.listChangeFeed)
 	})
 
@@ -130,20 +130,26 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.With(requireAdminPermission(permissionTenantHardDelete)).Delete("/tenants/{id}", s.deleteTenant)
 		ar.With(requireAdminPermission(permissionTenantWrite)).Post("/tenants/{id}/domains", s.addDomain)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/tenants/{id}/domains", s.listTenantDomains)
+		ar.With(requireAdminPermission(permissionTenantWrite)).Put("/tenants/{id}/domains/{domainId}", s.updateDomain)
 		ar.With(requireAdminPermission(permissionTenantWrite)).Delete("/tenants/{id}/domains/{domainId}", s.deleteDomain)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/tenants/{id}/resources", s.createResource)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Patch("/tenants/{id}/resources/{resourceId}", s.updateResourceIdentity)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/tenants/{id}/resources/{resourceId}/duplicate", s.duplicateResource)
 		ar.With(
 			requireAdminPermission(permissionAdminRead),
 			requireSecretRevealPermission,
 		).Get("/tenants/{id}/resources", s.listTenantResources)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/tenants/{id}/resources/{resourceId}/status", s.setResourceStatus)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/tenants/{id}/resources/{resourceId}/fields/{fieldKey}", s.updateResourceField)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/tenants/{id}/resources/{resourceId}/fields/{fieldKey}", s.clearResourceFieldOverride)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/tenants/{id}/resources/{resourceId}", s.deleteResource)
 
 		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/resource-definitions", s.createDefinition)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/resource-definitions", s.listDefinitions)
 		ar.With(requireAdminPermission(permissionAdminRead)).Get("/resource-definitions/{id}", s.getDefinition)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Patch("/resource-definitions/{id}", s.updateDefinition)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/resource-definitions/{id}/status", s.setDefinitionStatus)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/resource-definitions/{id}", s.deleteDefinition)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/resource-definitions/{id}/fields", s.addField)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/resource-definitions/{id}/fields/{fieldId}", s.deleteField)
 

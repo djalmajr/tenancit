@@ -10,7 +10,6 @@ import (
 
 	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type fakeLookup struct {
@@ -42,7 +41,7 @@ func TestAuth_ValidToken_200(t *testing.T) {
 	tok := "tnc_abc"
 	lk := fakeLookup{clients: map[string]db.GetAPIClientAuthByHashRow{service.HashAPIKey(tok): {
 		Status: "active", Scopes: []string{service.ScopeTenantIdentify},
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+		ExpiresAt: time.Now().Add(time.Hour),
 	}}}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/x", nil)
@@ -82,7 +81,7 @@ func TestAuth_ExpiredToken_401AtBoundary(t *testing.T) {
 	tok := "tnc_expired"
 	lk := fakeLookup{clients: map[string]db.GetAPIClientAuthByHashRow{service.HashAPIKey(tok): {
 		Status: "active", Scopes: []string{service.ScopeTenantIdentify},
-		ExpiresAt: pgtype.Timestamptz{Time: now, Valid: true},
+		ExpiresAt: now,
 	}}}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/x", nil)

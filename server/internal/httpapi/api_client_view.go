@@ -28,23 +28,19 @@ type createAPIClientResponse struct {
 }
 
 func newAPIClientView(client db.ApiClient, scopes []string, now time.Time) apiClientView {
-	var expiresAt, lastUsedAt, revokedAt *time.Time
-	if client.ExpiresAt.Valid {
-		expiresAt = &client.ExpiresAt.Time
-	}
+	var lastUsedAt, revokedAt *time.Time
+	expiresAt := &client.ExpiresAt
 	if client.LastUsedAt.Valid {
 		lastUsedAt = &client.LastUsedAt.Time
 	}
 	if client.RevokedAt.Valid {
 		revokedAt = &client.RevokedAt.Time
 	}
-	effectiveStatus := client.Status
-	if expiresAt != nil {
-		effectiveStatus = service.EffectiveAPIClientStatus(client.Status, *expiresAt, now)
-	}
+	effectiveStatus := service.EffectiveAPIClientStatus(client.Status, client.ExpiresAt, now)
+	preview, rpm := client.TokenPreview, client.RpmLimit
 	return apiClientView{
-		ID: client.ID, Name: client.Name, KeyPreview: client.TokenPreview,
-		Scopes: scopes, RPMLimit: client.RpmLimit, ExpiresAt: expiresAt,
+		ID: client.ID, Name: client.Name, KeyPreview: &preview,
+		Scopes: scopes, RPMLimit: &rpm, ExpiresAt: expiresAt,
 		LastUsedAt: lastUsedAt, RevokedAt: revokedAt, Status: effectiveStatus,
 		CreatedAt: client.CreatedAt, UpdatedAt: client.UpdatedAt,
 	}

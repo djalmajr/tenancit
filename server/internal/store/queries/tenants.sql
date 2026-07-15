@@ -23,6 +23,13 @@ DELETE FROM tenant_domains
 WHERE id = sqlc.arg(id)
   AND tenant_id = sqlc.arg(tenant_id);
 
+-- name: UpdateTenantDomain :one
+UPDATE tenant_domains
+SET hostname = sqlc.arg(hostname)
+WHERE id = sqlc.arg(id)
+  AND tenant_id = sqlc.arg(tenant_id)
+RETURNING *;
+
 -- name: ListTenantDomains :many
 SELECT * FROM tenant_domains WHERE tenant_id = $1 ORDER BY hostname;
 

@@ -132,10 +132,12 @@ alvo principal e pode citar IDs relacionados somente por allowlist.
 | `resource.deleted` | `DELETE /tenants/{id}/resources/{resourceId}` | resource | `tenant_id`, `definition_id` |
 | `resource.field_updated` | `PUT /tenants/{id}/resources/{resourceId}/fields/{fieldKey}` | resource | `tenant_id`, `field_key`, `is_secret`; nunca o valor |
 | `definition.field_deleted` | `DELETE /resource-definitions/{id}/fields/{fieldId}` | resource field | `definition_id`, `field_key` |
+| `domain.updated` | `PUT /tenants/{id}/domains/{domainId}` | domain | `tenant_id`, hostname anterior e hostname canônico novo |
 | `domain.deleted` | `DELETE /tenants/{id}/domains/{domainId}` | domain | `tenant_id`, hostname canônico |
 | `api_client.created` | `POST /api-clients` | API client | `name`; nunca token ou `key_hash` |
 | `api_client.revoked` | `POST /api-clients/{id}/revoke` | API client | status terminal; nunca token ou hash |
 | `resource.provisioned` | `POST /tenants/{id}/resources` | resource | `tenant_id`, `definition_id`, nomes das fields; nunca values |
+| `resource.updated` | `PATCH /tenants/{id}/resources/{resourceId}` | resource | `tenant_id`, nome e alias anteriores e novos; nunca values |
 
 ### Corte 2 — cobertura completa de mutações admin
 

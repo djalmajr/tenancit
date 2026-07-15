@@ -45,21 +45,24 @@ func TestCreateResource_MissingRequired_400(t *testing.T) {
 	}
 }
 
-// RN-01: a second ACTIVE resource of the same definition for one tenant is a conflict.
-// Mutation captured: dropping the partial unique index OR swallowing the insert
-// error would let this return 201.
-func TestCreateResource_DuplicateActive_409(t *testing.T) {
+// A tenant may use the same definition more than once, provided every instance
+// has a distinct alias. The alias is the stable consumer-facing identifier.
+func TestCreateResource_AllowsRepeatedDefinitionAndRejectsDuplicateAlias(t *testing.T) {
 	_, h := newTestServer(t)
 	seedDefinition(t, h, "pg")
 	tid := seedTenant(t, h, "acme", "app.acme.com")
-	body := map[string]any{"definitionKey": "pg", "values": map[string]string{"host": "h", "password": "p"}}
+	first := map[string]any{"definitionKey": "pg", "alias": "pg.primary", "values": map[string]string{"host": "h", "password": "p"}}
+	second := map[string]any{"definitionKey": "pg", "alias": "pg.analytics", "values": map[string]string{"host": "h2", "password": "p2"}}
 
-	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", body); rec.Code != 201 {
+	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", first); rec.Code != 201 {
 		t.Fatalf("first create: %d %s", rec.Code, rec.Body)
 	}
-	rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", body)
+	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", second); rec.Code != 201 {
+		t.Fatalf("second definition instance: %d %s", rec.Code, rec.Body)
+	}
+	rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", first)
 	if rec.Code != http.StatusConflict {
-		t.Fatalf("second active create got %d, want 409 (%s)", rec.Code, rec.Body)
+		t.Fatalf("duplicate alias got %d, want 409 (%s)", rec.Code, rec.Body)
 	}
 }
 
@@ -126,14 +129,122 @@ func TestListTenantResources_MaskAndReveal(t *testing.T) {
 	}
 }
 
+func TestSharedResource_InheritsOverridesAndDuplicatesIndependentSnapshot(t *testing.T) {
+	_, h := newTestServer(t)
+	seedDefinition(t, h, "pg-shared")
+	tenantID := seedTenant(t, h, "shared", "shared.example.com")
+
+	baseRec := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantID+"/resources", map[string]any{
+		"definitionKey": "pg-shared",
+		"alias":         "pg.base",
+		"values":        map[string]string{"host": "db.internal", "password": "secret-v1"},
+	})
+	if baseRec.Code != http.StatusCreated {
+		t.Fatalf("create base: %d %s", baseRec.Code, baseRec.Body)
+	}
+	baseID := idOf(t, baseRec)
+
+	linkedRec := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantID+"/resources", map[string]any{
+		"definitionKey":    "pg-shared",
+		"alias":            "pg.agility",
+		"sourceResourceId": baseID,
+		"values":           map[string]string{"host": "agility-db.internal"},
+	})
+	if linkedRec.Code != http.StatusCreated {
+		t.Fatalf("create linked: %d %s", linkedRec.Code, linkedRec.Body)
+	}
+	linkedID := idOf(t, linkedRec)
+
+	resources := listRevealedResources(t, h, tenantID)
+	linked := findResource(resources, "pg.agility")
+	if linked == nil || !linked.Linked {
+		t.Fatalf("linked resource = %+v, want linked", linked)
+	}
+	if host := findResourceField(linked, "host"); host == nil || host.Value != "agility-db.internal" || host.Origin != "local" {
+		t.Fatalf("linked host = %+v, want local override", host)
+	}
+	if password := findResourceField(linked, "password"); password == nil || password.Value != "secret-v1" || password.Origin != "inherited" {
+		t.Fatalf("linked password = %+v, want inherited", password)
+	}
+
+	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/resources/"+baseID+"/fields/password", map[string]string{"value": "secret-v2"}); rec.Code != http.StatusNoContent {
+		t.Fatalf("update base: %d %s", rec.Code, rec.Body)
+	}
+	linked = findResource(listRevealedResources(t, h, tenantID), "pg.agility")
+	if got := findResourceField(linked, "password"); got == nil || got.Value != "secret-v2" || got.Origin != "inherited" {
+		t.Fatalf("updated inherited password = %+v", got)
+	}
+
+	duplicateRec := do(t, h, http.MethodPost, "/v1/admin/tenants/"+tenantID+"/resources/"+linkedID+"/duplicate", map[string]string{"alias": "pg.snapshot"})
+	if duplicateRec.Code != http.StatusCreated {
+		t.Fatalf("duplicate linked resource: %d %s", duplicateRec.Code, duplicateRec.Body)
+	}
+	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/resources/"+baseID+"/fields/password", map[string]string{"value": "secret-v3"}); rec.Code != http.StatusNoContent {
+		t.Fatalf("update base again: %d %s", rec.Code, rec.Body)
+	}
+
+	resources = listRevealedResources(t, h, tenantID)
+	linked = findResource(resources, "pg.agility")
+	snapshot := findResource(resources, "pg.snapshot")
+	if got := findResourceField(linked, "password"); got == nil || got.Value != "secret-v3" {
+		t.Fatalf("linked resource stopped inheriting: %+v", got)
+	}
+	if snapshot == nil || snapshot.Linked {
+		t.Fatalf("snapshot = %+v, want independent", snapshot)
+	}
+	if got := findResourceField(snapshot, "password"); got == nil || got.Value != "secret-v2" || got.Origin != "local" {
+		t.Fatalf("snapshot password = %+v, want materialized v2", got)
+	}
+
+	if rec := do(t, h, http.MethodDelete, "/v1/admin/tenants/"+tenantID+"/resources/"+baseID, nil); rec.Code != http.StatusConflict {
+		t.Fatalf("delete source with dependents = %d, want 409 (%s)", rec.Code, rec.Body)
+	}
+}
+
+func listRevealedResources(t *testing.T, h http.Handler, tenantID string) []resourceView {
+	t.Helper()
+	rec := do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantID+"/resources?reveal=true", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list resources: %d %s", rec.Code, rec.Body)
+	}
+	var resources []resourceView
+	mustJSON(t, rec, &resources)
+	return resources
+}
+
 type fieldView struct {
 	Key      string `json:"key"`
 	IsSecret bool   `json:"isSecret"`
 	Value    string `json:"value"`
+	Origin   string `json:"origin"`
 }
 
 type resourceView struct {
+	ID     string      `json:"id"`
+	Alias  string      `json:"alias"`
+	Linked bool        `json:"linked"`
 	Fields []fieldView `json:"fields"`
+}
+
+func findResource(resources []resourceView, alias string) *resourceView {
+	for i := range resources {
+		if resources[i].Alias == alias {
+			return &resources[i]
+		}
+	}
+	return nil
+}
+
+func findResourceField(resource *resourceView, key string) *fieldView {
+	if resource == nil {
+		return nil
+	}
+	for i := range resource.Fields {
+		if resource.Fields[i].Key == key {
+			return &resource.Fields[i]
+		}
+	}
+	return nil
 }
 
 func findField(resources []resourceView, key string) string {
@@ -305,6 +416,44 @@ func TestUpdateTenant_RejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestTenantMutations_RejectInvalidSlug(t *testing.T) {
+	_, h := newTestServer(t)
+
+	created := do(t, h, http.MethodPost, "/v1/admin/tenants", map[string]string{
+		"name": "Invalid", "slug": "invalid|slug",
+	})
+	if created.Code != http.StatusBadRequest || !strings.Contains(created.Body.String(), "invalid tenant slug") {
+		t.Fatalf("create invalid slug = %d, want 400 (%s)", created.Code, created.Body)
+	}
+
+	tenantID := seedTenant(t, h, "valid-slug", "")
+	updated := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID, map[string]string{
+		"name": "Invalid", "slug": "invalid_slug", "status": "active",
+	})
+	if updated.Code != http.StatusBadRequest || !strings.Contains(updated.Body.String(), "invalid tenant slug") {
+		t.Fatalf("update invalid slug = %d, want 400 (%s)", updated.Code, updated.Body)
+	}
+}
+
+func TestDefinitionMutations_RejectInvalidKeys(t *testing.T) {
+	_, h := newTestServer(t)
+
+	definition := do(t, h, http.MethodPost, "/v1/admin/resource-definitions", map[string]string{
+		"key": "invalid.key", "name": "Invalid",
+	})
+	if definition.Code != http.StatusBadRequest || !strings.Contains(definition.Body.String(), "invalid definition key") {
+		t.Fatalf("invalid definition key = %d, want 400 (%s)", definition.Code, definition.Body)
+	}
+
+	definitionID := seedDefinition(t, h, "valid")
+	field := do(t, h, http.MethodPost, "/v1/admin/resource-definitions/"+definitionID+"/fields", map[string]string{
+		"key": "invalid.field", "label": "Invalid",
+	})
+	if field.Code != http.StatusBadRequest || !strings.Contains(field.Body.String(), "invalid field key") {
+		t.Fatalf("invalid field key = %d, want 400 (%s)", field.Code, field.Body)
+	}
+}
+
 func TestAdmin_APIClientResponsesOmitKeyHash(t *testing.T) {
 	_, h := newTestServer(t)
 
@@ -429,14 +578,21 @@ func TestNestedDomainMutationRequiresMatchingTenant(t *testing.T) {
 		t.Fatalf("domains = %d, want 1", len(domains))
 	}
 
+	updateRec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantB+"/domains/"+domains[0].ID,
+		map[string]string{"hostname": "stolen.example.com"})
+	if updateRec.Code != http.StatusNotFound {
+		t.Fatalf("cross-tenant domain update = %d, want 404 (%s)", updateRec.Code, updateRec.Body)
+	}
 	rec := do(t, h, http.MethodDelete, "/v1/admin/tenants/"+tenantB+"/domains/"+domains[0].ID, nil)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant domain delete = %d, want 404 (%s)", rec.Code, rec.Body)
 	}
-	var after []json.RawMessage
+	var after []struct {
+		Hostname string `json:"hostname"`
+	}
 	mustJSON(t, do(t, h, http.MethodGet, "/v1/admin/tenants/"+tenantA+"/domains", nil), &after)
-	if len(after) != 1 {
-		t.Fatalf("cross-tenant delete removed domain; remaining=%d", len(after))
+	if len(after) != 1 || after[0].Hostname != "a.example.com" {
+		t.Fatalf("cross-tenant mutation changed domain; remaining=%+v", after)
 	}
 }
 
@@ -450,6 +606,12 @@ func TestNestedResourceMutationsRequireMatchingTenant(t *testing.T) {
 		"values":        map[string]string{"host": "db", "password": "secret"},
 	})
 	resourceID := idOf(t, created)
+	identityRec := do(t, h, http.MethodPatch,
+		"/v1/admin/tenants/"+tenantB+"/resources/"+resourceID,
+		map[string]string{"name": "Other", "alias": "pg.other"})
+	if identityRec.Code != http.StatusNotFound {
+		t.Errorf("cross-tenant identity update = %d, want 404 (%s)", identityRec.Code, identityRec.Body)
+	}
 
 	statusRec := do(t, h, http.MethodPut,
 		"/v1/admin/tenants/"+tenantB+"/resources/"+resourceID+"/status",

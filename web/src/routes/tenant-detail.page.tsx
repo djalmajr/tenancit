@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
-  Eye, EyeOff, Pencil, Plus, Trash2,
+  Box, Copy, EllipsisVertical, Eye, EyeOff, Link2, Pencil, Plus, RotateCcw, Trash2,
   CircleAlert, Power, PowerOff, Settings2, TriangleAlert,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -31,6 +31,13 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   Select,
@@ -58,6 +65,12 @@ import { adminQueryOptions } from "@/lib/query-options";
 import { useTransientResourceReveal } from "@/lib/use-transient-resource-reveal";
 import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
 import { useDataTable } from "@/hooks/use-data-table";
+import {
+  isValidHostname,
+  isValidResourceAlias,
+  isValidTenantSlug,
+  isValidTypedResourceValue,
+} from "@/lib/validation";
 
 const routeApi = getRouteApi("/tenants/$id");
 const EMPTY_RESOURCES: TenantResource[] = [];
@@ -78,6 +91,9 @@ export default function TenantDetail() {
 
   const [resOpen, setResOpen] = useState(false);
   const [pick, setPick] = useState("");
+  const [resourceName, setResourceName] = useState("");
+  const [resourceAlias, setResourceAlias] = useState("");
+  const [sourceResourceId, setSourceResourceId] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [domainError, setDomainError] = useState("");
   const [editError, setEditError] = useState("");
@@ -86,12 +102,24 @@ export default function TenantDetail() {
   const [resourceError, setResourceError] = useState("");
   const resourceCreateAttempt = useRef<IdempotencyAttempt>(null);
   const [pendingDomain, setPendingDomain] = useState<TenantDomain | null>(null);
+  const [editingDomain, setEditingDomain] = useState<TenantDomain | null>(null);
+  const [editingHostname, setEditingHostname] = useState("");
+  const [editDomainError, setEditDomainError] = useState("");
   const [pendingResource, setPendingResource] = useState<Pick<TenantResource, "id" | "name"> | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState("");
+  const [editingResource, setEditingResource] = useState<Pick<TenantResource, "id" | "name" | "alias"> | null>(null);
+  const [editingResourceName, setEditingResourceName] = useState("");
+  const [editingResourceAlias, setEditingResourceAlias] = useState("");
+  const [editResourceError, setEditResourceError] = useState("");
   const [editingField, setEditingField] = useState<ResourceFieldValue | null>(null);
   const [editingFieldValue, setEditingFieldValue] = useState("");
   const [fieldEditError, setFieldEditError] = useState("");
   const [isUpdatingField, setIsUpdatingField] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] = useState<Pick<TenantResource, "id" | "alias"> | null>(null);
+  const [duplicateAlias, setDuplicateAlias] = useState("");
+  const [duplicateError, setDuplicateError] = useState("");
+  const duplicateAttempt = useRef<IdempotencyAttempt>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
@@ -123,12 +151,21 @@ export default function TenantDetail() {
     pageOf: t("dataTable.pageOf"),
     rowsPerPage: t("dataTable.rowsPerPage"),
   }), [t]);
-  const resourceColumns = useMemo<ColumnDef<TenantResource>[]>(() => [
+  const resourceColumns: ColumnDef<TenantResource>[] = [
     {
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.name")} labels={resourceSortLabels} />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => <span className="flex items-center gap-2 font-medium">
+        {row.original.linked ? <Link2 aria-label={t("tenantDetail.linked")} /> : <Box aria-label={t("tenantDetail.independent")} />}
+        {row.original.name}
+      </span>,
       meta: { label: t("common.name") },
+    },
+    {
+      accessorKey: "alias",
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("tenantDetail.resourceAlias")} labels={resourceSortLabels} />,
+      cell: ({ row }) => <code className="text-xs">{row.original.alias}</code>,
+      meta: { label: t("tenantDetail.resourceAlias") },
     },
     {
       accessorKey: "definitionKey",
@@ -157,23 +194,74 @@ export default function TenantDetail() {
       meta: { label: t("common.status") },
       size: 120,
     },
-  ], [resourceSortLabels, t]);
+    {
+      cell: ({ row }) => {
+        const resource = row.original;
+
+        return <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={t("common.actions")}
+            onClick={(event) => event.stopPropagation()}
+            render={<Button size="icon-sm" title={t("common.actions")} variant="ghost" />}
+          >
+            <EllipsisVertical />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {can("resource.write") && <DropdownMenuItem onClick={(event) => {
+              event.stopPropagation();
+              openResourceIdentity(resource);
+            }}>
+              <Pencil /> {t("common.edit")}
+            </DropdownMenuItem>}
+            {can("resource.write") && <>
+              <DropdownMenuItem onClick={(event) => {
+                event.stopPropagation();
+                void toggleResource(resource);
+              }}>
+                {resource.status === "active" ? <PowerOff /> : <Power />}
+                {resource.status === "active" ? t("tenantDetail.deactivate") : t("tenantDetail.reactivate")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(event) => {
+                event.stopPropagation();
+                openDuplicateResource(resource);
+              }}>
+                <Copy /> {t("tenantDetail.duplicate")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(event) => {
+                event.stopPropagation();
+                requestResourceRemoval(resource);
+              }} variant="destructive">
+                <Trash2 /> {t("common.remove")}
+              </DropdownMenuItem>
+            </>}
+          </DropdownMenuContent>
+        </DropdownMenu>;
+      },
+      enableHiding: false,
+      enableSorting: false,
+      header: t("common.actions"),
+      id: "actions",
+      meta: { align: "right", label: t("common.actions") },
+      size: 64,
+    },
+  ];
   const { table: resourceTable } = useDataTable({
     columns: resourceColumns,
     data: resources,
     globalFilterFn: (resource, filterValue) => {
       const query = filterValue.trim().toLowerCase();
-      return !query || [resource.name, resource.definitionKey, resource.status, formatStatus(resource.status, t)]
+      return !query || [resource.alias, resource.name, resource.definitionKey, resource.sourceAlias ?? "", resource.status, formatStatus(resource.status, t)]
         .some((value) => value.toLowerCase().includes(query));
     },
-    initialState: { sorting: [{ desc: false, id: "name" }] },
+    initialState: { sorting: [{ desc: false, id: "alias" }] },
     visibilityStorageKey: "tenancit.tenant-resources.table",
   });
   const domainTableLabels = useMemo(() => ({
     ...resourceTableLabels,
     noResults: t("tenantDetail.domainsEmpty"),
   }), [resourceTableLabels, t]);
-  const domainColumns = useMemo<ColumnDef<TenantDomain>[]>(() => [
+  const domainColumns: ColumnDef<TenantDomain>[] = [
     {
       accessorKey: "hostname",
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.hostname")} labels={resourceSortLabels} />,
@@ -181,15 +269,32 @@ export default function TenantDetail() {
       meta: { label: t("common.hostname") },
     },
     {
-      cell: ({ row }) => can("tenant.write") ? <Button
-        aria-label={t("common.remove")}
-        onClick={() => setPendingDomain(row.original)}
-        size="icon-sm"
-        title={t("common.remove")}
-        variant="ghost"
-      >
-        <Trash2 />
-      </Button> : null,
+      cell: ({ row }) => can("tenant.write") ? <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={t("common.actions")}
+          onClick={(event) => event.stopPropagation()}
+          render={<Button size="icon-sm" title={t("common.actions")} variant="ghost" />}
+        >
+          <EllipsisVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={(event) => {
+            event.stopPropagation();
+            setEditingDomain(row.original);
+            setEditingHostname(row.original.hostname);
+            setEditDomainError("");
+          }}>
+            <Pencil /> {t("tenantDetail.renameDomain")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={(event) => {
+            event.stopPropagation();
+            setPendingDomain(row.original);
+          }} variant="destructive">
+            <Trash2 /> {t("common.remove")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu> : null,
       enableHiding: false,
       enableSorting: false,
       header: t("common.actions"),
@@ -197,7 +302,7 @@ export default function TenantDetail() {
       meta: { align: "right", label: t("common.actions") },
       size: 80,
     },
-  ], [can, resourceSortLabels, setPendingDomain, t]);
+  ];
   const { table: domainTable } = useDataTable({
     columns: domainColumns,
     data: domains,
@@ -206,21 +311,33 @@ export default function TenantDetail() {
     visibilityStorageKey: "tenancit.tenant-domains.table",
   });
 
-  const activeKeys = new Set(resources.filter((r) => r.status === "active").map((r) => r.definitionKey));
   const overview = summarizeTenantOverview({
     domainCount: domains.length,
     resources,
     tenantStatus: tenant?.status ?? "inactive",
   });
-  const available = definitions.filter((d) => d.status === "active" && !activeKeys.has(d.key));
+  const available = definitions.filter((d) => d.status === "active");
   const picked = available.find((d) => d.key === pick) ?? null;
   const pickedDefinitionQuery = useQuery({
     ...adminQueryOptions.definition(picked?.id ?? ""),
     enabled: Boolean(picked),
   });
   const pickedFields = pickedDefinitionQuery.data?.fields ?? [];
+  const sourceCandidates = resources.filter((resource) =>
+    resource.status === "active" && !resource.linked && resource.definitionKey === picked?.key);
   const requiredFilled =
-    picked && pickedFields.filter((f) => f.required).every((f) => (values[f.key] ?? "").trim());
+    picked && (Boolean(sourceResourceId)
+      || pickedFields.filter((f) => f.required).every((f) => (values[f.key] ?? "").trim()));
+  const resourceValuesValid = pickedFields.every((field) =>
+    isValidTypedResourceValue(field.data_type, values[field.key] ?? ""));
+  const resourceAliasValid = isValidResourceAlias(resourceAlias);
+  const editingResourceAliasValid = isValidResourceAlias(editingResourceAlias);
+  const duplicateAliasValid = isValidResourceAlias(duplicateAlias);
+  const editSlugValid = isValidTenantSlug(edit.slug);
+  const hostnameValid = isValidHostname(hostname);
+  const editingHostnameValid = isValidHostname(editingHostname);
+  const editingFieldValueValid = !editingField
+    || isValidTypedResourceValue(editingField.dataType, editingFieldValue);
   const queryError = [
     tenantQuery.error,
     domainsQuery.error,
@@ -247,6 +364,14 @@ export default function TenantDetail() {
       await invalidateTenantResources(queryClient, id);
     },
   });
+  const resourceIdentityMutation = useMutation({
+    mutationFn: ({ resourceId, name, alias }: { resourceId: string; name: string; alias: string }) =>
+      api.updateResourceIdentity(id, resourceId, { name, alias }),
+    onSuccess: async () => {
+      reveal.hide();
+      await invalidateTenantResources(queryClient, id);
+    },
+  });
   const deleteResourceMutation = useMutation({
     mutationFn: (resourceId: string) => api.deleteResource(id, resourceId),
     onSuccess: async () => {
@@ -254,8 +379,21 @@ export default function TenantDetail() {
       await invalidateTenantResources(queryClient, id);
     },
   });
+  const duplicateResourceMutation = useMutation({
+    mutationFn: ({ resourceId, alias }: { resourceId: string; alias: string }) =>
+      api.duplicateResource(id, resourceId, alias, stableIdempotencyKey(duplicateAttempt, { resourceId, alias })),
+    onSuccess: async () => {
+      reveal.hide();
+      await invalidateTenantResources(queryClient, id);
+    },
+  });
   const addDomainMutation = useMutation({
     mutationFn: (nextHostname: string) => api.addDomain(id, nextHostname),
+    onSuccess: () => invalidateTenantDomains(queryClient, id),
+  });
+  const updateDomainMutation = useMutation({
+    mutationFn: ({ domainId, hostname: nextHostname }: { domainId: string; hostname: string }) =>
+      api.updateDomain(id, domainId, nextHostname),
     onSuccess: () => invalidateTenantDomains(queryClient, id),
   });
   const removeDomainMutation = useMutation({
@@ -274,7 +412,7 @@ export default function TenantDetail() {
     setEditOpen(true);
   }
   async function saveEdit() {
-    if (!edit.name.trim() || !edit.slug.trim()) return;
+    if (!edit.name.trim() || !editSlugValid) return;
     setEditError("");
     try {
       await updateTenantMutation.mutateAsync(edit);
@@ -287,21 +425,33 @@ export default function TenantDetail() {
 
   function choose(key: string) {
     setPick(key);
+    setResourceName(available.find((definition) => definition.key === key)?.name ?? key);
+    setResourceAlias(key);
+    setSourceResourceId("");
     setValues({});
     setResourceError("");
   }
   async function saveResource() {
-    if (!picked || !requiredFilled) return;
+    if (!picked || !resourceName.trim() || !requiredFilled || !resourceAliasValid) return;
     setResourceError("");
     setIsCreatingResource(true);
     reveal.hide();
     try {
       // Secret-bearing values stay out of MutationCache and are erased after use.
-      const request = { definitionKey: picked.key, values };
+      const request = {
+        name: resourceName.trim(),
+        alias: resourceAlias.trim(),
+        definitionKey: picked.key,
+        ...(sourceResourceId ? { sourceResourceId } : {}),
+        values,
+      };
       await api.createResource(id, request, stableIdempotencyKey(resourceCreateAttempt, request));
       await invalidateTenantResources(queryClient, id);
       setResOpen(false);
       setPick("");
+      setResourceName("");
+      setResourceAlias("");
+      setSourceResourceId("");
       setValues({});
       toast.success(t("tenantDetail.resourceAdded"));
       resourceCreateAttempt.current = null;
@@ -309,6 +459,30 @@ export default function TenantDetail() {
       setResourceError(apiErrorMessage(e, t));
     } finally {
       setIsCreatingResource(false);
+    }
+  }
+
+  function openResourceIdentity(resource: TenantResource) {
+    setEditingResource({ id: resource.id, name: resource.name, alias: resource.alias });
+    setEditingResourceName(resource.name);
+    setEditingResourceAlias(resource.alias);
+    setEditResourceError("");
+    setSelectedResourceId("");
+  }
+
+  async function saveResourceIdentity() {
+    if (!editingResource || !editingResourceName.trim() || !editingResourceAliasValid) return;
+    setEditResourceError("");
+    try {
+      await resourceIdentityMutation.mutateAsync({
+        resourceId: editingResource.id,
+        name: editingResourceName.trim(),
+        alias: editingResourceAlias.trim(),
+      });
+      setEditingResource(null);
+      toast.success(t("tenantDetail.resourceUpdated"));
+    } catch (error) {
+      setEditResourceError(apiErrorMessage(error, t));
     }
   }
 
@@ -321,6 +495,20 @@ export default function TenantDetail() {
       setPageError(apiErrorMessage(e, t));
     }
   }
+
+  function openDuplicateResource(resource: TenantResource) {
+    setDuplicateAlias(`${resource.alias}.copy`);
+    setDuplicateTarget({ id: resource.id, alias: resource.alias });
+    setDuplicateError("");
+    setSelectedResourceId("");
+    setDuplicateOpen(true);
+  }
+
+  function requestResourceRemoval(resource: TenantResource) {
+    setPendingResource({ id: resource.id, name: resource.alias });
+    setSelectedResourceId("");
+  }
+
   async function removeResource() {
     if (!pendingResource) return;
     try {
@@ -339,7 +527,7 @@ export default function TenantDetail() {
   }
 
   async function saveFieldEdit() {
-    if (!selectedResource || !editingField || (editingField.required && !editingFieldValue)) return;
+    if (!selectedResource || !editingField || !editingFieldValueValid || (editingField.required && !editingFieldValue)) return;
     setFieldEditError("");
     setIsUpdatingField(true);
     reveal.hide();
@@ -356,8 +544,35 @@ export default function TenantDetail() {
     }
   }
 
+  async function clearFieldOverride(field: ResourceFieldValue) {
+    if (!selectedResource) return;
+    try {
+      reveal.hide();
+      await api.clearResourceFieldOverride(id, selectedResource.id, field.key);
+      await invalidateTenantResources(queryClient, id);
+      toast.success(t("tenantDetail.resourceFieldInherited"));
+    } catch (error) {
+      setPageError(apiErrorMessage(error, t));
+    }
+  }
+
+  async function duplicateSelectedResource() {
+    if (!duplicateTarget || !duplicateAliasValid) return;
+    setDuplicateError("");
+    try {
+      await duplicateResourceMutation.mutateAsync({ resourceId: duplicateTarget.id, alias: duplicateAlias.trim() });
+      setDuplicateOpen(false);
+      setDuplicateTarget(null);
+      setDuplicateAlias("");
+      duplicateAttempt.current = null;
+      toast.success(t("tenantDetail.resourceDuplicated"));
+    } catch (error) {
+      setDuplicateError(apiErrorMessage(error, t));
+    }
+  }
+
   async function saveDomain() {
-    if (!hostname.trim()) return;
+    if (!hostnameValid) return;
     setDomainError("");
     try {
       await addDomainMutation.mutateAsync(hostname.trim());
@@ -366,6 +581,21 @@ export default function TenantDetail() {
       toast.success(t("tenantDetail.domainAdded"));
     } catch (e) {
       setDomainError(apiErrorMessage(e, t));
+    }
+  }
+  async function saveDomainEdit() {
+    if (!editingDomain || !editingHostnameValid) return;
+    setEditDomainError("");
+    try {
+      await updateDomainMutation.mutateAsync({
+        domainId: editingDomain.id,
+        hostname: editingHostname.trim(),
+      });
+      setEditingDomain(null);
+      setEditingHostname("");
+      toast.success(t("tenantDetail.domainUpdated"));
+    } catch (error) {
+      setEditDomainError(apiErrorMessage(error, t));
     }
   }
   async function removeDomain() {
@@ -486,7 +716,9 @@ export default function TenantDetail() {
             <CardContent className="flex flex-col gap-2">
               {overview.attentionCodes.length === 0 ? <Empty className="border-0 py-4">
                 <EmptyHeader>
-                  <EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia>
+                  <EmptyMedia className="size-10" variant="icon">
+                    <CheckCircle2 className="size-5" />
+                  </EmptyMedia>
                   <EmptyTitle>{t("tenantDetail.attention.emptyTitle")}</EmptyTitle>
                   <EmptyDescription>{t("tenantDetail.attention.emptyDescription")}</EmptyDescription>
                 </EmptyHeader>
@@ -586,7 +818,9 @@ export default function TenantDetail() {
                 <DomainStatus label={formatStatus(selectedResource.status, t)} value={selectedResource.status} />
               </div>
               <DialogDescription>
-                {t("tenantDetail.resourceDetailsDescription", { type: selectedResource.definitionKey })}
+                {selectedResource.linked
+                  ? t("tenantDetail.resourceLinkedDescription", { source: selectedResource.sourceAlias ?? "" })
+                  : t("tenantDetail.resourceDetailsDescription", { type: selectedResource.definitionKey, alias: selectedResource.alias })}
               </DialogDescription>
             </DialogHeader>
             <div className="min-h-0 overflow-y-auto rounded-md border">
@@ -603,13 +837,13 @@ export default function TenantDetail() {
                     <TableRow key={field.key}>
                       <TableCell className="font-medium">{field.label || field.key}</TableCell>
                       <TableCell>
-                        <code className="text-xs">
+                        <div className="flex items-center gap-2"><code className="text-xs">
                           {displaySecretValue({
                             isSecret: field.isSecret,
                             revealed: reveal.isRevealed,
                             value: field.value,
                           }) || "—"}
-                        </code>
+                        </code>{field.origin === "inherited" && <span className="text-xs text-muted-foreground">{t("tenantDetail.inherited")}</span>}</div>
                       </TableCell>
                       <TableCell className="text-right">
                         {can("resource.write") && <Button
@@ -621,6 +855,13 @@ export default function TenantDetail() {
                         >
                           <Pencil />
                         </Button>}
+                        {can("resource.write") && selectedResource.linked && field.isOverride && <Button
+                          aria-label={t("tenantDetail.useSource")}
+                          onClick={() => { void clearFieldOverride(field); }}
+                          size="icon-sm"
+                          title={t("tenantDetail.useSource")}
+                          variant="ghost"
+                        ><RotateCcw /></Button>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -639,13 +880,16 @@ export default function TenantDetail() {
                   {selectedResource.status === "active" ? t("tenantDetail.deactivate") : t("tenantDetail.reactivate")}
                 </Button>}
                 {can("resource.write") && <Button
-                  onClick={() => {
-                    setPendingResource({ id: selectedResource.id, name: selectedResource.name });
-                    setSelectedResourceId("");
-                  }}
+                  onClick={() => requestResourceRemoval(selectedResource)}
                   variant="destructive"
                 >
                   <Trash2 data-icon="inline-start" /> {t("common.remove")}
+                </Button>}
+                {can("resource.write") && <Button
+                  onClick={() => openDuplicateResource(selectedResource)}
+                  variant="outline"
+                >
+                  <Copy data-icon="inline-start" /> {t("tenantDetail.duplicate")}
                 </Button>}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -659,6 +903,99 @@ export default function TenantDetail() {
               </div>
             </DialogFooter>
           </>}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingResource)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingResource(null);
+            setEditResourceError("");
+          }
+        }}
+      >
+        {editingResource && <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tenantDetail.editResourceIdentityTitle")}</DialogTitle>
+            <DialogDescription>{t("tenantDetail.editResourceIdentityDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="resource-identity-name">{t("common.name")}</label>
+              <Input
+                aria-invalid={!editingResourceName.trim()}
+                id="resource-identity-name"
+                maxLength={120}
+                onChange={(event) => setEditingResourceName(event.target.value)}
+                value={editingResourceName}
+              />
+              <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceNameHint")}</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="resource-identity-alias">{t("tenantDetail.resourceAlias")}</label>
+              <Input
+                aria-invalid={!editingResourceAliasValid}
+                autoComplete="off"
+                id="resource-identity-alias"
+                onChange={(event) => setEditingResourceAlias(event.target.value)}
+                value={editingResourceAlias}
+              />
+              <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceAliasHint")}</p>
+            </div>
+            {editResourceError && <p className="text-sm text-destructive">{editResourceError}</p>}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button
+              disabled={!editingResourceName.trim() || !editingResourceAliasValid || resourceIdentityMutation.isPending}
+              onClick={() => { void saveResourceIdentity(); }}
+            >
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>}
+      </Dialog>
+
+      <Dialog
+        open={duplicateOpen}
+        onOpenChange={(open) => {
+          setDuplicateOpen(open);
+          if (!open) {
+            setDuplicateTarget(null);
+            setDuplicateAlias("");
+            setDuplicateError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tenantDetail.duplicateTitle")}</DialogTitle>
+            <DialogDescription>{t("tenantDetail.duplicateDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" htmlFor="resource-duplicate-alias">
+              {t("tenantDetail.resourceAlias")}
+            </label>
+            <Input
+              aria-invalid={Boolean(duplicateError) || (!duplicateAliasValid && duplicateAlias.length > 0)}
+              autoComplete="off"
+              id="resource-duplicate-alias"
+              onChange={(event) => setDuplicateAlias(event.target.value)}
+              value={duplicateAlias}
+            />
+            <p className="text-xs text-muted-foreground">{t("tenantDetail.duplicateHint")}</p>
+            {duplicateError && <p className="text-sm text-destructive">{duplicateError}</p>}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button
+              disabled={!duplicateAliasValid || duplicateResourceMutation.isPending}
+              onClick={() => { void duplicateSelectedResource(); }}
+            >
+              {t("tenantDetail.duplicate")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -684,19 +1021,22 @@ export default function TenantDetail() {
               {editingField.label || editingField.key}
             </label>
             <Input
-              aria-invalid={Boolean(fieldEditError)}
+              aria-invalid={Boolean(fieldEditError) || !editingFieldValueValid}
               autoComplete="off"
               id="resource-field-value"
               onChange={(event) => setEditingFieldValue(event.target.value)}
               type={editingField.isSecret ? "password" : editingField.dataType === "int" ? "number" : "text"}
               value={editingFieldValue}
             />
+            {!editingFieldValueValid && <p className="text-xs text-destructive">
+              {t(editingField.dataType === "int" ? "validation.integer" : "validation.boolean")}
+            </p>}
             {fieldEditError && <p className="text-sm text-destructive">{fieldEditError}</p>}
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
             <Button
-              disabled={isUpdatingField || (editingField.required && !editingFieldValue)}
+              disabled={isUpdatingField || !editingFieldValueValid || (editingField.required && !editingFieldValue)}
               onClick={() => { void saveFieldEdit(); }}
             >
               {t("common.save")}
@@ -712,18 +1052,35 @@ export default function TenantDetail() {
             <DialogTitle>{t("tenantDetail.editTitle")}</DialogTitle>
             <DialogDescription>{t("tenantDetail.editDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+          <div className="min-h-0 space-y-4 overflow-y-auto px-1">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.name")}</label>
               <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.slug")}</label>
-              <Input value={edit.slug} onChange={(e) => setEdit({ ...edit, slug: e.target.value })} />
+              <Input
+                aria-describedby="tenant-edit-slug-hint"
+                aria-invalid={edit.slug.length > 0 && !editSlugValid}
+                autoComplete="off"
+                maxLength={63}
+                value={edit.slug}
+                onChange={(e) => setEdit({ ...edit, slug: e.target.value })}
+              />
+              <p className={edit.slug.length > 0 && !editSlugValid ? "text-xs text-destructive" : "text-xs text-muted-foreground"} id="tenant-edit-slug-hint">
+                {t("validation.tenantSlug")}
+              </p>
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("common.status")}</label>
-              <Select value={edit.status} onValueChange={(value) => setEdit({ ...edit, status: String(value) })}>
+              <Select
+                items={{
+                  active: formatStatus("active", t),
+                  inactive: formatStatus("inactive", t),
+                }}
+                value={edit.status}
+                onValueChange={(value) => setEdit({ ...edit, status: String(value) })}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -739,7 +1096,7 @@ export default function TenantDetail() {
           </div>
           <DialogFooter className="shrink-0">
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
-            <Button disabled={!edit.name.trim() || !edit.slug.trim()} onClick={() => { void saveEdit(); }}>{t("common.save")}</Button>
+            <Button disabled={!edit.name.trim() || !editSlugValid} onClick={() => { void saveEdit(); }}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -751,6 +1108,9 @@ export default function TenantDetail() {
           setResOpen(open);
           if (!open) {
             setPick("");
+            setResourceName("");
+            setResourceAlias("");
+            setSourceResourceId("");
             setValues({});
           }
         }}
@@ -769,7 +1129,11 @@ export default function TenantDetail() {
               <>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">{t("tenantDetail.resourceType")}</label>
-                  <Select value={pick || null} onValueChange={(value) => choose(value ? String(value) : "")}>
+                  <Select
+                    items={available.map((definition) => ({ label: definition.name, value: definition.key }))}
+                    value={pick || null}
+                    onValueChange={(value) => choose(value ? String(value) : "")}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={t("tenantDetail.selectResource")} />
                     </SelectTrigger>
@@ -782,17 +1146,67 @@ export default function TenantDetail() {
                     </SelectContent>
                   </Select>
                 </div>
+                {picked && <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t("common.name")}</label>
+                  <Input
+                    maxLength={120}
+                    onChange={(event) => setResourceName(event.target.value)}
+                    value={resourceName}
+                  />
+                  <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceNameHint")}</p>
+                </div>}
+                {picked && <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t("tenantDetail.resourceAlias")}</label>
+                  <Input
+                    aria-invalid={!resourceAliasValid && resourceAlias.length > 0}
+                    onChange={(event) => setResourceAlias(event.target.value)}
+                    placeholder="postgres.agility"
+                    value={resourceAlias}
+                  />
+                  <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceAliasHint")}</p>
+                </div>}
+                {picked && <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t("tenantDetail.resourceOrigin")}</label>
+                  <Select
+                    items={[
+                      { label: t("tenantDetail.independent"), value: "independent" },
+                      ...sourceCandidates.map((resource) => ({
+                        label: t("tenantDetail.linkTo", { alias: resource.alias }),
+                        value: resource.id,
+                      })),
+                    ]}
+                    value={sourceResourceId || "independent"}
+                    onValueChange={(value) => setSourceResourceId(value === "independent" ? "" : String(value))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent><SelectGroup>
+                      <SelectItem value="independent">{t("tenantDetail.independent")}</SelectItem>
+                      {sourceCandidates.map((resource) => <SelectItem key={resource.id} value={resource.id}>
+                        {t("tenantDetail.linkTo", { alias: resource.alias })}
+                      </SelectItem>)}
+                    </SelectGroup></SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{sourceResourceId
+                    ? t("tenantDetail.linkedHint")
+                    : t("tenantDetail.independentHint")}</p>
+                </div>}
                 {pickedFields.map((f) => (
                   <div key={f.key} className="space-y-1.5">
                     <label className="text-sm font-medium">
                       {f.label || f.key} {f.required && <span className="text-destructive">*</span>}
                     </label>
                     <Input
+                      aria-invalid={!isValidTypedResourceValue(f.data_type, values[f.key] ?? "")}
                       type={f.is_secret ? "password" : f.data_type === "int" ? "number" : "text"}
-                      placeholder={f.key}
+                      placeholder={sourceResourceId ? t("tenantDetail.inheritPlaceholder") : f.key}
                       value={values[f.key] ?? ""}
                       onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
                     />
+                    {!isValidTypedResourceValue(f.data_type, values[f.key] ?? "") && <p className="text-xs text-destructive">
+                      {t(f.data_type === "int" ? "validation.integer" : "validation.boolean")}
+                    </p>}
                   </div>
                 ))}
               </>
@@ -802,7 +1216,7 @@ export default function TenantDetail() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
             <Button
-              disabled={!picked || !requiredFilled || isCreatingResource}
+              disabled={!picked || !resourceName.trim() || !resourceAliasValid || !requiredFilled || !resourceValuesValid || isCreatingResource}
               onClick={() => { void saveResource(); }}
             >
               {t("tenantDetail.saveResource")}
@@ -820,12 +1234,73 @@ export default function TenantDetail() {
           </DialogHeader>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("common.hostname")}</label>
-            <Input placeholder="app.cliente.com" value={hostname} onChange={(e) => setHostname(e.target.value)} />
+            <Input
+              aria-describedby="tenant-domain-new-hint"
+              aria-invalid={hostname.length > 0 && !hostnameValid}
+              autoComplete="off"
+              maxLength={253}
+              placeholder="app.cliente.com"
+              value={hostname}
+              onChange={(e) => setHostname(e.target.value)}
+            />
+            <p className={hostname.length > 0 && !hostnameValid ? "text-xs text-destructive" : "text-xs text-muted-foreground"} id="tenant-domain-new-hint">
+              {t("validation.hostname")}
+            </p>
             {domainError && <div className="text-sm text-destructive">{domainError}</div>}
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
-            <Button disabled={!hostname.trim()} onClick={() => { void saveDomain(); }}>{t("common.add")}</Button>
+            <Button disabled={!hostnameValid} onClick={() => { void saveDomain(); }}>{t("common.add")}</Button>
+          </DialogFooter>
+        </DialogContent>}
+      </Dialog>
+
+      {/* Rename domain */}
+      <Dialog open={Boolean(editingDomain)} onOpenChange={(open) => {
+        if (!open && !updateDomainMutation.isPending) {
+          setEditingDomain(null);
+          setEditingHostname("");
+          setEditDomainError("");
+        }
+      }}>
+        {editingDomain && <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tenantDetail.editDomainTitle")}</DialogTitle>
+            <DialogDescription>{t("tenantDetail.editDomainDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" htmlFor="tenant-domain-edit-hostname">
+              {t("common.hostname")}
+            </label>
+            <Input
+              aria-describedby="tenant-domain-edit-hint"
+              aria-invalid={editingHostname.length > 0 && !editingHostnameValid}
+              autoComplete="off"
+              id="tenant-domain-edit-hostname"
+              maxLength={253}
+              placeholder="app.cliente.com"
+              value={editingHostname}
+              onChange={(event) => setEditingHostname(event.target.value)}
+            />
+            <p className={editingHostname.length > 0 && !editingHostnameValid ? "text-xs text-destructive" : "text-xs text-muted-foreground"} id="tenant-domain-edit-hint">
+              {t("validation.hostname")}
+            </p>
+            {editDomainError && <div className="text-sm text-destructive">{editDomainError}</div>}
+          </div>
+          <DialogFooter>
+            <Button disabled={updateDomainMutation.isPending} onClick={() => {
+              setEditingDomain(null);
+              setEditingHostname("");
+              setEditDomainError("");
+            }} variant="outline">
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={!editingHostnameValid || updateDomainMutation.isPending}
+              onClick={() => { void saveDomainEdit(); }}
+            >
+              {t("common.save")}
+            </Button>
           </DialogFooter>
         </DialogContent>}
       </Dialog>

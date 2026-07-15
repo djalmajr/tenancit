@@ -20,6 +20,7 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { invalidateTenants } from "@/lib/query-invalidation";
 import { adminQueryOptions } from "@/lib/query-options";
 import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
+import { isValidTenantSlug } from "@/lib/validation";
 
 const EMPTY_TENANTS: Tenant[] = [];
 
@@ -31,6 +32,7 @@ export default function Tenants() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ slug: "", name: "" });
   const [error, setError] = useState("");
+  const slugValid = isValidTenantSlug(form.slug);
   const createAttempt = useRef<IdempotencyAttempt>(null);
   const tenantsQuery = useQuery(adminQueryOptions.tenants());
   // TanStack Table treats a new data reference as a data change and schedules
@@ -120,6 +122,7 @@ export default function Tenants() {
   const { table } = dataTable;
 
   async function create() {
+    if (!slugValid || !form.name.trim()) return;
     setError("");
     try {
       const created = await createTenantMutation.mutateAsync({ body: form, key: stableIdempotencyKey(createAttempt, form) });
@@ -166,13 +169,25 @@ export default function Tenants() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium" htmlFor="new-tenant-slug">{t("common.slug")}</label>
-              <Input id="new-tenant-slug" placeholder="acme" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+              <Input
+                aria-describedby="new-tenant-slug-hint"
+                aria-invalid={form.slug.length > 0 && !slugValid}
+                autoComplete="off"
+                id="new-tenant-slug"
+                maxLength={63}
+                placeholder="acme"
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
+              />
+              <p className={form.slug.length > 0 && !slugValid ? "text-xs text-destructive" : "text-xs text-muted-foreground"} id="new-tenant-slug-hint">
+                {t("validation.tenantSlug")}
+              </p>
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
-            <Button disabled={!form.slug || !form.name || createTenantMutation.isPending} onClick={() => { void create(); }}>{t("tenants.create")}</Button>
+            <Button disabled={!slugValid || !form.name.trim() || createTenantMutation.isPending} onClick={() => { void create(); }}>{t("tenants.create")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
