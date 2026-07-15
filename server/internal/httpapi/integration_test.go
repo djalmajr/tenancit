@@ -684,6 +684,9 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 		"definitionKey": "audit-definition", "values": map[string]string{"host": "db", "password": "audit-secret"},
 	})
 	resourceID := idOf(t, resource)
+	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/resources/"+resourceID+"/fields/password", map[string]string{"value": "rotated-audit-secret"}); rec.Code != http.StatusNoContent {
+		t.Fatalf("resource field update: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(t, h, http.MethodPut, "/v1/admin/tenants/"+tenantID+"/resources/"+resourceID+"/status", map[string]string{"status": "inactive"}); rec.Code != http.StatusOK {
 		t.Fatalf("resource status: %d %s", rec.Code, rec.Body)
 	}
@@ -700,7 +703,7 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 	expected := []string{
 		"tenant.created", "tenant.updated", "domain.added", "domain.deleted",
 		"definition.created", "definition.field_added", "definition.field_deleted",
-		"resource.provisioned", "resource.status_changed", "resource.deleted",
+		"resource.provisioned", "resource.field_updated", "resource.status_changed", "resource.deleted",
 		"definition.status_changed", "tenant.deleted",
 	}
 	for _, action := range expected {

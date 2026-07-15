@@ -68,26 +68,6 @@ export function DataTablePagination<TData>({
         {table.getFilteredRowModel().rows.length === 1 ? labels.item : labels.items}
       </div>
       <div className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:gap-5">
-        <div className="flex items-center gap-2">
-          <p className="whitespace-nowrap text-sm font-medium">{labels.rowsPerPage}</p>
-          <Select
-            onValueChange={(value) => table.setPageSize(Number(value))}
-            value={`${table.getState().pagination.pageSize}`}
-          >
-            <SelectTrigger className="w-16">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              <SelectGroup>
-                {pageSizeOptions.map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
         <div className="flex items-center justify-center text-sm font-medium">
           {labels.page} {currentPage} {labels.pageOf} {pageCount}
         </div>
@@ -135,6 +115,23 @@ export function DataTablePagination<TData>({
             <ChevronsRight />
           </Button>
         </div>
+        <Select
+          onValueChange={(value) => table.setPageSize(Number(value))}
+          value={`${table.getState().pagination.pageSize}`}
+        >
+          <SelectTrigger aria-label={labels.rowsPerPage} className="w-16">
+            <SelectValue placeholder={table.getState().pagination.pageSize} />
+          </SelectTrigger>
+          <SelectContent side="top">
+            <SelectGroup>
+              {pageSizeOptions.map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

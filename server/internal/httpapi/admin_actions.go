@@ -1,8 +1,10 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/djalmajr/tenancit/server/internal/service"
 	"github.com/djalmajr/tenancit/server/internal/store"
 	"github.com/djalmajr/tenancit/server/internal/store/db"
 	"github.com/go-chi/chi/v5"
@@ -11,6 +13,66 @@ import (
 
 func parseParam(r *http.Request, name string) (uuid.UUID, error) {
 	return uuid.Parse(chi.URLParam(r, name))
+}
+
+// PUT /v1/admin/tenants/{id}/resources/{resourceId}/fields/{fieldKey} body {value}
+func (s *Server) updateResourceField(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	resourceID, err := parseParam(r, "resourceId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad resource id"})
+		return
+	}
+	fieldKey := chi.URLParam(r, "fieldKey")
+	if fieldKey == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "field key required"})
+		return
+	}
+	var in struct {
+		Value string `json:"value"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource field update", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	field, err := service.UpdateResourceFieldInTx(r.Context(), q, s.Cryptor, service.UpdateResourceFieldInput{
+		FieldKey: fieldKey, ResourceID: resourceID, TenantID: tenantID, Value: in.Value,
+	})
+	if err != nil {
+		var missing service.MissingRequiredFieldError
+		switch {
+		case errors.Is(err, service.ErrUnknownResource):
+			writeNotFound(w)
+		case errors.Is(err, service.ErrUnknownResourceField):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown resource field"})
+		case errors.As(err, &missing):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": missing.Error()})
+		default:
+			writeInternalError(w, r, "update resource field", err)
+		}
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "resource.field_updated", "resource", resourceID.String(),
+		"/v1/admin/tenants/{id}/resources/{resourceId}/fields/{fieldKey}", http.StatusNoContent,
+		map[string]any{"tenant_id": tenantID.String(), "field_key": field.Key, "is_secret": field.IsSecret}); err != nil {
+		writeInternalError(w, r, "audit resource field update", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource field update", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PUT /v1/admin/tenants/{id} — update name/slug/status.

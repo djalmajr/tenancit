@@ -1,19 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { Building2, Globe, Database, Boxes, ChevronRight } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
-import { DomainStatus } from "@/components/domain-status";
-import { apiErrorMessage, formatStatus, useI18n, type TranslationKey } from "@/lib/i18n";
+import { Activity, BarChart3, Building2, CircleAlert, Database, FileKey2, Globe, Boxes } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { apiErrorMessage, useI18n, type TranslationKey } from "@/lib/i18n";
 import { adminQueryOptions } from "@/lib/query-options";
 import { StatCard } from "@/components/stat-card";
+import { api } from "@/lib/api";
+import { adminQueryKeys } from "@/lib/query-keys";
+import { countExpiringAPIClients, currentUTCMonthRange, totalUsageRequests } from "@/lib/overview-pulse";
 
 export default function OverviewPage() {
   const { t } = useI18n();
-  const navigate = useNavigate();
   const overviewQuery = useQuery(adminQueryOptions.overview());
+  const apiClientsQuery = useQuery(adminQueryOptions.apiClients());
+  const monthRange = currentUTCMonthRange();
+  const usageQuery = useQuery({
+    queryKey: adminQueryKeys.apiClientUsage(monthRange.from, monthRange.to),
+    queryFn: ({ signal }) => api.listAPIClientUsage(monthRange.from, monthRange.to, signal),
+    refetchInterval: () => document.visibilityState === "visible" ? 60_000 : false,
+  });
+  const healthQuery = useQuery({
+    queryKey: adminQueryKeys.operationalHealth(),
+    queryFn: ({ signal }) => api.getOperationalHealth(signal),
+    refetchInterval: () => document.visibilityState === "visible" ? 30_000 : false,
+  });
   const o = overviewQuery.data;
   const error = overviewQuery.error ? apiErrorMessage(overviewQuery.error, t) : "";
+  const expiringClients = apiClientsQuery.data
+    ? countExpiringAPIClients(apiClientsQuery.data)
+    : "—";
+  const monthlyRequests = usageQuery.data ? totalUsageRequests(usageQuery.data) : "—";
+  const healthStatus = healthQuery.data
+    ? t(`operationsHealth.status.${healthQuery.data.status}` as TranslationKey)
+    : "—";
 
   return (
     <div className="flex flex-col gap-8">
@@ -32,40 +50,12 @@ export default function OverviewPage() {
             <StatCard icon={<Boxes className="size-4" />} label={t("overview.activeDefinitions")} value={o.activeDefinitions} hint={t("overview.typeHint")} />
           </div>
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>{t("overview.tenantsCard.title")}</CardTitle>
-              <CardDescription>{t("overview.tenantsCard.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {o.tenantCards.length === 0 ? (
-                <Empty className="py-8"><EmptyHeader><EmptyDescription>{t("overview.emptyTenants")}</EmptyDescription></EmptyHeader></Empty>
-              ) : (
-                o.tenantCards.map((tenant) => (
-                  <button
-                    key={tenant.id}
-                    onClick={() => { void navigate({ to: "/tenants/$id", params: { id: tenant.id } }); }}
-                    className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:bg-accent"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 items-center justify-center rounded-md bg-muted">
-                        <Building2 className="size-4" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{tenant.name}</div>
-                        <div className="text-xs text-muted-foreground">{tenant.primaryHost || t("overview.noDomain")}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{t("overview.resourceCount", { count: tenant.resourceCount })}</span>
-                      <DomainStatus label={formatStatus(tenant.status, t)} value={tenant.status} />
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard icon={<Activity className="size-4" />} label={t("overview.operationalHealth")} value={healthStatus} hint={t("overview.operationalHealthHint")} />
+            <StatCard icon={<BarChart3 className="size-4" />} label={t("overview.monthRequests")} value={monthlyRequests} hint={t("overview.monthRequestsHint")} />
+            <StatCard icon={<FileKey2 className="size-4" />} label={t("overview.expiringKeys")} value={expiringClients} hint={t("overview.expiringKeysHint")} />
+            <StatCard icon={<CircleAlert className="size-4" />} label={t("overview.deadLetters")} value={healthQuery.data?.queues.webhook_dead_letter ?? "—"} hint={t("overview.deadLettersHint")} />
+          </div>
         </>
       )}
     </div>

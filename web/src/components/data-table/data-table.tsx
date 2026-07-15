@@ -77,6 +77,13 @@ export function DataTable<TData>({
                   data-state={row.getIsSelected() && "selected"}
                   key={row.id}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                  onKeyDown={onRowClick ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onRowClick(row.original);
+                    }
+                  } : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
                 >
                   {row.getVisibleCells().map((cell) => {
                     const size = cell.column.columnDef.size;

@@ -456,6 +456,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ status }),
     }),
+  updateResourceField: (id: string, resourceId: string, fieldKey: string, value: string) =>
+    req(`/tenants/${id}/resources/${resourceId}/fields/${encodeURIComponent(fieldKey)}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    }),
   deleteResource: (id: string, resourceId: string) =>
     req(`/tenants/${id}/resources/${resourceId}`, { method: "DELETE" }),
 

@@ -12,6 +12,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { api } from "@/lib/api";
 import { apiErrorMessage, useI18n } from "@/lib/i18n";
 import { adminQueryOptions } from "@/lib/query-options";
+import { adminQueryKeys } from "@/lib/query-keys";
 
 const EMPTY_USAGE: Awaited<ReturnType<typeof api.listAPIClientUsage>> = [];
 const EMPTY_CLIENTS: Awaited<ReturnType<typeof api.listAPIClients>> = [];
@@ -27,7 +28,7 @@ export default function UsagePage() {
   const [operation, setOperation] = useState(ALL);
   const range = monthRange(month);
   const usageQuery = useQuery({
-    queryKey: ["admin", "api-client-usage", range.from, range.to],
+    queryKey: adminQueryKeys.apiClientUsage(range.from, range.to),
     queryFn: ({ signal }) => api.listAPIClientUsage(range.from, range.to, signal),
     refetchInterval: () => document.visibilityState === "visible" ? 60_000 : false,
   });

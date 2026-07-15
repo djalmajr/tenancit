@@ -130,6 +130,7 @@ alvo principal e pode citar IDs relacionados somente por allowlist.
 | `secret.revealed` | `GET /tenants/{id}/resources?reveal=true` | tenant | `resource_ids`, `secret_field_keys`, contagens; nunca valores |
 | `tenant.deleted` | `DELETE /tenants/{id}` | tenant | `slug`, contagem de filhos afetados |
 | `resource.deleted` | `DELETE /tenants/{id}/resources/{resourceId}` | resource | `tenant_id`, `definition_id` |
+| `resource.field_updated` | `PUT /tenants/{id}/resources/{resourceId}/fields/{fieldKey}` | resource | `tenant_id`, `field_key`, `is_secret`; nunca o valor |
 | `definition.field_deleted` | `DELETE /resource-definitions/{id}/fields/{fieldId}` | resource field | `definition_id`, `field_key` |
 | `domain.deleted` | `DELETE /tenants/{id}/domains/{domainId}` | domain | `tenant_id`, hostname canônico |
 | `api_client.created` | `POST /api-clients` | API client | `name`; nunca token ou `key_hash` |

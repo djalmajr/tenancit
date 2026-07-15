@@ -137,6 +137,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 			requireSecretRevealPermission,
 		).Get("/tenants/{id}/resources", s.listTenantResources)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/tenants/{id}/resources/{resourceId}/status", s.setResourceStatus)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/tenants/{id}/resources/{resourceId}/fields/{fieldKey}", s.updateResourceField)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/tenants/{id}/resources/{resourceId}", s.deleteResource)
 
 		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/resource-definitions", s.createDefinition)

@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
-  Building2, ChevronRight, Database, Eye, EyeOff, Globe, Plus, Trash2, Lock,
-  CircleAlert, Power, PowerOff, Settings2,
+  Eye, EyeOff, Pencil, Plus, Trash2,
+  CircleAlert, Power, PowerOff, Settings2, TriangleAlert,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -23,7 +23,13 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DomainStatus } from "@/components/domain-status";
+import { StatCard } from "@/components/stat-card";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
@@ -34,14 +40,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RevealValue } from "@/components/ui/reveal-value";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { displaySecretValue } from "@/lib/secret-display";
 import { matchesTenantSlug } from "@/lib/tenant-delete";
 import {
-  api, type TenantDomain, type TenantResource,
+  api, type ResourceFieldValue, type TenantDomain, type TenantResource,
 } from "@/lib/api";
 import { stableIdempotencyKey, type IdempotencyAttempt } from "@/lib/idempotency";
+import { summarizeTenantOverview } from "@/lib/tenant-overview";
 import {
   invalidateTenant,
   invalidateTenantDomains,
@@ -51,8 +57,10 @@ import {
 import { adminQueryOptions } from "@/lib/query-options";
 import { useTransientResourceReveal } from "@/lib/use-transient-resource-reveal";
 import { useAdminCapabilities } from "@/hooks/use-admin-capabilities";
+import { useDataTable } from "@/hooks/use-data-table";
 
 const routeApi = getRouteApi("/tenants/$id");
+const EMPTY_RESOURCES: TenantResource[] = [];
 
 export default function TenantDetail() {
   const { t } = useI18n();
@@ -60,7 +68,7 @@ export default function TenantDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { can } = useAdminCapabilities();
-  const [tab, setTab] = useState<"resources" | "domains">("resources");
+  const [tab, setTab] = useState<"overview" | "resources" | "domains">("overview");
 
   const [hostname, setHostname] = useState("");
   const [newDomainOpen, setNewDomainOpen] = useState(false);
@@ -79,6 +87,11 @@ export default function TenantDetail() {
   const resourceCreateAttempt = useRef<IdempotencyAttempt>(null);
   const [pendingDomain, setPendingDomain] = useState<TenantDomain | null>(null);
   const [pendingResource, setPendingResource] = useState<Pick<TenantResource, "id" | "name"> | null>(null);
+  const [selectedResourceId, setSelectedResourceId] = useState("");
+  const [editingField, setEditingField] = useState<ResourceFieldValue | null>(null);
+  const [editingFieldValue, setEditingFieldValue] = useState("");
+  const [fieldEditError, setFieldEditError] = useState("");
+  const [isUpdatingField, setIsUpdatingField] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
@@ -86,17 +99,119 @@ export default function TenantDetail() {
   const domainsQuery = useQuery(adminQueryOptions.tenantDomains(id));
   const resourcesQuery = useQuery(adminQueryOptions.tenantResources(id));
   const definitionsQuery = useQuery(adminQueryOptions.definitions());
-  const apiClientsQuery = useQuery(adminQueryOptions.apiClients());
   const reveal = useTransientResourceReveal(id);
   const tenant = tenantQuery.data;
   const domains = domainsQuery.data ?? [];
-  const resources = reveal.resources ?? resourcesQuery.data ?? [];
+  const resources = reveal.resources ?? resourcesQuery.data ?? EMPTY_RESOURCES;
   const definitions = definitionsQuery.data ?? [];
-  const apiClients = apiClientsQuery.data ?? [];
+  const selectedResource = resources.find((resource) => resource.id === selectedResourceId);
+
+  const resourceSortLabels = useMemo(() => ({
+    asc: t("dataTable.sortAsc"),
+    desc: t("dataTable.sortDesc"),
+    reset: t("dataTable.sortReset"),
+  }), [t]);
+  const resourceTableLabels = useMemo(() => ({
+    goToFirstPage: t("dataTable.firstPage"),
+    goToLastPage: t("dataTable.lastPage"),
+    goToNextPage: t("dataTable.nextPage"),
+    goToPreviousPage: t("dataTable.previousPage"),
+    item: t("dataTable.item"),
+    items: t("dataTable.items"),
+    noResults: t("tenantDetail.noResource"),
+    page: t("dataTable.page"),
+    pageOf: t("dataTable.pageOf"),
+    rowsPerPage: t("dataTable.rowsPerPage"),
+  }), [t]);
+  const resourceColumns = useMemo<ColumnDef<TenantResource>[]>(() => [
+    {
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.name")} labels={resourceSortLabels} />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      meta: { label: t("common.name") },
+    },
+    {
+      accessorKey: "definitionKey",
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.type")} labels={resourceSortLabels} />,
+      cell: ({ row }) => <code className="text-xs">{row.original.definitionKey}</code>,
+      meta: { label: t("common.type") },
+    },
+    {
+      accessorFn: (resource) => resource.fields.length,
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("tenantDetail.fieldsColumn")} labels={resourceSortLabels} />,
+      id: "fields",
+      meta: { label: t("tenantDetail.fieldsColumn") },
+      size: 110,
+    },
+    {
+      accessorFn: (resource) => resource.fields.filter((field) => field.isSecret).length,
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("tenantDetail.secretsColumn")} labels={resourceSortLabels} />,
+      id: "secrets",
+      meta: { label: t("tenantDetail.secretsColumn") },
+      size: 110,
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.status")} labels={resourceSortLabels} />,
+      cell: ({ row }) => <DomainStatus label={formatStatus(row.original.status, t)} value={row.original.status} />,
+      meta: { label: t("common.status") },
+      size: 120,
+    },
+  ], [resourceSortLabels, t]);
+  const { table: resourceTable } = useDataTable({
+    columns: resourceColumns,
+    data: resources,
+    globalFilterFn: (resource, filterValue) => {
+      const query = filterValue.trim().toLowerCase();
+      return !query || [resource.name, resource.definitionKey, resource.status, formatStatus(resource.status, t)]
+        .some((value) => value.toLowerCase().includes(query));
+    },
+    initialState: { sorting: [{ desc: false, id: "name" }] },
+    visibilityStorageKey: "tenancit.tenant-resources.table",
+  });
+  const domainTableLabels = useMemo(() => ({
+    ...resourceTableLabels,
+    noResults: t("tenantDetail.domainsEmpty"),
+  }), [resourceTableLabels, t]);
+  const domainColumns = useMemo<ColumnDef<TenantDomain>[]>(() => [
+    {
+      accessorKey: "hostname",
+      header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.hostname")} labels={resourceSortLabels} />,
+      cell: ({ row }) => <code className="text-xs font-medium">{row.original.hostname}</code>,
+      meta: { label: t("common.hostname") },
+    },
+    {
+      cell: ({ row }) => can("tenant.write") ? <Button
+        aria-label={t("common.remove")}
+        onClick={() => setPendingDomain(row.original)}
+        size="icon-sm"
+        title={t("common.remove")}
+        variant="ghost"
+      >
+        <Trash2 />
+      </Button> : null,
+      enableHiding: false,
+      enableSorting: false,
+      header: t("common.actions"),
+      id: "actions",
+      meta: { align: "right", label: t("common.actions") },
+      size: 80,
+    },
+  ], [can, resourceSortLabels, setPendingDomain, t]);
+  const { table: domainTable } = useDataTable({
+    columns: domainColumns,
+    data: domains,
+    globalFilterFn: (domain, filterValue) => domain.hostname.toLowerCase().includes(filterValue.trim().toLowerCase()),
+    initialState: { sorting: [{ desc: false, id: "hostname" }] },
+    visibilityStorageKey: "tenancit.tenant-domains.table",
+  });
 
   const activeKeys = new Set(resources.filter((r) => r.status === "active").map((r) => r.definitionKey));
-  const activeResourceCount = resources.filter((r) => r.status === "active").length;
-  const activeApiKeyCount = apiClients.filter((c) => c.status === "active").length;
+  const overview = summarizeTenantOverview({
+    domainCount: domains.length,
+    resources,
+    tenantStatus: tenant?.status ?? "inactive",
+  });
   const available = definitions.filter((d) => d.status === "active" && !activeKeys.has(d.key));
   const picked = available.find((d) => d.key === pick) ?? null;
   const pickedDefinitionQuery = useQuery({
@@ -111,7 +226,6 @@ export default function TenantDetail() {
     domainsQuery.error,
     resourcesQuery.error,
     definitionsQuery.error,
-    apiClientsQuery.error,
     reveal.error,
   ].find(Boolean);
   const visiblePageError = pageError || (queryError ? apiErrorMessage(queryError, t) : "");
@@ -218,6 +332,30 @@ export default function TenantDetail() {
     }
   }
 
+  function openFieldEdit(field: ResourceFieldValue) {
+    setEditingField(field);
+    setEditingFieldValue(field.isSecret ? "" : field.value);
+    setFieldEditError("");
+  }
+
+  async function saveFieldEdit() {
+    if (!selectedResource || !editingField || (editingField.required && !editingFieldValue)) return;
+    setFieldEditError("");
+    setIsUpdatingField(true);
+    reveal.hide();
+    try {
+      await api.updateResourceField(id, selectedResource.id, editingField.key, editingFieldValue);
+      await invalidateTenantResources(queryClient, id);
+      setEditingField(null);
+      setEditingFieldValue("");
+      toast.success(t("tenantDetail.resourceFieldUpdated"));
+    } catch (error) {
+      setFieldEditError(apiErrorMessage(error, t));
+    } finally {
+      setIsUpdatingField(false);
+    }
+  }
+
   async function saveDomain() {
     if (!hostname.trim()) return;
     setDomainError("");
@@ -284,210 +422,288 @@ export default function TenantDetail() {
   return (
     <div className="space-y-6">
       {visiblePageError && <Alert variant="destructive"><AlertDescription>{visiblePageError}</AlertDescription></Alert>}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/tenants" className="hover:text-foreground">{t("tenants.title")}</Link>
-        <ChevronRight className="size-3.5" />
-        <span className="text-foreground">{tenant.name}</span>
-      </div>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-lg bg-muted">
-            <Building2 className="size-5" />
-          </div>
-          <div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{tenant.name}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <code>{tenant.slug}</code>
-              <DomainStatus label={formatStatus(tenant.status, t)} value={tenant.status} />
-            </div>
+            <DomainStatus label={formatStatus(tenant.status, t)} value={tenant.status} />
           </div>
+          <p className="text-sm text-muted-foreground">{t("tenantDetail.headerDescription", { slug: tenant.slug })}</p>
         </div>
         {can("tenant.write") && <Button variant="outline" onClick={openEdit}>
-          <Settings2 className="size-4" /> {t("common.edit")}
+          <Settings2 data-icon="inline-start" /> {t("common.edit")}
         </Button>}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("tenantDetail.readiness.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t("tenantDetail.readiness.description")}</p>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <ReadinessItem
-            label={t("tenantDetail.readiness.tenant")}
-            ready={tenant.status === "active"}
-            value={formatStatus(tenant.status, t)}
-          />
-          <ReadinessItem
-            label={t("tenantDetail.readiness.domains")}
-            ready={domains.length > 0}
-            value={domains.length > 0 ? String(domains.length) : t("tenantDetail.readiness.missingDomain")}
-          />
-          <ReadinessItem
-            label={t("tenantDetail.readiness.activeResources")}
-            ready={activeResourceCount > 0}
-            value={activeResourceCount > 0 ? String(activeResourceCount) : t("tenantDetail.readiness.missingResource")}
-          />
-          <ReadinessItem
-            label={t("tenantDetail.readiness.activeApiKeys")}
-            ready={activeApiKeyCount > 0}
-            value={activeApiKeyCount > 0 ? String(activeApiKeyCount) : t("tenantDetail.readiness.missingApiKey")}
-          />
-        </CardContent>
-      </Card>
-
-      <Tabs value={tab} onValueChange={(value) => setTab(value as "resources" | "domains")}>
-        <TabsList className="border-b" variant="line">
-          <TabsTrigger value="resources"><Database />{t("tenantDetail.resourcesTab")}</TabsTrigger>
-          <TabsTrigger value="domains"><Globe />{t("tenantDetail.domainsTab")}</TabsTrigger>
+      <Tabs
+        className="gap-4"
+        value={tab}
+        onValueChange={(value) => setTab(value as "overview" | "resources" | "domains")}
+      >
+        <TabsList>
+          <TabsTrigger value="overview">{t("tenantDetail.overviewTab")}</TabsTrigger>
+          <TabsTrigger value="resources">{t("tenantDetail.resourcesTab")}</TabsTrigger>
+          <TabsTrigger value="domains">{t("tenantDetail.domainsTab")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent className="space-y-4" value="resources">
-          <div className="flex justify-end">
-            <div className="flex gap-2">
-              {can("secret.reveal") && <Button disabled={reveal.isLoading} variant="outline" onClick={() => { void toggleSecrets(); }}>
-                {reveal.isRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                {reveal.isRevealed ? t("tenantDetail.hideSecrets") : t("tenantDetail.enableSecretReveal")}
-              </Button>}
-              {can("resource.write") && <Button onClick={() => { setResourceError(""); setPick(""); setResOpen(true); }}>
-                <Plus className="size-4" /> {t("tenantDetail.addResource")}
-              </Button>}
-            </div>
+        <TabsContent className="flex flex-col gap-6" value="overview">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              hint={t("tenantDetail.readiness.requirementsHint", { count: overview.readyRequirementCount, total: 3 })}
+              icon={overview.readiness === "ready" ? <CheckCircle2 /> : <CircleAlert />}
+              label={t("tenantDetail.readiness.title")}
+              value={t(`tenantDetail.readiness.${overview.readiness}`)}
+            />
+            <StatCard
+              hint={domains.length > 0 ? t("overview.domainHint") : t("tenantDetail.readiness.missingDomain")}
+              icon={domains.length > 0 ? <CheckCircle2 /> : <CircleAlert />}
+              label={t("tenantDetail.readiness.domains")}
+              value={domains.length}
+            />
+            <StatCard
+              hint={overview.totalResourceCount > 0
+                ? t("tenantDetail.readiness.resourcesHint")
+                : t("tenantDetail.readiness.missingResource")}
+              icon={overview.activeResourceCount > 0 ? <CheckCircle2 /> : <CircleAlert />}
+              label={t("tenantDetail.readiness.resources")}
+              value={`${overview.activeResourceCount}/${overview.totalResourceCount}`}
+            />
+            <StatCard
+              hint={overview.incompleteResourceCount > 0
+                ? t("tenantDetail.readiness.incompleteHint")
+                : t("tenantDetail.readiness.completeHint")}
+              icon={overview.incompleteResourceCount > 0 ? <CircleAlert /> : <CheckCircle2 />}
+              label={t("tenantDetail.readiness.incompleteResources")}
+              value={overview.incompleteResourceCount}
+            />
           </div>
-          {resources.length === 0 ? (
-            <Card className="p-10 text-center">
-              <Database className="mx-auto size-6 text-muted-foreground" />
-              <p className="mt-2 font-medium">{t("tenantDetail.noResource")}</p>
-              <p className="text-sm text-muted-foreground">{t("tenantDetail.noResourceDescription")}</p>
-            </Card>
-          ) : (
-            resources.map((r) => (
-              <Card key={r.id}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div className="flex items-center gap-2">
-                    <Database className="size-4 text-muted-foreground" />
-                    <CardTitle className="text-base">{r.name}</CardTitle>
-                    <code className="text-xs text-muted-foreground">{r.definitionKey}</code>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DomainStatus label={formatStatus(r.status, t)} value={r.status} />
-                    {can("resource.write") && <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title={r.status === "active" ? t("tenantDetail.deactivate") : t("tenantDetail.reactivate")}
-                      onClick={() => { void toggleResource(r); }}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("tenantDetail.attention.title")}</CardTitle>
+              <CardDescription>{t("tenantDetail.attention.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {overview.attentionCodes.length === 0 ? <Empty className="border-0 py-4">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia>
+                  <EmptyTitle>{t("tenantDetail.attention.emptyTitle")}</EmptyTitle>
+                  <EmptyDescription>{t("tenantDetail.attention.emptyDescription")}</EmptyDescription>
+                </EmptyHeader>
+              </Empty> : overview.attentionCodes.map((code) => {
+                const isTenantIssue = code === "inactive_tenant";
+                const isDomainIssue = code === "missing_domain";
+                const count = code === "inactive_resources"
+                  ? overview.inactiveResourceCount
+                  : code === "incomplete_resources"
+                    ? overview.incompleteResourceCount
+                    : undefined;
+                return <Alert key={code} variant={isTenantIssue ? "destructive" : "default"}>
+                  <TriangleAlert />
+                  <AlertTitle>{t(`tenantDetail.attention.${code}.title`, { count: count ?? 0 })}</AlertTitle>
+                  <AlertDescription>{t(`tenantDetail.attention.${code}.description`, { count: count ?? 0 })}</AlertDescription>
+                  <AlertAction>
+                    <Button
+                      onClick={isTenantIssue ? openEdit : () => setTab(isDomainIssue ? "domains" : "resources")}
+                      size="sm"
+                      variant="outline"
                     >
-                      {r.status === "active" ? <Power className="size-4" /> : <PowerOff className="size-4" />}
-                    </Button>}
-                    {can("resource.write") && <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title={t("common.remove")}
-                      onClick={() => setPendingResource({ id: r.id, name: r.name })}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("common.field")}</TableHead>
-                        <TableHead>{t("common.value")}</TableHead>
-                        <TableHead className="w-20">{t("common.secret")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {r.fields.map((f) => (
-                        <TableRow key={f.key}>
-                          <TableCell className="font-medium">
-                            {f.label || f.key}
-                            {f.isSecret && <Lock className="ml-1 inline size-3 text-amber-500" />}
-                          </TableCell>
-                          <TableCell>
-                            {f.isSecret && reveal.isRevealed ? (
-                              <RevealValue hideLabel={t("common.hide")} showLabel={t("common.reveal")} value={f.value} />
-                            ) : (
-                              <code className="text-xs">
-                                {displaySecretValue({
-                                  isSecret: f.isSecret,
-                                  revealed: reveal.isRevealed,
-                                  value: f.value,
-                                }) || "—"}
-                              </code>
-                            )}
-                          </TableCell>
-                          <TableCell>{f.isSecret && <Badge variant="secondary" className="text-amber-600">{t("common.secret")}</Badge>}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            ))
-          )}
+                      {t(isTenantIssue ? "common.edit" : "common.review")}
+                    </Button>
+                  </AlertAction>
+                </Alert>;
+              })}
+            </CardContent>
+          </Card>
+
+          {can("tenant.hard_delete") && <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive">{t("tenantDetail.dangerZone.title")}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t("tenantDetail.dangerZone.description")}</p>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => {
+                  setDeleteConfirmation("");
+                  setDeleteOpen(true);
+                }}
+                variant="destructiveOutline"
+              >
+                <Trash2 data-icon="inline-start" /> {t("tenantDetail.deleteAction")}
+              </Button>
+            </CardContent>
+          </Card>}
         </TabsContent>
 
-        <TabsContent value="domains">
-          <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">{t("tenantDetail.domainsTab")}</CardTitle>
-              <p className="text-sm text-muted-foreground">{t("tenantDetail.domainsDescription")}</p>
-            </div>
-            {can("tenant.write") && <Button variant="outline" size="sm" onClick={() => { setHostname(""); setDomainError(""); setNewDomainOpen(true); }}>
-              <Plus className="size-4" /> {t("common.add")}
-            </Button>}
-          </CardHeader>
-          <CardContent>
-            {domains.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("tenantDetail.domainsEmpty")}</p>
-            ) : (
+        <TabsContent className="flex flex-col gap-4" value="resources">
+          <DataTable
+            labels={resourceTableLabels}
+            onRowClick={(resource) => setSelectedResourceId(resource.id)}
+            table={resourceTable}
+          >
+            <DataTableToolbar
+              clearLabel={t("dataTable.clearFilters")}
+              columnsLabel={t("dataTable.columns")}
+              emptyLabel={t("dataTable.noResults")}
+              resetLabel={t("dataTable.resetPreferences")}
+              searchLabel={t("tenantDetail.resourcesSearch")}
+              table={resourceTable}
+              trailing={can("resource.write") ? <Button onClick={() => { setResourceError(""); setPick(""); setResOpen(true); }}>
+                <Plus data-icon="inline-start" /> {t("tenantDetail.addResource")}
+              </Button> : undefined}
+            />
+          </DataTable>
+        </TabsContent>
+
+        <TabsContent className="flex flex-col gap-4" value="domains">
+          <DataTable labels={domainTableLabels} table={domainTable}>
+            <DataTableToolbar
+              clearLabel={t("dataTable.clearFilters")}
+              columnsLabel={t("dataTable.columns")}
+              emptyLabel={t("dataTable.noResults")}
+              resetLabel={t("dataTable.resetPreferences")}
+              searchLabel={t("tenantDetail.domainsSearch")}
+              table={domainTable}
+              trailing={can("tenant.write") ? <Button onClick={() => { setHostname(""); setDomainError(""); setNewDomainOpen(true); }}>
+                <Plus data-icon="inline-start" /> {t("common.add")}
+              </Button> : undefined}
+            />
+          </DataTable>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog
+        open={Boolean(selectedResource)}
+        onOpenChange={(open) => {
+          if (!open && !editingField) setSelectedResourceId("");
+        }}
+      >
+        <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-3xl">
+          {selectedResource && <>
+            <DialogHeader className="shrink-0">
+              <div className="flex items-center gap-2">
+                <DialogTitle>{selectedResource.name}</DialogTitle>
+                <DomainStatus label={formatStatus(selectedResource.status, t)} value={selectedResource.status} />
+              </div>
+              <DialogDescription>
+                {t("tenantDetail.resourceDetailsDescription", { type: selectedResource.definitionKey })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("common.hostname")}</TableHead>
-                    <TableHead className="w-16 text-right">{t("common.actions")}</TableHead>
+                    <TableHead>{t("common.field")}</TableHead>
+                    <TableHead>{t("common.value")}</TableHead>
+                    <TableHead className="w-20 text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {domains.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-medium"><code className="text-xs">{d.hostname}</code></TableCell>
+                  {selectedResource.fields.map((field) => (
+                    <TableRow key={field.key}>
+                      <TableCell className="font-medium">{field.label || field.key}</TableCell>
+                      <TableCell>
+                        <code className="text-xs">
+                          {displaySecretValue({
+                            isSecret: field.isSecret,
+                            revealed: reveal.isRevealed,
+                            value: field.value,
+                          }) || "—"}
+                        </code>
+                      </TableCell>
                       <TableCell className="text-right">
-                        {can("tenant.write") && <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingDomain(d)}>
-                          <Trash2 className="size-4" />
+                        {can("resource.write") && <Button
+                          aria-label={t("common.edit")}
+                          onClick={() => openFieldEdit(field)}
+                          size="icon-sm"
+                          title={t("common.edit")}
+                          variant="ghost"
+                        >
+                          <Pencil />
                         </Button>}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+            <DialogFooter className="flex-wrap sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {can("resource.write") && <Button
+                  onClick={() => { void toggleResource(selectedResource); }}
+                  variant="outline"
+                >
+                  {selectedResource.status === "active"
+                    ? <PowerOff data-icon="inline-start" />
+                    : <Power data-icon="inline-start" />}
+                  {selectedResource.status === "active" ? t("tenantDetail.deactivate") : t("tenantDetail.reactivate")}
+                </Button>}
+                {can("resource.write") && <Button
+                  onClick={() => {
+                    setPendingResource({ id: selectedResource.id, name: selectedResource.name });
+                    setSelectedResourceId("");
+                  }}
+                  variant="destructive"
+                >
+                  <Trash2 data-icon="inline-start" /> {t("common.remove")}
+                </Button>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {can("secret.reveal") && <Button disabled={reveal.isLoading} onClick={() => { void toggleSecrets(); }} variant="outline">
+                  {reveal.isRevealed
+                    ? <EyeOff data-icon="inline-start" />
+                    : <Eye data-icon="inline-start" />}
+                  {reveal.isRevealed ? t("common.hide") : t("common.reveal")}
+                </Button>}
+                <DialogClose render={<Button variant="outline" />}>{t("common.close")}</DialogClose>
+              </div>
+            </DialogFooter>
+          </>}
+        </DialogContent>
+      </Dialog>
 
-      {can("tenant.hard_delete") && <Card className="border-destructive/30">
-        <CardHeader>
-          <CardTitle className="text-base text-destructive">{t("tenantDetail.dangerZone.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t("tenantDetail.dangerZone.description")}</p>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={() => {
-              setDeleteConfirmation("");
-              setDeleteOpen(true);
-            }}
-            variant="destructive"
-          >
-            <Trash2 className="size-4" /> {t("tenantDetail.deleteAction")}
-          </Button>
-        </CardContent>
-      </Card>}
+      <Dialog
+        open={Boolean(editingField)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingField(null);
+            setEditingFieldValue("");
+            setFieldEditError("");
+          }
+        }}
+      >
+        {editingField && <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tenantDetail.editFieldTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("tenantDetail.editFieldDescription", { field: editingField.label || editingField.key })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" htmlFor="resource-field-value">
+              {editingField.label || editingField.key}
+            </label>
+            <Input
+              aria-invalid={Boolean(fieldEditError)}
+              autoComplete="off"
+              id="resource-field-value"
+              onChange={(event) => setEditingFieldValue(event.target.value)}
+              type={editingField.isSecret ? "password" : editingField.dataType === "int" ? "number" : "text"}
+              value={editingFieldValue}
+            />
+            {fieldEditError && <p className="text-sm text-destructive">{fieldEditError}</p>}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
+            <Button
+              disabled={isUpdatingField || (editingField.required && !editingFieldValue)}
+              onClick={() => { void saveFieldEdit(); }}
+            >
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>}
+      </Dialog>
 
       {/* Edit tenant */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -570,7 +786,6 @@ export default function TenantDetail() {
                   <div key={f.key} className="space-y-1.5">
                     <label className="text-sm font-medium">
                       {f.label || f.key} {f.required && <span className="text-destructive">*</span>}
-                      {f.is_secret && <Lock className="ml-1 inline size-3 text-amber-500" />}
                     </label>
                     <Input
                       type={f.is_secret ? "password" : f.data_type === "int" ? "number" : "text"}
@@ -668,30 +883,6 @@ export default function TenantDetail() {
           />
         </div>
       </ConfirmDialog>
-    </div>
-  );
-}
-
-function ReadinessItem({
-  label,
-  ready,
-  value,
-}: {
-  label: string;
-  ready: boolean;
-  value: string;
-}) {
-  return (
-    <div className="flex min-h-20 items-start gap-3 rounded-md border p-3">
-      {ready ? (
-        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-green-600" />
-      ) : (
-        <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
-      )}
-      <div className="min-w-0">
-        <div className="text-sm font-medium">{label}</div>
-        <div className="break-words text-sm text-muted-foreground">{value}</div>
-      </div>
     </div>
   );
 }

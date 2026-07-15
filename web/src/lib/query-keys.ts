@@ -1,6 +1,8 @@
 export const adminQueryKeys = {
   all: ["admin"] as const,
   apiClients: () => [...adminQueryKeys.all, "api-clients"] as const,
+  apiClientUsage: (from: string, to: string) =>
+    [...adminQueryKeys.all, "api-client-usage", from, to] as const,
   definition: (definitionId: string) =>
     [...adminQueryKeys.definitions(), "detail", definitionId] as const,
   definitions: () => [...adminQueryKeys.all, "definitions"] as const,

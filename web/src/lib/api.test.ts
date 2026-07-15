@@ -132,6 +132,17 @@ describe("api client", () => {
     expect(JSON.parse(init.body)).toEqual({ status: "inactive" });
   });
 
+  it("updateResourceField PUTs one value without exposing it in the URL", async () => {
+    const spy = mockFetch(() => new Response(null, { status: 204 }));
+    await api.updateResourceField("t1", "r1", "secret key", "s3cr3t");
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/v1/admin/tenants/t1/resources/r1/fields/secret%20key");
+    expect(url).not.toContain("s3cr3t");
+    expect(init?.method).toBe("PUT");
+    if (typeof init?.body !== "string") throw new TypeError("expected a serialized request body");
+    expect(JSON.parse(init.body)).toEqual({ value: "s3cr3t" });
+  });
+
   it("listTenantResources appends ?reveal=true only when asked", async () => {
     const spy = mockFetch(() => new Response("[]", { status: 200 }));
     await api.listTenantResources("t1", true);

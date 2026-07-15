@@ -1,4 +1,4 @@
-import { Status, StatusIndicator, StatusLabel } from "@/components/ui/status";
+import { Status, StatusLabel } from "@/components/ui/status";
 
 function statusVariant(value: string): "default" | "error" | "success" | "warning" {
   if (value === "active" || value === "success") return "success";
@@ -8,5 +8,5 @@ function statusVariant(value: string): "default" | "error" | "success" | "warnin
 }
 
 export function DomainStatus({ label, value }: { label: string; value: string }) {
-  return <Status variant={statusVariant(value)}><StatusIndicator /><StatusLabel>{label}</StatusLabel></Status>;
+  return <Status variant={statusVariant(value)}><StatusLabel>{label}</StatusLabel></Status>;
 }
