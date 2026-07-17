@@ -128,3 +128,32 @@ func (s *Server) handleResolveOne(w http.ResponseWriter, r *http.Request) {
 func tenantUnavailable(err error) bool {
 	return isNotFound(err) || errors.Is(err, service.ErrTenantUnavailable)
 }
+
+// tenantDirectoryEntry is the consumer-facing tenant identity: directory data
+// only (slug/name/status), never resources or secrets.
+type tenantDirectoryEntry struct {
+	Slug   string `json:"slug"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+// handleListTenants enumerates tenant identities for consumers holding the
+// tenant:list scope. Control-plane bridges (e.g. platform shells) use it to
+// mirror the tenant directory without admin credentials.
+func (s *Server) handleListTenants(w http.ResponseWriter, r *http.Request) {
+	tenants, err := s.Q.ListTenants(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "list tenants for consumer", err)
+		return
+	}
+	entries := make([]tenantDirectoryEntry, 0, len(tenants))
+	for _, tenant := range tenants {
+		entries = append(entries, tenantDirectoryEntry{
+			Slug:   tenant.Slug,
+			Name:   tenant.Name,
+			Status: tenant.Status,
+		})
+	}
+	w.Header().Set("Cache-Control", identifyCacheControl)
+	writeJSON(w, http.StatusOK, entries)
+}

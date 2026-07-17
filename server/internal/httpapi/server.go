@@ -95,6 +95,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve", s.handleResolve)
 		cr.With(RequireAPIClientScope(service.ScopeResourceResolve), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "resolve", s.Now), RecordAPIUsage(s.Usage, "resolve", s.Now)).Get("/v1/resolve/{hostname}/resources/{alias}", s.handleResolveOne)
 		cr.With(RequireAPIClientScope(service.ScopeEventsRead), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "events", s.Now), RecordAPIUsage(s.Usage, "events", s.Now)).Get("/v1/events", s.listChangeFeed)
+		cr.With(RequireAPIClientScope(service.ScopeTenantList), EnforceAPIClientRateLimit(s.Limiter, s.Usage, "tenants", s.Now), RecordAPIUsage(s.Usage, "tenants", s.Now)).Get("/v1/tenants", s.handleListTenants)
 	})
 
 	r.Route("/v1/admin", func(ar chi.Router) {

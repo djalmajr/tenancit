@@ -9,6 +9,10 @@ const (
 	ScopeTenantIdentify  = "tenant:identify"
 	ScopeResourceResolve = "resource:resolve"
 	ScopeEventsRead      = "events:read"
+	// ScopeTenantList lets a consumer enumerate tenant identities (slug/name/
+	// status only — never resources or secrets). Useful for control-plane
+	// bridges that mirror the tenant directory (e.g. platform shells).
+	ScopeTenantList = "tenant:list"
 )
 
 var (
@@ -23,7 +27,7 @@ func ValidateAPIClientPolicy(now time.Time, scopes []string, rpm int32, expiresA
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve && scope != ScopeEventsRead {
+		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve && scope != ScopeEventsRead && scope != ScopeTenantList {
 			return ErrInvalidScope
 		}
 		if _, duplicate := seen[scope]; duplicate {

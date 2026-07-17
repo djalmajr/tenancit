@@ -199,6 +199,23 @@ GET /v1/resolve/{hostname}/resources/{alias}
 Authorization: Bearer tnc_...
 ----
 
+Diretório de tenants para consumidores com o scope `tenant:list` (identidades
+apenas — slug, nome e status; nunca resources ou secrets). Pensado para pontes
+de control plane que espelham o diretório (ex.: shells de plataforma):
+
+[source,http]
+----
+GET /v1/tenants
+Authorization: Bearer tnc_...
+----
+
+[source,json]
+----
+[ { "slug": "cliente", "name": "Cliente", "status": "active" } ]
+----
+
+Responde `Cache-Control: private, no-cache`; sem o scope, `403 insufficient_scope`.
+
 Change feed cronológico para integrações que preferem pull:
 
 [source,http]
