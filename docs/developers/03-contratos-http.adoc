@@ -216,6 +216,21 @@ Authorization: Bearer tnc_...
 
 Responde `Cache-Control: private, no-cache`; sem o scope, `403 insufficient_scope`.
 
+Escrita de valores para consumidores com o scope `resource:write` — apenas
+campos **não-secretos** de resources existentes (endereçados por slug + alias);
+campos secretos respondem `403` sempre (gestão de secrets fica no console):
+
+[source,http]
+----
+PATCH /v1/tenants/{slug}/resources/{alias}/values/{fieldKey}
+Authorization: Bearer tnc_...
+Content-Type: application/json
+
+{ "value": "novo-valor" }
+----
+
+Responde `204`; campo desconhecido `400`; tenant/resource inexistente `404`.
+
 Change feed cronológico para integrações que preferem pull:
 
 [source,http]

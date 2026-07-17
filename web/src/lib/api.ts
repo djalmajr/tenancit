@@ -274,7 +274,7 @@ export interface ApiClient {
 
 export interface CreateAPIClientInput {
   name: string;
-  scopes: Array<"tenant:identify" | "resource:resolve" | "events:read">;
+  scopes: Array<"tenant:identify" | "resource:resolve" | "events:read" | "tenant:list" | "resource:write">;
   rpm_limit: number;
   expires_at: string;
 }

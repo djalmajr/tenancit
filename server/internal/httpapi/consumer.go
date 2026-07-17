@@ -157,3 +157,83 @@ func (s *Server) handleListTenants(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", identifyCacheControl)
 	writeJSON(w, http.StatusOK, entries)
 }
+
+// handleConsumerWriteValue updates one NON-SECRET field value on an existing
+// resource, addressed by tenant slug + alias (consumer identity — no admin
+// UUIDs). Secret fields are always rejected: secret management stays in the
+// admin console. Gated by the resource:write scope.
+func (s *Server) handleConsumerWriteValue(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	alias := chi.URLParam(r, "alias")
+	fieldKey := chi.URLParam(r, "fieldKey")
+	if slug == "" || alias == "" || fieldKey == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "slug, alias and fieldKey required"})
+		return
+	}
+	var in struct {
+		Value string `json:"value"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+
+	tenant, err := s.Q.GetTenantBySlug(r.Context(), slug)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "tenant not found"})
+		return
+	}
+	resource, err := s.Q.GetActiveResourceByTenantAndAlias(r.Context(), db.GetActiveResourceByTenantAndAliasParams{TenantID: tenant.ID, Btrim: alias})
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
+		return
+	}
+	fields, err := s.Q.ListFields(r.Context(), resource.ResourceDefinitionID)
+	if err != nil {
+		writeInternalError(w, r, "list fields for consumer write", err)
+		return
+	}
+	var isSecret, known bool
+	for _, field := range fields {
+		if field.Key == fieldKey {
+			known = true
+			isSecret = field.IsSecret
+			break
+		}
+	}
+	if !known {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown resource field"})
+		return
+	}
+	if isSecret {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "secret fields cannot be written by consumers"})
+		return
+	}
+
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin consumer value write", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	if _, err := service.UpdateResourceFieldInTx(r.Context(), q, s.Cryptor, service.UpdateResourceFieldInput{
+		FieldKey: fieldKey, ResourceID: resource.ID, TenantID: tenant.ID, Value: in.Value,
+	}); err != nil {
+		var missing service.MissingRequiredFieldError
+		var invalid service.InvalidFieldValueError
+		switch {
+		case errors.Is(err, service.ErrUnknownResource):
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
+		case errors.As(err, &missing), errors.As(err, &invalid):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		default:
+			writeInternalError(w, r, "consumer value write", err)
+		}
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit consumer value write", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

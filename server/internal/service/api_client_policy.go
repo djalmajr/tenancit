@@ -13,6 +13,10 @@ const (
 	// status only — never resources or secrets). Useful for control-plane
 	// bridges that mirror the tenant directory (e.g. platform shells).
 	ScopeTenantList = "tenant:list"
+	// ScopeResourceWrite lets a consumer update values of NON-SECRET fields on
+	// existing resources (identified by tenant slug + alias). Secret fields are
+	// always rejected — secret management stays in the admin console.
+	ScopeResourceWrite = "resource:write"
 )
 
 var (
@@ -27,7 +31,7 @@ func ValidateAPIClientPolicy(now time.Time, scopes []string, rpm int32, expiresA
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve && scope != ScopeEventsRead && scope != ScopeTenantList {
+		if scope != ScopeTenantIdentify && scope != ScopeResourceResolve && scope != ScopeEventsRead && scope != ScopeTenantList && scope != ScopeResourceWrite {
 			return ErrInvalidScope
 		}
 		if _, duplicate := seen[scope]; duplicate {
