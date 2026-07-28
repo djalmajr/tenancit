@@ -6,6 +6,22 @@ versioning when the first public release is tagged.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-28
+
+### Fixed
+
+- Preserve the resource display name in admin listings — the row mappers
+  dropped `DisplayName` when building `ResourceHeader`.
+- Finish the delete-dialog i18n split (`deleteInputLabelPrefix`/`Suffix`
+  around the styled slug).
+
+### Added
+
+- Portable chart: `ingress.enabled`/`ingress.className`/`ingress.tlsSecretName`
+  (existing TLS secret suppresses the cert-manager annotation) and
+  `adminAuth.mode` (`oidc` default; `legacy_shared_token` for ClusterIP-only
+  bootstrap via port-forward). Default and personal renders stay byte-identical.
+
 ## [0.1.1] - 2026-07-12
 
 ### Security
