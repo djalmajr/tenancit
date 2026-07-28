@@ -1,18 +1,21 @@
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "tenancit.fullname" . }}
+  {{- if not .Values.ingress.tlsSecretName }}
   annotations:
     {{- if and .Values.personal.enabled .Values.personal.createAcmeIssuer }}
     cert-manager.io/issuer: {{ printf "%s-letsencrypt" (include "tenancit.fullname" .) | quote }}
     {{- else }}
     cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
     {{- end }}
+  {{- end }}
 spec:
-  ingressClassName: traefik
+  ingressClassName: {{ .Values.ingress.className }}
   tls:
     - hosts: [{{ .Values.public.host | quote }}]
-      secretName: {{ include "tenancit.fullname" . }}-tls
+      secretName: {{ .Values.ingress.tlsSecretName | default (printf "%s-tls" (include "tenancit.fullname" .)) }}
   rules:
     - host: {{ .Values.public.host | quote }}
       http:
@@ -34,7 +37,7 @@ metadata:
     cert-manager.io/cluster-issuer: {{ .Values.public.tlsClusterIssuer | quote }}
     {{- end }}
 spec:
-  ingressClassName: traefik
+  ingressClassName: {{ .Values.ingress.className }}
   tls:
     - hosts: [{{ .Values.public.oidcHost | quote }}]
       secretName: {{ include "tenancit.fullname" . }}-oidc-tls
@@ -46,4 +49,5 @@ spec:
             pathType: Prefix
             backend:
               service: { name: {{ include "tenancit.fullname" . }}-dex, port: { name: http } }
+{{- end }}
 {{- end }}

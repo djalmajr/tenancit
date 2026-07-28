@@ -7,10 +7,30 @@ imagePullSecrets: []
 replicaCount: 2
 existingSecret: tenancit-runtime
 
+# Exposição HTTP. Em clusters corporativos que não usam traefik/ACME:
+#   className: nginx  +  tlsSecretName: <secret TLS existente>  (nenhuma
+#   annotation de cert-manager é emitida quando tlsSecretName está preenchido).
+# enabled: false publica só o Service ClusterIP — o consumo (/v1/identify,
+# /v1/resolve) continua acessível dentro do cluster e o painel admin fica em
+# `kubectl port-forward`.
+ingress:
+  enabled: true
+  className: traefik
+  tlsSecretName: ""
+
 public:
   host: tenancit.example.invalid
   oidcHost: tenancit-id.example.invalid
   tlsClusterIssuer: letsencrypt-prod
+
+# Autenticação do painel admin.
+#   oidc (default): operação real — exige as chaves oidc-client-secret etc.
+#   legacy_shared_token: bootstrap/lab SEM exposição pública (ingress.enabled
+#     false + port-forward). Liga TENANCIT_DEV_MODE=true por exigência do
+#     servidor e lê TENANCIT_ADMIN_TOKEN da chave admin-token do existingSecret
+#     (mínimo 16 caracteres). Nunca use com o painel exposto.
+adminAuth:
+  mode: oidc
 
 oidc:
   issuerPath: /dex

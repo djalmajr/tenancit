@@ -66,6 +66,16 @@ spec:
           ports: [{ name: http, containerPort: 8080 }]
           env:
             - { name: TENANCIT_ADDR, value: ":8080" }
+            {{- if eq .Values.adminAuth.mode "legacy_shared_token" }}
+            # Bootstrap/lab: o servidor exige TENANCIT_DEV_MODE=true para o
+            # token legado — use apenas sem exposição pública (ingress.enabled
+            # false + port-forward). As envs OIDC ficam de fora de propósito:
+            # o modo legado não as valida e o secret não precisa das chaves.
+            - { name: TENANCIT_ADMIN_AUTH_MODE, value: "legacy_shared_token" }
+            - { name: TENANCIT_DEV_MODE, value: "true" }
+            - name: TENANCIT_ADMIN_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: admin-token } }
+            {{- else }}
             - { name: TENANCIT_ADMIN_AUTH_MODE, value: "oidc" }
             - { name: TENANCIT_DEV_MODE, value: "false" }
             - { name: TENANCIT_ADMIN_ORIGIN, value: "https://{{ .Values.public.host }}" }
@@ -73,6 +83,7 @@ spec:
             - { name: TENANCIT_OIDC_CLIENT_ID, value: {{ .Values.oidc.clientId | quote }} }
             - { name: TENANCIT_OIDC_ROLE_CLAIM, value: {{ .Values.oidc.roleClaim | quote }} }
             - { name: TENANCIT_OIDC_ROLE_MAPPINGS, value: {{ .Values.oidc.roleMappings | quote }} }
+            {{- end }}
             - { name: TENANCIT_AES_KEY_VERSION, value: "1" }
             - { name: TENANCIT_OPERATIONS_REPORT_CREDENTIAL_VERSION, value: "personal-v1" }
             - name: TENANCIT_DATABASE_URL
@@ -81,8 +92,10 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: valkey-url } }
             - name: TENANCIT_AES_KEY
               valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: aes-key } }
+            {{- if ne .Values.adminAuth.mode "legacy_shared_token" }}
             - name: TENANCIT_OIDC_CLIENT_SECRET
               valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: oidc-client-secret } }
+            {{- end }}
             - name: TENANCIT_OPERATIONS_REPORT_TOKEN
               valueFrom: { secretKeyRef: { name: {{ .Values.existingSecret }}, key: operations-token } }
           readinessProbe: { httpGet: { path: /readyz, port: http }, initialDelaySeconds: 5, periodSeconds: 5, timeoutSeconds: 3, failureThreshold: 12 }
