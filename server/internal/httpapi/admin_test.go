@@ -105,6 +105,9 @@ func TestListTenantResources_MaskAndReveal(t *testing.T) {
 	if host := findField(ms, "host"); host != "h" {
 		t.Fatalf("non-secret host should be cleartext, got %q", host)
 	}
+	if len(ms) != 1 || ms[0].Name == "" {
+		t.Fatalf("resource display name should be preserved, got %+v", ms)
+	}
 
 	// ?reveal=true → cleartext
 	revealed := do(t, h, "GET", "/v1/admin/tenants/"+tid+"/resources?reveal=true", nil)
@@ -221,6 +224,7 @@ type fieldView struct {
 
 type resourceView struct {
 	ID     string      `json:"id"`
+	Name   string      `json:"name"`
 	Alias  string      `json:"alias"`
 	Linked bool        `json:"linked"`
 	Fields []fieldView `json:"fields"`

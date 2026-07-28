@@ -1346,7 +1346,11 @@ export default function TenantDetail() {
       >
         <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="tenant-delete-confirmation">
-            {t("tenantDetail.deleteInputLabel", { slug: tenant.slug })}
+            {t("tenantDetail.deleteInputLabelPrefix")}{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground">
+              {tenant.slug}
+            </code>{" "}
+            {t("tenantDetail.deleteInputLabelSuffix")}
           </label>
           <Input
             autoComplete="off"

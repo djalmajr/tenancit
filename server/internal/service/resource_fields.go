@@ -128,7 +128,7 @@ func resourceHeaderFromListRow(row db.ListResourceHeadersByTenantRow) ResourceHe
 		Resource: db.TenantResource{
 			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
 			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
-			Alias: row.Alias, SourceResourceID: row.SourceResourceID,
+			Alias: row.Alias, DisplayName: row.DisplayName, SourceResourceID: row.SourceResourceID,
 		},
 		DefinitionKey:       row.DefinitionKey,
 		DefinitionName:      row.DefinitionName,
@@ -143,7 +143,7 @@ func resourceHeaderFromGetRow(row db.GetResourceHeaderRow) ResourceHeader {
 		Resource: db.TenantResource{
 			ID: row.ID, TenantID: row.TenantID, ResourceDefinitionID: row.ResourceDefinitionID,
 			Status: row.Status, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
-			Alias: row.Alias, SourceResourceID: row.SourceResourceID,
+			Alias: row.Alias, DisplayName: row.DisplayName, SourceResourceID: row.SourceResourceID,
 		},
 		DefinitionKey:       row.DefinitionKey,
 		DefinitionName:      row.DefinitionName,
