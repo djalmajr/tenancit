@@ -18,3 +18,19 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 {{- . -}}
 {{- end }}
+{{- define "tenancit.validate" -}}
+{{- if not (has .Values.adminAuth.mode (list "oidc" "legacy_shared_token")) -}}
+{{- fail "adminAuth.mode must be oidc or legacy_shared_token" -}}
+{{- end -}}
+{{- if and .Values.ingress.enabled (eq .Values.adminAuth.mode "legacy_shared_token") -}}
+{{- fail "legacy_shared_token admin auth must not be exposed through ingress" -}}
+{{- end -}}
+{{- $basePath := required "app.basePath is required" .Values.app.basePath -}}
+{{- $ingressPath := required "ingress.path is required" .Values.ingress.path -}}
+{{- if not (regexMatch "^/$|^/[A-Za-z0-9._~-]+(/[A-Za-z0-9._~-]+)*$" $basePath) -}}
+{{- fail "app.basePath must be / or an absolute path with safe segments and no trailing slash" -}}
+{{- end -}}
+{{- if ne $ingressPath $basePath -}}
+{{- fail "ingress.path must equal app.basePath" -}}
+{{- end -}}
+{{- end }}
