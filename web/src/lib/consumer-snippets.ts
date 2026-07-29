@@ -7,5 +7,5 @@ export const consumerSnippets = {
   byHostname: `curl -H "Authorization: Bearer <token>" \\
   "/v1/resolve?hostname=<tenant-hostname>"`,
   resource: `curl -H "Authorization: Bearer <token>" \\
-  "/v1/resolve/<tenant-hostname>/resources/<definition-key>"`,
+  "/v1/resolve/<tenant-hostname>/resources/<resource-alias>"`,
 } as const;

@@ -130,14 +130,22 @@ func TestE2E_AdminCreateThenResolve(t *testing.T) {
 
 	defID := seedDefinition(t, h, "pg-e2e")
 	_ = defID
+	seedDefinition(t, h, "redis-e2e")
 	tid := seedTenant(t, h, "e2e", "e2e.example.com")
 
 	rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", map[string]any{
 		"definitionKey": "pg-e2e",
+		"alias":         "database.primary",
 		"values":        map[string]string{"host": "db.e2e.internal", "password": "s3cr3t"},
 	})
 	if rec.Code != 201 {
 		t.Fatalf("create resource: %d %s", rec.Code, rec.Body)
+	}
+	if rec := do(t, h, "POST", "/v1/admin/tenants/"+tid+"/resources", map[string]any{
+		"definitionKey": "redis-e2e",
+		"values":        map[string]string{"host": "cache.e2e.internal", "password": "unrelated-secret"},
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create unrelated resource: %d %s", rec.Code, rec.Body)
 	}
 
 	token := mintToken(t, h)
@@ -156,7 +164,7 @@ func TestE2E_AdminCreateThenResolve(t *testing.T) {
 		} `json:"resources"`
 	}
 	mustJSON(t, rrec, &resolved)
-	if resolved.TenantSlug != "e2e" || len(resolved.Resources) != 1 {
+	if resolved.TenantSlug != "e2e" || len(resolved.Resources) != 2 {
 		t.Fatalf("bad resolve: %+v", resolved)
 	}
 	// Mutation captured: if the resolver skipped decryption (RN-05), password
@@ -165,7 +173,7 @@ func TestE2E_AdminCreateThenResolve(t *testing.T) {
 		t.Fatalf("password not decrypted: %q", got)
 	}
 
-	oneReq := httptest.NewRequest("GET", "/v1/resolve/e2e.example.com/resources/pg-e2e", nil)
+	oneReq := httptest.NewRequest("GET", "/v1/resolve/e2e.example.com/resources/database.primary", nil)
 	oneReq.Header.Set("Authorization", "Bearer "+token)
 	oneRec := httptest.NewRecorder()
 	h.ServeHTTP(oneRec, oneReq)
@@ -174,6 +182,21 @@ func TestE2E_AdminCreateThenResolve(t *testing.T) {
 	}
 	if got := oneRec.Header().Get("Cache-Control"); got != "private, no-store" {
 		t.Fatalf("resolve-one Cache-Control = %q, want private, no-store", got)
+	}
+	var selected struct {
+		TenantSlug    string            `json:"tenantSlug"`
+		Alias         string            `json:"alias"`
+		DefinitionKey string            `json:"definitionKey"`
+		Values        map[string]string `json:"values"`
+		Resources     json.RawMessage   `json:"resources"`
+	}
+	mustJSON(t, oneRec, &selected)
+	if selected.TenantSlug != "e2e" || selected.Alias != "database.primary" ||
+		selected.DefinitionKey != "pg-e2e" || selected.Values["password"] != "s3cr3t" {
+		t.Fatalf("resolve-one selection = %+v", selected)
+	}
+	if selected.Resources != nil || strings.Contains(oneRec.Body.String(), "unrelated-secret") {
+		t.Fatalf("resolve-one overfetched tenant resources: %s", oneRec.Body)
 	}
 
 	// Resolve without an API key must be rejected (RN-09).

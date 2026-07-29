@@ -20,7 +20,7 @@ design_refs:
 
 Executar o caminho crítico completo: criar tipo de recurso, tenant, domínio,
 resource e API client; identificar o tenant na borda sem segredos e resolver uma
-configuração específica pelo hostname e alias estável com revalidação por ETag.
+configuração específica pelo hostname e alias estável sem cachear seus segredos.
 
 ## Passos (cada passo é uma AÇÃO de UI/API + o resultado esperado)
 
@@ -31,16 +31,16 @@ configuração específica pelo hostname e alias estável com revalidação por 
 5. (`tenant-detail`) Voltar para **Recursos**, adicionar recurso da definition criada, definir um alias único e preencher `host` e `password` → o recurso fica ativo na tabela e o segredo aparece mascarado no detalhe.
 6. (`api-clients`) Abrir **Chaves de API**, conferir a orientação de `identify` e resolução por alias, criar uma chave e copiar o token exibido uma única vez → a chave aparece ativa na tabela.
 7. (`consumer-api`) Em um cliente HTTP externo, chamar `GET /v1/identify?hostname=<hostname>` com `Authorization: Bearer <token>` → a resposta 200 contém somente `tenantSlug`, sem `resources` nem valores secretos.
-8. (`consumer-api`) Chamar `GET /v1/resolve/<hostname>/resources/<alias>` com o mesmo token → a resposta 200 retorna somente o recurso solicitado, `ETag` e `Cache-Control: private, no-store`.
-9. (`consumer-api`) Repetir a chamada anterior com `If-None-Match: <etag>` → a resposta retorna 304 sem corpo.
-10. (`consumer-api`) Repetir `identify`/`resolve` sem o token → a resposta retorna 401.
-11. (`consumer-api`) Chamar `identify` com hostname desconhecido e token válido → a resposta retorna 404.
+8. (`consumer-api`) Chamar `GET /v1/resolve/<hostname>/resources/<alias>` com o mesmo token → a resposta 200 retorna somente o recurso solicitado e `Cache-Control: private, no-store`, sem `ETag`.
+9. (`consumer-api`) Repetir `identify`/`resolve` sem o token → a resposta retorna 401.
+10. (`consumer-api`) Chamar `identify` com hostname desconhecido e token válido → a resposta retorna 404.
 
 ## Resultado esperado
 
 O caminho admin-to-consumer funciona de ponta a ponta sem entregar segredos à
-borda: `identify` produz a identidade, o app resolve o alias necessário, revalida
-com ETag e recebe erros corretos para ausência de token, hostname ou alias.
+borda: `identify` produz a identidade, o app resolve o alias necessário sem
+cache compartilhado e recebe erros corretos para ausência de token, hostname ou
+alias.
 
 ## Estado atual × design
 
