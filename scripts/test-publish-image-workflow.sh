@@ -17,6 +17,9 @@ assert_channel() {
   ref_type="$2"
   ref_name="$3"
   actual="$(
+    # GitHub Actions exports GITHUB_OUTPUT for every step. Clear it here so
+    # these assertions exercise the classifier CLI/stdout mode explicitly.
+    unset GITHUB_OUTPUT
     TENANCIT_IMAGE_REF_TYPE="$ref_type" \
       TENANCIT_IMAGE_REF_NAME="$ref_name" \
       "$classifier"
