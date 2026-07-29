@@ -1,4 +1,6 @@
 // Thin client for the admin API. Same-origin (SPA served by the Go binary).
+import { buildAdminEndpoint } from "./runtime-base-path";
+
 const BASE = "/v1/admin";
 export const ADMIN_TOKEN_KEY = "tenancitAdminToken";
 export const ADMIN_TOKEN_CHANGE_EVENT = "admin-token-change";
@@ -107,7 +109,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   else upstreamSignal?.addEventListener("abort", abortFromCaller, { once: true });
 
   try {
-    const res = await fetch(BASE + path, {
+    const res = await fetch(buildAdminEndpoint(BASE + path), {
       ...init,
       credentials: "same-origin",
       // headers must remain after init so callers cannot accidentally discard
@@ -151,13 +153,19 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchAdminAuthConfig(signal?: AbortSignal): Promise<AdminAuthConfig> {
-  const response = await fetch("/v1/auth/config", { credentials: "same-origin", signal });
+  const response = await fetch(buildAdminEndpoint("/v1/auth/config"), {
+    credentials: "same-origin",
+    signal,
+  });
   if (!response.ok) throw new ApiError(response.status);
   return (await response.json()) as AdminAuthConfig;
 }
 
 export async function fetchAdminSession(signal?: AbortSignal): Promise<AdminSession | undefined> {
-  const response = await fetch("/v1/auth/session", { credentials: "same-origin", signal });
+  const response = await fetch(buildAdminEndpoint("/v1/auth/session"), {
+    credentials: "same-origin",
+    signal,
+  });
   if (response.status === 401) {
     setAdminSession(undefined);
     return undefined;
@@ -171,7 +179,7 @@ export async function fetchAdminSession(signal?: AbortSignal): Promise<AdminSess
 export async function logoutAdminSession(): Promise<void> {
   const session = getAdminSession();
   if (!session) return;
-  const response = await fetch("/v1/auth/logout", {
+  const response = await fetch(buildAdminEndpoint("/v1/auth/logout"), {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", "X-CSRF-Token": session.csrf_token },
@@ -183,13 +191,16 @@ export async function logoutAdminSession(): Promise<void> {
 export async function downloadAuditExport(id: string): Promise<Blob> {
   const token = getAdminToken();
   const session = getAdminSession();
-  const response = await fetch(`${BASE}/audit-exports/${encodeURIComponent(id)}/download`, {
-    credentials: "same-origin",
-    headers: {
-      ...(!session && token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(session ? { "X-CSRF-Token": session.csrf_token } : {}),
+  const response = await fetch(
+    buildAdminEndpoint(`${BASE}/audit-exports/${encodeURIComponent(id)}/download`),
+    {
+      credentials: "same-origin",
+      headers: {
+        ...(!session && token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(session ? { "X-CSRF-Token": session.csrf_token } : {}),
+      },
     },
-  });
+  );
   if (!response.ok) throw new ApiError(response.status);
   return response.blob();
 }

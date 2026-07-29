@@ -58,10 +58,12 @@ import { cn } from "@/lib/utils";
 import { AdminCapabilitiesProvider } from "@/lib/admin-capabilities";
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { visibleNavGroups } from "@/lib/admin-navigation";
+import { buildAdminEndpoint, buildOIDCLoginURL } from "@/lib/runtime-base-path";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setLocale, t } = useI18n();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useRouterState({ select: (s) => s.location });
+  const pathname = location.pathname;
   const [authMessageKey, setAuthMessageKey] = React.useState<TranslationKey | "">("");
   const [draftAdminToken, setDraftAdminToken] = React.useState(() => getAdminToken());
   const [hasAdminToken, setHasAdminToken] = React.useState(() => Boolean(getAdminToken()));
@@ -195,8 +197,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <OIDCAccessScreen
         authMessage={authMessageKey ? t(authMessageKey) : ""}
-        loginURL={authConfig.login_url ?? "/v1/auth/login"}
-        returnTo={pathname}
+        loginURL={authConfig.login_url ?? buildAdminEndpoint("/v1/auth/login")}
+        returnTo={location.publicHref}
       />
     );
   }
@@ -397,12 +399,11 @@ function OIDCAccessScreen({
   returnTo: string;
 }) {
   const { t } = useI18n();
-
-  function startLogin() {
-    const target = new URL(loginURL, window.location.origin);
-    target.searchParams.set("return_to", returnTo || "/");
-    window.location.assign(target.toString());
-  }
+  const oidcLoginURL = buildOIDCLoginURL({
+    loginURL,
+    origin: window.location.origin,
+    returnTo,
+  });
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
@@ -421,10 +422,10 @@ function OIDCAccessScreen({
           </div>
           <PreferenceControls compact />
         </div>
-        <Button className="mt-5 w-full" onClick={startLogin} type="button">
+        <a className={cn(buttonVariants(), "mt-5 w-full")} href={oidcLoginURL}>
           <LogIn className="size-4" />
           {t("auth.oidcEnter")}
-        </Button>
+        </a>
       </div>
     </div>
   );

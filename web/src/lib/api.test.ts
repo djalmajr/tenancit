@@ -4,12 +4,14 @@ import {
   REQUEST_TIMEOUT_MS,
   api,
   consumePendingAdminAuthMessage,
+  downloadAuditExport,
   fetchAdminAuthConfig,
   fetchAdminSession,
   logoutAdminSession,
   setAdminSession,
   setAdminToken,
 } from "./api";
+import { RUNTIME_BASE_PATH_META_NAME } from "./runtime-base-path";
 
 // Contract tests for the admin API client: correct method/path/body, and that
 // a non-ok response surfaces an error instead of silently resolving.
@@ -23,6 +25,9 @@ function mockFetch(impl: (url: string, init?: RequestInit) => Response | Promise
 }
 
 beforeEach(() => {
+  document.head
+    .querySelector(`meta[name="${RUNTIME_BASE_PATH_META_NAME}"]`)
+    ?.remove();
   localStorage.clear();
   setAdminSession(undefined);
   consumePendingAdminAuthMessage();
@@ -44,6 +49,18 @@ describe("api client", () => {
     expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("00000000-0000-4000-8000-000000000001");
     if (typeof init?.body !== "string") throw new TypeError("expected a serialized request body");
     expect(JSON.parse(init.body)).toEqual({ slug: "acme", name: "Acme" });
+  });
+
+  it("prefixes admin API calls with the runtime base path", async () => {
+    const meta = document.createElement("meta");
+    meta.content = "/tenancit";
+    meta.name = RUNTIME_BASE_PATH_META_NAME;
+    document.head.append(meta);
+    const spy = mockFetch(() => new Response(JSON.stringify({ id: "1" }), { status: 201 }));
+
+    await api.createTenant({ slug: "acme", name: "Acme" });
+
+    expect(spy.mock.calls[0][0]).toBe("/tenancit/v1/admin/tenants");
   });
 
   it("sends the configured admin token", async () => {
@@ -69,6 +86,47 @@ describe("api client", () => {
     expect(url).toBe("/v1/auth/config");
     expect(new Headers(init?.headers).get("Authorization")).toBeNull();
     expect(init?.credentials).toBe("same-origin");
+  });
+
+  it("prefixes the OIDC auth lifecycle with the runtime base path", async () => {
+    const meta = document.createElement("meta");
+    meta.content = "/tenancit";
+    meta.name = RUNTIME_BASE_PATH_META_NAME;
+    document.head.append(meta);
+    const session = {
+      kind: "oidc_user" as const,
+      issuer: "https://id.example.test",
+      subject: "user-1",
+      label: "Ada",
+      session_id: "session-1",
+      roles: ["operator"],
+      permissions: ["admin.read"],
+      csrf_token: "csrf-token",
+      expires_at: "2026-07-11T20:00:00Z",
+      idle_expires_at: "2026-07-11T12:30:00Z",
+    };
+    const spy = mockFetch((url) => {
+      if (url === "/tenancit/v1/auth/config") {
+        return new Response(
+          JSON.stringify({ mode: "oidc", login_url: "/tenancit/v1/auth/login" }),
+          { status: 200 },
+        );
+      }
+      if (url === "/tenancit/v1/auth/session") {
+        return new Response(JSON.stringify(session), { status: 200 });
+      }
+      return new Response(null, { status: 204 });
+    });
+
+    await fetchAdminAuthConfig();
+    await fetchAdminSession();
+    await logoutAdminSession();
+
+    expect(spy.mock.calls.map(([url]) => url)).toEqual([
+      "/tenancit/v1/auth/config",
+      "/tenancit/v1/auth/session",
+      "/tenancit/v1/auth/logout",
+    ]);
   });
 
   it("uses the in-memory CSRF token for cookie-authenticated mutations", async () => {
@@ -174,6 +232,20 @@ describe("api client", () => {
     expect(url).toBe("/v1/admin/webhook-targets");
     expect(init?.method).toBe("POST");
     expect(init?.cache).toBe("no-store");
+  });
+
+  it("prefixes direct admin downloads with the runtime base path", async () => {
+    const meta = document.createElement("meta");
+    meta.content = "/tenancit";
+    meta.name = RUNTIME_BASE_PATH_META_NAME;
+    document.head.append(meta);
+    const spy = mockFetch(() => new Response("export", { status: 200 }));
+
+    await downloadAuditExport("export-1");
+
+    expect(spy.mock.calls[0][0]).toBe(
+      "/tenancit/v1/admin/audit-exports/export-1/download",
+    );
   });
 
   it("aborts stalled requests with a typed timeout error", async () => {

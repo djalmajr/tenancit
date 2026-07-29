@@ -1,4 +1,4 @@
-import { createRouter } from "@tanstack/react-router";
+import { createRouter, type RouterHistory } from "@tanstack/react-router";
 import { Route as rootRoute } from "./routes/__root";
 import { Route as indexRoute } from "./routes/index";
 import { Route as tenantsRoute } from "./routes/tenants";
@@ -13,6 +13,7 @@ import { Route as settingsRoute } from "./routes/settings";
 import { Route as integrationsRoute } from "./routes/integrations";
 import { Route as operationsHealthRoute } from "./routes/operations-health";
 import { RoutePending } from "./components/route-pending";
+import { readRuntimeBasePath } from "./lib/runtime-base-path";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -29,12 +30,26 @@ const routeTree = rootRoute.addChildren([
   operationsHealthRoute,
 ]);
 
-export const router = createRouter({
-  routeTree,
-  defaultPendingComponent: RoutePending,
-  defaultPendingMs: 0,
-  defaultPendingMinMs: 150,
-});
+interface CreateAppRouterOptions {
+  basepath?: string;
+  history?: RouterHistory;
+}
+
+export function createAppRouter({
+  basepath = readRuntimeBasePath(),
+  history,
+}: CreateAppRouterOptions = {}) {
+  return createRouter({
+    basepath,
+    defaultPendingComponent: RoutePending,
+    defaultPendingMinMs: 150,
+    defaultPendingMs: 0,
+    history,
+    routeTree,
+  });
+}
+
+export const router = createAppRouter();
 
 declare module "@tanstack/react-router" {
   interface Register {
