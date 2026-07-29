@@ -24,7 +24,7 @@ func (s *Server) getAdminAuthConfig(w http.ResponseWriter, _ *http.Request) {
 	}
 	response := map[string]any{"mode": mode}
 	if mode == adminauth.ModeOIDC {
-		response["login_url"] = "/v1/auth/login"
+		response["login_url"] = s.adminPublicPath("/v1/auth/login")
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -61,7 +61,7 @@ func (s *Server) completeOIDCLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: s.AdminAuth.Config.CookieName, Value: completed.Token,
-		Path: "/", HttpOnly: true, Secure: s.AdminAuth.Config.CookieSecure,
+		Path: s.adminCookiePath(), HttpOnly: true, Secure: s.AdminAuth.Config.CookieSecure,
 		SameSite: http.SameSiteLaxMode, Expires: completed.Identity.ExpiresAt,
 	})
 	http.Redirect(w, r, completed.RedirectAfter, http.StatusSeeOther)
@@ -109,11 +109,21 @@ func (s *Server) logoutAdminSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: s.AdminAuth.Config.CookieName, Value: "", Path: "/",
+		Name: s.AdminAuth.Config.CookieName, Value: "", Path: s.adminCookiePath(),
 		HttpOnly: true, Secure: s.AdminAuth.Config.CookieSecure,
 		SameSite: http.SameSiteLaxMode, MaxAge: -1, Expires: time.Unix(1, 0),
 	})
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) adminCookiePath() string {
+	if s.AdminAuth == nil {
+		return "/"
+	}
+	if s.AdminAuth.Config.CookiePath != "" {
+		return s.AdminAuth.Config.CookiePath
+	}
+	return s.adminBasePath()
 }
 
 type authenticationAuditMetadata struct {

@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"net/url"
 	"strings"
 	"time"
 
@@ -103,7 +104,7 @@ func (m *OIDCManager) Start(ctx context.Context, redirectAfter string) (LoginSta
 	if m.provider == nil || m.attempts == nil || m.sessions == nil || m.cryptor == nil || m.random == nil {
 		return LoginStart{}, errors.New("OIDC manager is not fully configured")
 	}
-	redirectAfter, err := safeRedirectAfter(redirectAfter)
+	redirectAfter, err := safeRedirectAfter(redirectAfter, m.config.BasePath)
 	if err != nil {
 		return LoginStart{}, err
 	}
@@ -236,13 +237,36 @@ func permissionsForRoles(roles []Role) []string {
 	return permissions
 }
 
-func safeRedirectAfter(value string) (string, error) {
+func safeRedirectAfter(value, rawBasePath string) (string, error) {
+	basePath, err := normalizeBasePath(rawBasePath)
+	if err != nil {
+		return "", err
+	}
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "/", nil
+		if basePath == "/" {
+			return "/", nil
+		}
+		return basePath + "/", nil
 	}
 	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n") {
 		return "", errors.New("invalid post-login redirect")
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Opaque != "" {
+		return "", errors.New("invalid post-login redirect")
+	}
+	decodedPath := parsed.Path
+	if decodedPath == "" || strings.ContainsAny(decodedPath, "\\\r\n") {
+		return "", errors.New("invalid post-login redirect")
+	}
+	for _, segment := range strings.Split(decodedPath, "/") {
+		if segment == "." || segment == ".." {
+			return "", errors.New("invalid post-login redirect")
+		}
+	}
+	if basePath != "/" && decodedPath != basePath && !strings.HasPrefix(decodedPath, basePath+"/") {
+		return "", errors.New("post-login redirect escapes configured base path")
 	}
 	return value, nil
 }

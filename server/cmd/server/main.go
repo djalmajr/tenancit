@@ -76,7 +76,7 @@ func run() error {
 	}
 	defer pool.Close()
 
-	staticHandler, err := spa.Handler()
+	staticHandler, err := spa.Handler(envOr("TENANCIT_BASE_PATH", "/"))
 	if err != nil {
 		return err
 	}
