@@ -21,6 +21,8 @@ versioning when the first public release is tagged.
 - Helm exposes only the configured admin base path and fails closed when the
   ingress path and application base path diverge.
 - Consumer examples address resources by their stable resource alias.
+- Container prereleases remain addressable by version and immutable digest
+  without moving the stable `latest` alias.
 
 ### Security
 

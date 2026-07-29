@@ -24,6 +24,8 @@ or changing repository visibility requires explicit maintainer authorization.
 - [ ] Tag the verified SHA with the approved SemVer and create release notes from
       `CHANGELOG.md`; never rebuild a different SHA for the release.
 - [ ] Mark alpha, beta and release-candidate GitHub Releases as prereleases.
+- [ ] Confirm prerelease images keep `latest` unchanged; only an exact stable
+      `vX.Y.Z` tag is allowed to move that alias.
 - [ ] Record the published OCI digest; never retag or push a local WIP image.
 - [ ] Verify a clean clone can run `make test`, `make build` and the documented
       quick start without maintainer-local files.
