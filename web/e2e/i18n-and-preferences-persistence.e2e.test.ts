@@ -35,7 +35,9 @@ test("locale and theme cover every route and survive reload and logout", { tag: 
       await expect(page.getByRole("link", { name: "API Keys", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Monthly usage", exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: "Audit", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+      await page.getByRole("button", { name: "Account" }).click();
+      await expect(page.getByRole("menuitem", { name: "Log out" })).toBeVisible();
+      await page.keyboard.press("Escape");
     });
     await flowStep("i18n-and-preferences-persistence", 3, "mantém todas as telas em inglês", async () => {
       await page.getByRole("link", { name: "Tenants", exact: true }).click();
@@ -129,7 +131,8 @@ test("locale and theme cover every route and survive reload and logout", { tag: 
       await expect.poll(() => page.evaluate(() => localStorage.getItem("tenancitTheme"))).toBe("system");
     });
     await flowStep("i18n-and-preferences-persistence", 7, "preserva preferências ao sair", async () => {
-      await page.getByRole("button", { name: "Salir" }).click();
+      await page.getByRole("button", { name: "Cuenta" }).click();
+      await page.getByRole("menuitem", { name: "Salir" }).click();
       await expect(page.getByRole("heading", { name: "Acceso administrativo" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Tema: Sistema" })).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("lang", "es-ES");

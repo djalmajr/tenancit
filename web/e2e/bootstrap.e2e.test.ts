@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { logoutViaUI } from "./support/ui";
 
 function adminTokenFromEnvironment() {
   const token = process.env.TENANCIT_E2E_ADMIN_TOKEN;
@@ -15,6 +16,5 @@ test("admin access requires a token and supports login and logout", async ({ pag
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
-  await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
+  await logoutViaUI(page);
 });

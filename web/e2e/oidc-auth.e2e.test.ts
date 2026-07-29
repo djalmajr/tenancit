@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { logoutViaUI } from "./support/ui";
 
 function breakGlassTokenFromEnvironment() {
   const token = process.env.TENANCIT_E2E_ADMIN_TOKEN;
@@ -25,7 +26,7 @@ test("OIDC login, CSRF, logout, and break-glass stay on distinct boundaries", as
   });
   expect(rejectedCSRF).toEqual({ status: 403, body: { error: "csrf_invalid" } });
 
-  await page.getByRole("button", { name: "Sair" }).click();
+  await logoutViaUI(page);
   await expect(page.getByRole("button", { name: "Entrar com SSO" })).toBeVisible();
   expect((await request.get("/v1/auth/session")).status()).toBe(401);
 

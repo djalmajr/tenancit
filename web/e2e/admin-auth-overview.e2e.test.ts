@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { CatalogCleanup, createTenantFixture } from "./fixtures/catalog";
 import { adminToken } from "./fixtures/admin";
 import { flowStep } from "./support/flow-step";
-import { chooseLocale, chooseTheme, navigateFromSidebar } from "./support/ui";
+import { chooseLocale, chooseTheme, logoutViaUI, navigateFromSidebar } from "./support/ui";
 
 test("operator authenticates, reviews overview, navigates, and logs out", { tag: "@pr-critical" }, async ({ page, request }) => {
   test.slow();
@@ -83,8 +83,7 @@ test("operator authenticates, reviews overview, navigates, and logs out", { tag:
       await expect(sidebar).toHaveAttribute("data-state", "expanded");
     });
     await flowStep("admin-auth-overview", 11, "remove a credencial ao sair", async () => {
-      await page.getByRole("button", { name: "Sair" }).click();
-      await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
+      await logoutViaUI(page);
       await expect.poll(() => page.evaluate(() => localStorage.getItem("tenancitAdminToken"))).toBeNull();
     });
   } finally {
