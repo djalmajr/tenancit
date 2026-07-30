@@ -31,6 +31,16 @@ type ResolvedResource struct {
 	Values        map[string]string `json:"values"`
 }
 
+// ResolvedTenantResource is the atomic hostname selection returned by the
+// resolve-one endpoint. The tenant slug and resource are assembled from the
+// same captured tenant, without loading the tenant's other resources.
+type ResolvedTenantResource struct {
+	TenantSlug    string            `json:"tenantSlug"`
+	Alias         string            `json:"alias"`
+	DefinitionKey string            `json:"definitionKey"`
+	Values        map[string]string `json:"values"`
+}
+
 // ResolvedTenant is the consumer-facing payload for a hostname.
 type ResolvedTenant struct {
 	TenantSlug string             `json:"tenantSlug"`
@@ -158,30 +168,34 @@ func computeETag(t db.Tenant, headers []ResourceHeader) string {
 	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
 }
 
-// ByHostnameAndAlias returns one active resource by its tenant-scoped alias.
-func (r *Resolver) ByHostnameAndAlias(ctx context.Context, hostname, alias string) (ResolvedResource, bool, error) {
+// ByHostnameAndAlias returns one active resource and its tenant identity from
+// one hostname snapshot. It never loads the tenant's unrelated resources.
+func (r *Resolver) ByHostnameAndAlias(ctx context.Context, hostname, alias string) (ResolvedTenantResource, bool, error) {
 	tenant, err := r.TenantByHostname(ctx, hostname)
 	if err != nil {
-		return ResolvedResource{}, false, err
+		return ResolvedTenantResource{}, false, err
 	}
 	res, err := r.q.GetActiveResourceByTenantAndAlias(ctx, db.GetActiveResourceByTenantAndAliasParams{
 		Btrim: alias, TenantID: tenant.ID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ResolvedResource{}, false, nil
+		return ResolvedTenantResource{}, false, nil
 	}
 	if err != nil {
-		return ResolvedResource{}, false, err
+		return ResolvedTenantResource{}, false, err
 	}
 	headerRow, err := r.q.GetResourceHeader(ctx, res.ID)
 	if err != nil {
-		return ResolvedResource{}, false, err
+		return ResolvedTenantResource{}, false, err
 	}
 	built, err := BuildResourceFieldsBatch(ctx, r.q, r.c, []ResourceHeader{resourceHeaderFromGetRow(headerRow)}, true)
 	if err != nil {
-		return ResolvedResource{}, false, err
+		return ResolvedTenantResource{}, false, err
 	}
-	rr := ResolvedResource{Alias: headerRow.Alias, DefinitionKey: headerRow.DefinitionKey, Values: map[string]string{}}
+	rr := ResolvedTenantResource{
+		TenantSlug: tenant.Slug, Alias: headerRow.Alias,
+		DefinitionKey: headerRow.DefinitionKey, Values: map[string]string{},
+	}
 	for _, field := range built[0].Fields {
 		rr.Values[field.Key] = field.Value
 	}

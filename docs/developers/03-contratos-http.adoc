@@ -199,6 +199,29 @@ GET /v1/resolve/{hostname}/resources/{alias}
 Authorization: Bearer tnc_...
 ----
 
+Resposta flat e atômica: a identidade e o único recurso vêm do mesmo tenant
+capturado no início da requisição. Nenhum outro recurso do tenant é carregado
+ou serializado:
+
+[source,json]
+----
+{
+  "tenantSlug": "cliente",
+  "alias": "keycloak.agility",
+  "definitionKey": "keycloak",
+  "values": {
+    "issuer": "https://id.example.test/realms/cliente",
+    "client_id": "agility-cliente",
+    "client_secret": "...",
+    "audience": "agility-api"
+  }
+}
+----
+
+Se o hostname for reatribuído, a nova identidade passa a valer na requisição
+seguinte; uma única resposta nunca combina o slug de um tenant com o recurso de
+outro. A resposta mantém `Cache-Control: private, no-store`.
+
 Diretório de tenants para consumidores com o scope `tenant:list` (identidades
 apenas — slug, nome e status; nunca resources ou secrets). Pensado para pontes
 de control plane que espelham o diretório (ex.: shells de plataforma):

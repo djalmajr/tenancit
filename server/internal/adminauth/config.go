@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 )
@@ -26,6 +27,7 @@ const (
 )
 
 type OIDCConfig struct {
+	BasePath     string
 	Issuer       string
 	ClientID     string
 	ClientSecret string
@@ -38,7 +40,9 @@ type Config struct {
 	Mode            Mode
 	DevMode         bool
 	AdminOrigin     string
+	BasePath        string
 	CookieName      string
+	CookiePath      string
 	CookieSecure    bool
 	SessionAbsolute time.Duration
 	SessionIdle     time.Duration
@@ -65,9 +69,15 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		return Config{}, errors.New("TENANCIT_ADMIN_AUTH_MODE is required")
 	}
 	devMode := strings.EqualFold(strings.TrimSpace(getenv("TENANCIT_DEV_MODE")), "true")
+	basePath, err := normalizeBasePath(getenv("TENANCIT_BASE_PATH"))
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
 		Mode:            mode,
 		DevMode:         devMode,
+		BasePath:        basePath,
+		CookiePath:      basePath,
 		SessionAbsolute: 8 * time.Hour,
 		SessionIdle:     30 * time.Minute,
 	}
@@ -137,18 +147,58 @@ func loadOIDCConfig(cfg Config, getenv func(string) string) (Config, error) {
 	cfg.AdminOrigin = strings.TrimSuffix(origin.String(), "/")
 	cfg.CookieSecure = origin.Scheme == "https"
 	cfg.CookieName = "__Host-tenancit_session"
+	callbackBasePath := ""
+	if cfg.BasePath != "/" {
+		cfg.CookieName = "__Secure-tenancit_session"
+		callbackBasePath = cfg.BasePath
+	}
 	if !cfg.CookieSecure {
 		cfg.CookieName = "tenancit_session"
 	}
 	cfg.OIDC = OIDCConfig{
+		BasePath:     cfg.BasePath,
 		Issuer:       strings.TrimSuffix(issuer.String(), "/"),
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  cfg.AdminOrigin + "/v1/auth/callback",
+		RedirectURL:  cfg.AdminOrigin + callbackBasePath + "/v1/auth/callback",
 		RoleClaim:    roleClaim,
 		RoleMappings: roleMappings,
 	}
 	return cfg, nil
+}
+
+func normalizeBasePath(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" || value == "/" {
+		return "/", nil
+	}
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") ||
+		strings.ContainsAny(value, `\?#<>"'`+"\r\n\t ") ||
+		strings.Contains(value, "//") {
+		return "", errors.New("TENANCIT_BASE_PATH must be an absolute URL path")
+	}
+	value = strings.TrimSuffix(value, "/")
+	if path.Clean(value) != value {
+		return "", errors.New("TENANCIT_BASE_PATH must not contain dot segments")
+	}
+	for _, segment := range strings.Split(strings.TrimPrefix(value, "/"), "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return "", errors.New("TENANCIT_BASE_PATH contains an invalid segment")
+		}
+		for _, char := range segment {
+			if !isBasePathChar(char) {
+				return "", errors.New("TENANCIT_BASE_PATH contains unsupported characters")
+			}
+		}
+	}
+	return value, nil
+}
+
+func isBasePathChar(char rune) bool {
+	return char >= 'a' && char <= 'z' ||
+		char >= 'A' && char <= 'Z' ||
+		char >= '0' && char <= '9' ||
+		strings.ContainsRune("-._~", char)
 }
 
 func parseExplicitBool(name, raw string) (bool, error) {

@@ -1,16 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { CatalogCleanup, createTenantFixture } from "./fixtures/catalog";
 import { adminToken } from "./fixtures/admin";
 import { flowStep } from "./support/flow-step";
-import { chooseLocale, chooseTheme, navigateFromSidebar } from "./support/ui";
+import { chooseLocale, chooseTheme, logoutViaUI, navigateFromSidebar } from "./support/ui";
 
-test("operator authenticates, reviews overview, navigates, and logs out", { tag: "@pr-critical" }, async ({ page, request }) => {
+test("operator authenticates, reviews overview, navigates, and logs out", { tag: "@pr-critical" }, async ({ page }) => {
   test.slow();
-  const cleanup = new CatalogCleanup();
 
   try {
-    const tenant = await createTenantFixture(request, cleanup, "overview");
-
     await flowStep("admin-auth-overview", 1, "bloqueia o painel sem token", async () => {
       await page.goto("/");
       await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
@@ -44,11 +40,10 @@ test("operator authenticates, reviews overview, navigates, and logs out", { tag:
         await expect(page.getByText(label, { exact: true })).toBeVisible();
       }
     });
-    await flowStep("admin-auth-overview", 6, "resume cada tenant no overview", async () => {
-      const card = page.getByRole("button").filter({ hasText: tenant.name });
-      await expect(card).toContainText("sem domínio");
-      await expect(card).toContainText("0 recursos");
-      await expect(card).toContainText("ativo");
+    await flowStep("admin-auth-overview", 6, "resume o pulso operacional no overview", async () => {
+      for (const label of ["Saúde operacional", "Requisições no mês", "Chaves expirando", "Dead letters"]) {
+        await expect(page.getByText(label, { exact: true })).toBeVisible();
+      }
     });
     await flowStep("admin-auth-overview", 7, "traduz o shell autenticado", async () => {
       await chooseLocale(page, "English");
@@ -83,11 +78,10 @@ test("operator authenticates, reviews overview, navigates, and logs out", { tag:
       await expect(sidebar).toHaveAttribute("data-state", "expanded");
     });
     await flowStep("admin-auth-overview", 11, "remove a credencial ao sair", async () => {
-      await page.getByRole("button", { name: "Sair" }).click();
-      await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
+      await logoutViaUI(page);
       await expect.poll(() => page.evaluate(() => localStorage.getItem("tenancitAdminToken"))).toBeNull();
     });
   } finally {
-    await cleanup.run(request);
+    await page.close();
   }
 });

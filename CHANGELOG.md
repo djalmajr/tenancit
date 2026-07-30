@@ -6,6 +6,31 @@ versioning when the first public release is tagged.
 
 ## [Unreleased]
 
+## [0.2.0-alpha.1] - 2026-07-29
+
+### Added
+
+- Shared-host deployment below a configurable `TENANCIT_BASE_PATH`, including
+  runtime SPA routing, OIDC callback URLs, scoped session cookies and Helm
+  ingress validation.
+- Atomic resolve-one responses that return `tenantSlug` and one resource from
+  the same tenant snapshot.
+
+### Changed
+
+- Helm exposes only the configured admin base path and fails closed when the
+  ingress path and application base path diverge.
+- Consumer examples address resources by their stable resource alias.
+- Container prereleases remain addressable by version and immutable digest
+  without moving the stable `latest` alias.
+
+### Security
+
+- Post-login redirects cannot escape the configured base path, and the shared
+  host aliases only the administrative auth/API routes below that prefix.
+- Update the gRPC runtime to `v1.82.1` and remove the unused root npm lockfile,
+  eliminating the open dependency advisories without changing the web build.
+
 ## [0.1.2] - 2026-07-28
 
 ### Fixed

@@ -17,6 +17,15 @@ ingress:
   enabled: true
   className: traefik
   tlsSecretName: ""
+  # The only public path exposed by this chart. It must equal app.basePath;
+  # the SPA plus human auth/admin APIs are served below this prefix, while
+  # root /v1 consumer APIs, operations endpoints and health stay internal.
+  path: /
+
+app:
+  # Runtime SPA mount. One immutable image can therefore be used at / or below
+  # a shared-host prefix such as /tenancit.
+  basePath: /
 
 public:
   host: tenancit.example.invalid

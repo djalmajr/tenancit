@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/djalmajr/tenancit/server/internal/adminauth"
@@ -180,7 +181,44 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 	if staticHandler != nil {
 		r.NotFound(staticHandler.ServeHTTP)
 	}
-	return r
+	handler := http.Handler(r)
+	if basePath := s.adminBasePath(); basePath != "/" {
+		handler = aliasAdminBasePath(handler, basePath)
+	}
+	return handler
+}
+
+func (s *Server) adminBasePath() string {
+	if s.AdminAuth == nil || s.AdminAuth.Config.BasePath == "" || s.AdminAuth.Config.BasePath == "/" {
+		return "/"
+	}
+	return s.AdminAuth.Config.BasePath
+}
+
+func (s *Server) adminPublicPath(route string) string {
+	if basePath := s.adminBasePath(); basePath != "/" {
+		return basePath + route
+	}
+	return route
+}
+
+func aliasAdminBasePath(next http.Handler, basePath string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for _, routePrefix := range []string{"/v1/auth", "/v1/admin"} {
+			publicPrefix := basePath + routePrefix
+			if r.URL.Path != publicPrefix && !strings.HasPrefix(r.URL.Path, publicPrefix+"/") {
+				continue
+			}
+			requestCopy := r.Clone(r.Context())
+			urlCopy := *r.URL
+			urlCopy.Path = strings.TrimPrefix(r.URL.Path, basePath)
+			urlCopy.RawPath = ""
+			requestCopy.URL = &urlCopy
+			next.ServeHTTP(w, requestCopy)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) SetAdminAuthStore(store *adminauth.PostgresSessionStore) {

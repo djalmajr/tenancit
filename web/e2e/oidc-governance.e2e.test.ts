@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Entrar com SSO" }).click();
+  await page.getByRole("link", { name: "Entrar com SSO", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
 }
 
@@ -16,9 +16,10 @@ test("OIDC settings are localized and another session can be revoked immediately
   await expect(page.getByRole("heading", { name: "Operational settings" })).toBeVisible();
 
   const rpm = page.getByLabel("Default RPM for new keys");
+  const apiClientSettings = page.locator('[data-slot="card"]').filter({ has: rpm });
   const originalRPM = await rpm.inputValue();
   await rpm.fill(String(Number(originalRPM) + 1));
-  await page.getByRole("button", { name: "Save" }).click();
+  await apiClientSettings.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Settings saved.")).toBeVisible();
 
   const secondContext = await browser.newContext();
@@ -33,7 +34,7 @@ test("OIDC settings are localized and another session can be revoked immediately
     await expect(page.getByText("Session revoked.")).toBeVisible();
 
     await secondPage.reload();
-    await expect(secondPage.getByRole("button", { name: "Entrar com SSO" })).toBeVisible();
+    await expect(secondPage.getByRole("link", { name: "Entrar com SSO", exact: true })).toBeVisible();
   } finally {
     await secondContext.close();
   }

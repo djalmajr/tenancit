@@ -78,11 +78,15 @@ test("tenant is created, edited, searched, and permanently deleted through the U
       await page.getByRole("row").filter({ hasText: updatedName }).click();
       await page.getByRole("tab", { name: "Domínios", exact: true }).click();
       const row = page.getByRole("row").filter({ hasText: hostname });
-      await row.getByRole("button", { name: "Remover" }).click();
+      await row.getByRole("button", { name: "Ações", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Remover", exact: true }).click();
       const dialog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Remover domínio?" }) });
       await expect(dialog).toContainText(hostname);
       await dialog.getByRole("button", { name: "Remover" }).click();
-      await expect(page.getByText("Nenhum domínio. Adicione ao menos um para resolver o tenant.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("cell", {
+        name: "Nenhum domínio. Adicione ao menos um para resolver o tenant.",
+        exact: true,
+      })).toBeVisible();
       await expect(page.getByText("Domínio removido.", { exact: true })).toBeVisible();
     });
     await flowStep("tenant-management", 9, "protege a exclusão sem slug", async () => {
@@ -94,6 +98,7 @@ test("tenant is created, edited, searched, and permanently deleted through the U
       await createResourceFixture(request, tenantId, definition.key, {
         password: `cascade-${slug}`,
       });
+      await page.getByRole("tab", { name: "Visão geral", exact: true }).click();
       await page.getByRole("button", { name: "Excluir tenant permanentemente" }).click();
       const dialog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Excluir tenant permanentemente?" }) });
       await expect(dialog).toContainText("domínios, recursos e valores secretos");

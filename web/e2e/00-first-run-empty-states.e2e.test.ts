@@ -21,8 +21,10 @@ test("first run explains every empty state and next action", { tag: "@pr-critica
         await expect(card.getByText("0", { exact: true })).toBeVisible();
       }
     });
-    await flowStep("first-run-empty-states", 3, "orienta no card vazio de tenants", async () => {
-      await expect(page.getByText("Nenhum tenant ainda.", { exact: true })).toBeVisible();
+    await flowStep("first-run-empty-states", 3, "mantém o pulso operacional visível no primeiro acesso", async () => {
+      for (const label of ["Saúde operacional", "Requisições no mês", "Chaves expirando", "Dead letters"]) {
+        await expect(page.getByText(label, { exact: true })).toBeVisible();
+      }
     });
     await flowStep("first-run-empty-states", 4, "mantém CTA na tabela vazia de tenants", async () => {
       await navigateFromSidebar(page, "Tenants");
@@ -47,16 +49,32 @@ test("first run explains every empty state and next action", { tag: "@pr-critica
       await expect(page).toHaveURL(new RegExp(`/tenants/${tenant.id}$`));
     });
     await flowStep("first-run-empty-states", 8, "mostra prontidão e pendências", async () => {
-      const readiness = page.getByText("Prontidão para consumo", { exact: true }).locator("../..");
-      await expect(readiness.getByText("ativo", { exact: true })).toBeVisible();
-      await expect(readiness.getByText("adicione um domínio", { exact: true })).toBeVisible();
-      await expect(readiness.getByText("adicione um recurso ativo", { exact: true })).toBeVisible();
-      await expect(readiness.getByText("crie uma chave em Chaves de API", { exact: true })).toBeVisible();
+      const readiness = page.locator('[data-slot="card"]').filter({
+        has: page.getByText("Prontidão para consumo", { exact: true }),
+      });
+      await expect(readiness.getByText("Incompleto", { exact: true })).toBeVisible();
+      await expect(readiness.getByText("1 de 3 requisitos essenciais atendidos", { exact: true })).toBeVisible();
+
+      const domains = page.locator('[data-slot="card"]').filter({
+        has: page.getByText("Domínios", { exact: true }),
+      });
+      await expect(domains.getByText("0", { exact: true })).toBeVisible();
+      await expect(domains.getByText("adicione um domínio", { exact: true })).toBeVisible();
+
+      const resources = page.locator('[data-slot="card"]').filter({
+        has: page.getByText("Recursos ativos/total", { exact: true }),
+      });
+      await expect(resources.getByText("0/0", { exact: true })).toBeVisible();
+      await expect(resources.getByText("adicione um recurso ativo", { exact: true })).toBeVisible();
     });
     await flowStep("first-run-empty-states", 9, "explica recursos e domínios vazios", async () => {
-      await expect(page.getByText("Nenhum recurso", { exact: true })).toBeVisible();
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
+      await expect(page.getByRole("cell", { name: "Nenhum recurso", exact: true })).toBeVisible();
       await page.getByRole("tab", { name: "Domínios", exact: true }).click();
-      await expect(page.getByText("Nenhum domínio. Adicione ao menos um para resolver o tenant.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("cell", {
+        name: "Nenhum domínio. Adicione ao menos um para resolver o tenant.",
+        exact: true,
+      })).toBeVisible();
     });
   } finally {
     await cleanup.run(request);

@@ -49,11 +49,71 @@ func TestLoadConfigAcceptsCompleteOIDCAndDerivesCallback(t *testing.T) {
 	if cfg.Mode != ModeOIDC || cfg.OIDC.RedirectURL != "https://tenancit.example.test/v1/auth/callback" {
 		t.Fatalf("config=%+v", cfg)
 	}
-	if cfg.CookieName != "__Host-tenancit_session" || !cfg.CookieSecure {
-		t.Fatalf("cookie=%q secure=%v", cfg.CookieName, cfg.CookieSecure)
+	if cfg.BasePath != "/" || cfg.OIDC.BasePath != "/" ||
+		cfg.CookieName != "__Host-tenancit_session" || cfg.CookiePath != "/" || !cfg.CookieSecure {
+		t.Fatalf("base=%q oidc_base=%q cookie=%q path=%q secure=%v", cfg.BasePath, cfg.OIDC.BasePath, cfg.CookieName, cfg.CookiePath, cfg.CookieSecure)
 	}
 	if cfg.OIDC.RoleMappings["/tenancit/operators"] != RoleOperator {
 		t.Fatalf("role mappings=%v", cfg.OIDC.RoleMappings)
+	}
+}
+
+func TestLoadConfigDerivesPrefixedOIDCCallbackAndCookieScope(t *testing.T) {
+	// Mutation captured by the initial RED: ignoring TENANCIT_BASE_PATH kept
+	// callback and cookie scope at the shared host root.
+	cfg, err := LoadConfig(mapGetter(map[string]string{
+		"TENANCIT_ADMIN_AUTH_MODE":    "oidc",
+		"TENANCIT_ADMIN_ORIGIN":       "https://admin.example.test",
+		"TENANCIT_BASE_PATH":          "/tenancit",
+		"TENANCIT_OIDC_ISSUER":        "https://id.example.test/realms/platform",
+		"TENANCIT_OIDC_CLIENT_ID":     "tenancit",
+		"TENANCIT_OIDC_CLIENT_SECRET": "client-secret",
+		"TENANCIT_OIDC_ROLE_CLAIM":    "groups",
+		"TENANCIT_OIDC_ROLE_MAPPINGS": `{"admins":"security_admin"}`,
+	}))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.BasePath != "/tenancit" || cfg.OIDC.BasePath != "/tenancit" {
+		t.Fatalf("base path config=%+v oidc=%+v", cfg, cfg.OIDC)
+	}
+	if cfg.OIDC.RedirectURL != "https://admin.example.test/tenancit/v1/auth/callback" {
+		t.Fatalf("redirect URL=%q", cfg.OIDC.RedirectURL)
+	}
+	if cfg.CookieName != "__Secure-tenancit_session" || cfg.CookiePath != "/tenancit" || !cfg.CookieSecure {
+		t.Fatalf("cookie=%q path=%q secure=%v", cfg.CookieName, cfg.CookiePath, cfg.CookieSecure)
+	}
+}
+
+func TestLoadConfigDefaultsBasePathToRootAndRejectsInvalidValues(t *testing.T) {
+	base := map[string]string{
+		"TENANCIT_ADMIN_AUTH_MODE": "legacy_shared_token",
+		"TENANCIT_ADMIN_TOKEN":     "strong-development-token",
+		"TENANCIT_DEV_MODE":        "true",
+	}
+	cfg, err := LoadConfig(mapGetter(base))
+	if err != nil {
+		t.Fatalf("LoadConfig root: %v", err)
+	}
+	if cfg.BasePath != "/" || cfg.CookiePath != "/" {
+		t.Fatalf("root base/cookie path=%q/%q", cfg.BasePath, cfg.CookiePath)
+	}
+
+	// Mutation captured by the initial RED: accepting a malformed prefix can
+	// mount administrative routes outside their intended URL boundary.
+	for _, value := range []string{
+		"tenancit",
+		"//tenancit",
+		"/tenancit//admin",
+		"/tenancit/../admin",
+		`/tenancit\admin`,
+		"/tenancit?debug=true",
+		"/tenancit#fragment",
+	} {
+		base["TENANCIT_BASE_PATH"] = value
+		if _, err := LoadConfig(mapGetter(base)); err == nil || !strings.Contains(err.Error(), "TENANCIT_BASE_PATH") {
+			t.Fatalf("base path %q error=%v", value, err)
+		}
 	}
 }
 

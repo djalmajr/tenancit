@@ -33,11 +33,13 @@ lint-deploy:
 		scripts/test-multi-replica-continuity.sh scripts/test-postgres-roles.sh \
 		scripts/post-deploy-production-smoke.sh scripts/test-production-smoke.sh \
 		scripts/test-compose-contracts.sh scripts/deploy-k8s-personal.sh \
-		scripts/test-helm-chart.sh
+		scripts/test-helm-chart.sh scripts/classify-image-release.sh \
+		scripts/test-publish-image-workflow.sh
 	sh ./scripts/test-deploy-scripts.sh
 	sh ./scripts/test-production-smoke.sh
 	sh ./scripts/test-compose-contracts.sh
 	sh ./scripts/test-helm-chart.sh
+	sh ./scripts/test-publish-image-workflow.sh
 
 lint-go:
 	sh ./scripts/lint-go.sh

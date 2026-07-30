@@ -38,7 +38,8 @@ function defineStorage(name: "localStorage" | "sessionStorage") {
   });
 }
 
-defineStorage("localStorage");
-defineStorage("sessionStorage");
-
-afterEach(() => cleanup());
+if (typeof window !== "undefined") {
+  defineStorage("localStorage");
+  defineStorage("sessionStorage");
+  afterEach(() => cleanup());
+}

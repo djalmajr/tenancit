@@ -40,6 +40,7 @@ servidor falha de forma explícita quando uma configuração obrigatória não e
 | Variável | Uso |
 | --- | --- |
 | `TENANCIT_ADDR` | Endereço do servidor HTTP; default `:8080` |
+| `TENANCIT_BASE_PATH` | Prefixo público da SPA e das rotas administrativas; default `/`, por exemplo `/tenancit`. Em host compartilhado, publique somente `<basePath>/v1/auth` e `<basePath>/v1/admin`; Consumer APIs e probes na raiz permanecem internos |
 | `TENANCIT_DATABASE_URL` | DSN PostgreSQL |
 | `TENANCIT_ADMIN_AUTH_MODE` | `oidc` em operação real; `legacy_shared_token` apenas em dev explícito |
 | `TENANCIT_ADMIN_ORIGIN` | Origin público usado por callback e defesa CSRF no modo OIDC |

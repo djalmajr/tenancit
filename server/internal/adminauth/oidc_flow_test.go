@@ -125,15 +125,42 @@ func TestSafeRedirectAfterRejectsExternalAndBackslashVariants(t *testing.T) {
 		`/safe\\..\\attacker`,
 		"/safe\r\nLocation: https://attacker.example",
 	} {
-		if _, err := safeRedirectAfter(value); err == nil {
+		if _, err := safeRedirectAfter(value, "/"); err == nil {
 			t.Fatalf("accepted unsafe post-login redirect %q", value)
 		}
 	}
 
 	for input, want := range map[string]string{"": "/", "/": "/", "/tenants?status=active": "/tenants?status=active"} {
-		got, err := safeRedirectAfter(input)
+		got, err := safeRedirectAfter(input, "/")
 		if err != nil || got != want {
 			t.Fatalf("safeRedirectAfter(%q) = %q, %v; want %q", input, got, err, want)
+		}
+	}
+}
+
+func TestSafeRedirectAfterStaysInsideConfiguredBasePath(t *testing.T) {
+	// Mutation captured by the initial RED: checking only for a leading slash
+	// allowed a shared-host login to redirect into another application.
+	for input, want := range map[string]string{
+		"":                                "/tenancit/",
+		"/tenancit":                       "/tenancit",
+		"/tenancit/":                      "/tenancit/",
+		"/tenancit/tenants?status=active": "/tenancit/tenants?status=active",
+	} {
+		got, err := safeRedirectAfter(input, "/tenancit")
+		if err != nil || got != want {
+			t.Fatalf("safeRedirectAfter(%q) = %q, %v; want %q", input, got, err, want)
+		}
+	}
+	for _, value := range []string{
+		"/",
+		"/agility",
+		"/tenancit-other",
+		"/tenancit/../agility",
+		"/tenancit/%2e%2e/agility",
+	} {
+		if _, err := safeRedirectAfter(value, "/tenancit"); err == nil {
+			t.Fatalf("accepted redirect outside base path: %q", value)
 		}
 	}
 }

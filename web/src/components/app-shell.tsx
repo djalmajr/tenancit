@@ -58,10 +58,12 @@ import { cn } from "@/lib/utils";
 import { AdminCapabilitiesProvider } from "@/lib/admin-capabilities";
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { visibleNavGroups } from "@/lib/admin-navigation";
+import { buildAdminEndpoint, buildOIDCLoginURL } from "@/lib/runtime-base-path";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setLocale, t } = useI18n();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useRouterState({ select: (s) => s.location });
+  const pathname = location.pathname;
   const [authMessageKey, setAuthMessageKey] = React.useState<TranslationKey | "">("");
   const [draftAdminToken, setDraftAdminToken] = React.useState(() => getAdminToken());
   const [hasAdminToken, setHasAdminToken] = React.useState(() => Boolean(getAdminToken()));
@@ -158,6 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const currentPageLabel = pageLabel(pathname, t);
   const currentPageDescription = pageDescription(pathname, t);
+  const currentPageHasOwnHeading = pageHasOwnHeading(pathname);
   const permissions = authConfig?.mode === "oidc" ? adminSession?.permissions ?? [] : ALL_ADMIN_PERMISSIONS;
 
   function saveAdminToken(event?: React.FormEvent<HTMLFormElement>) {
@@ -195,8 +198,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <OIDCAccessScreen
         authMessage={authMessageKey ? t(authMessageKey) : ""}
-        loginURL={authConfig.login_url ?? "/v1/auth/login"}
-        returnTo={pathname}
+        loginURL={authConfig.login_url ?? buildAdminEndpoint("/v1/auth/login")}
+        returnTo={location.publicHref}
       />
     );
   }
@@ -259,7 +262,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="flex h-14 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium leading-tight">{currentPageLabel}</span>
+            {currentPageHasOwnHeading ? (
+              <span className="truncate text-sm font-medium leading-tight">{currentPageLabel}</span>
+            ) : (
+              <h1 className="truncate text-sm font-medium leading-tight">{currentPageLabel}</h1>
+            )}
             {currentPageDescription && (
               <span className="truncate text-xs leading-tight text-muted-foreground">
                 {currentPageDescription}
@@ -397,12 +404,11 @@ function OIDCAccessScreen({
   returnTo: string;
 }) {
   const { t } = useI18n();
-
-  function startLogin() {
-    const target = new URL(loginURL, window.location.origin);
-    target.searchParams.set("return_to", returnTo || "/");
-    window.location.assign(target.toString());
-  }
+  const oidcLoginURL = buildOIDCLoginURL({
+    loginURL,
+    origin: window.location.origin,
+    returnTo,
+  });
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-sidebar p-4">
@@ -421,10 +427,10 @@ function OIDCAccessScreen({
           </div>
           <PreferenceControls compact />
         </div>
-        <Button className="mt-5 w-full" onClick={startLogin} type="button">
+        <a className={cn(buttonVariants(), "mt-5 w-full")} href={oidcLoginURL}>
           <LogIn className="size-4" />
           {t("auth.oidcEnter")}
-        </Button>
+        </a>
       </div>
     </div>
   );
@@ -577,17 +583,23 @@ function ThemeMenu() {
 }
 
 function pageLabel(pathname: string, t: (key: TranslationKey) => string): string {
-  if (pathname === "/") return t("nav.overview");
+  if (pathname === "/") return t("overview.title");
+  if (pathname === "/tenants") return t("tenants.title");
   if (pathname.startsWith("/tenants")) return t("nav.tenants");
+  if (pathname === "/resource-definitions") return t("definitions.title");
   if (pathname.startsWith("/resource-definitions")) return t("nav.definitions");
-  if (pathname.startsWith("/api-clients")) return t("nav.apiClients");
-  if (pathname.startsWith("/usage")) return t("nav.usage");
-  if (pathname.startsWith("/operations/health")) return t("nav.health");
-  if (pathname.startsWith("/audit-events")) return t("nav.audit");
-  if (pathname.startsWith("/security/sessions")) return t("nav.sessions");
-  if (pathname.startsWith("/operations/settings")) return t("nav.settings");
-  if (pathname.startsWith("/integrations/webhooks")) return t("nav.integrations");
+  if (pathname.startsWith("/api-clients")) return t("apiClients.title");
+  if (pathname.startsWith("/usage")) return t("usage.title");
+  if (pathname.startsWith("/operations/health")) return t("operationsHealth.title");
+  if (pathname.startsWith("/audit-events")) return t("audit.title");
+  if (pathname.startsWith("/security/sessions")) return t("sessions.title");
+  if (pathname.startsWith("/operations/settings")) return t("settings.title");
+  if (pathname.startsWith("/integrations/webhooks")) return t("integrations.title");
   return "";
+}
+
+function pageHasOwnHeading(pathname: string): boolean {
+  return pathname.startsWith("/tenants/") || pathname.startsWith("/resource-definitions/");
 }
 
 function pageDescription(pathname: string, t: (key: TranslationKey) => string): string {

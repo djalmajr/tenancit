@@ -1,8 +1,9 @@
 # Releasing Tenancit
 
 This checklist keeps public releases reproducible and free of private material.
-The first public version is `v0.1.0`; creating a tag and changing repository
-visibility require explicit maintainer authorization.
+Release tags follow SemVer (`vX.Y.Z`); candidates append a prerelease suffix
+such as `-alpha.1`, `-beta.1` or `-rc.1`. Creating a tag, publishing an image
+or changing repository visibility requires explicit maintainer authorization.
 
 ## Candidate
 
@@ -20,8 +21,12 @@ visibility require explicit maintainer authorization.
 - [ ] Obtain explicit authorization to make the repository public.
 - [ ] Confirm branch rules, Dependabot, CodeQL and private vulnerability
       reporting are active after the visibility change.
-- [ ] Tag the verified SHA as `v0.1.0` and create release notes from
+- [ ] Tag the verified SHA with the approved SemVer and create release notes from
       `CHANGELOG.md`; never rebuild a different SHA for the release.
+- [ ] Mark alpha, beta and release-candidate GitHub Releases as prereleases.
+- [ ] Confirm prerelease images keep `latest` unchanged; only an exact stable
+      `vX.Y.Z` tag is allowed to move that alias.
+- [ ] Record the published OCI digest; never retag or push a local WIP image.
 - [ ] Verify a clean clone can run `make test`, `make build` and the documented
       quick start without maintainer-local files.
 

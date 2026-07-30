@@ -14,6 +14,6 @@ describe("consumerSnippets", () => {
       expect(snippet).not.toMatch(/Bearer tnc_[a-zA-Z0-9]+/);
     }
     expect(consumerSnippets.byHostname).toContain("resolve?hostname=");
-    expect(consumerSnippets.resource).toContain("resources/<definition-key>");
+    expect(consumerSnippets.resource).toContain("resources/<resource-alias>");
   });
 });

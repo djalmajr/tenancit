@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { adminToken } from "./fixtures/admin";
 import { flowStep } from "./support/flow-step";
+import { logoutViaUI } from "./support/ui";
 
 test("invalid admin token can be corrected entirely through the UI", { tag: "@pr-critical" }, async ({ page }) => {
   await flowStep("admin-invalid-token-recovery", 1, "abre a barreira administrativa", async () => {
@@ -29,7 +30,6 @@ test("invalid admin token can be corrected entirely through the UI", { tag: "@pr
     await expect(page.getByRole("link", { name: "Tenants", exact: true })).toBeVisible();
   });
   await flowStep("admin-invalid-token-recovery", 5, "encerra a sessão recuperada", async () => {
-    await page.getByRole("button", { name: "Sair" }).click();
-    await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
+    await logoutViaUI(page);
   });
 });

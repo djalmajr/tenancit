@@ -21,13 +21,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Classify release channel
+        id: release_channel
+        env:
+          TENANCIT_IMAGE_REF_TYPE: ${{ github.ref_type }}
+          TENANCIT_IMAGE_REF_NAME: ${{ github.ref_name }}
+        run: sh ./scripts/classify-image-release.sh
       - uses: docker/metadata-action@v6
         id: metadata
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: latest=false
           tags: |
             type=sha,format=long
             type=ref,event=tag
+            type=raw,value=latest,enable=${{ steps.release_channel.outputs.publish_latest }}
       - uses: docker/build-push-action@v7
         id: build
         with:
@@ -40,6 +48,8 @@ jobs:
           provenance: mode=max
           sbom: true
       - name: Publish immutable reference
+        env:
+          TENANCIT_IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          printf '### Published image\n\n`ghcr.io/%s@%s`\n' \
-            "$GITHUB_REPOSITORY" "${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          printf "### Published image\n\n\`ghcr.io/%s@%s\`\n" \
+            "$GITHUB_REPOSITORY" "$TENANCIT_IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"

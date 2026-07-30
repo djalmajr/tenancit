@@ -17,7 +17,8 @@ export async function loginViaUI(page: Page, token = adminToken) {
 }
 
 export async function logoutViaUI(page: Page) {
-  await page.getByRole("button", { name: "Sair" }).click();
+  await page.getByRole("button", { name: /^(Conta|Account|Cuenta)$/ }).click();
+  await page.getByRole("menuitem", { name: /^(Sair|Log out|Salir)$/ }).click();
   await expect(page.getByRole("heading", { name: "Acesso administrativo" })).toBeVisible();
 }
 
