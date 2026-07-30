@@ -132,34 +132,44 @@ test("core administration remains operable with a real keyboard", { tag: "@full"
       await page.goto(`/tenants/${tenant.id}`);
       await expect(page.getByRole("heading", { name: tenant.name, exact: true })).toBeVisible();
 
-      const enableReveal = page.getByRole("button", { name: "Habilitar revelação de segredos" });
-      await tabTo(page, enableReveal);
-      await expectKeyboardFocus(enableReveal);
+      const overviewTab = page.getByRole("tab", { name: "Visão geral", exact: true });
+      const resourcesTab = page.getByRole("tab", { name: "Recursos", exact: true });
+      await tabTo(page, overviewTab);
+      await expectKeyboardFocus(overviewTab);
+      await page.keyboard.press("ArrowRight");
+      await expectKeyboardFocus(resourcesTab);
       await page.keyboard.press("Enter");
-      const revealSecret = page.getByRole("button", { name: "Revelar" });
-      await expect(revealSecret).toBeVisible();
+      await expect(resourcesTab).toHaveAttribute("aria-selected", "true");
+
+      const resourceRow = page.getByRole("row").filter({ hasText: definition.key });
+      await tabTo(page, resourceRow);
+      await expectKeyboardFocus(resourceRow);
+      // Mutation captured: removing the row keyboard handler prevents Enter from opening resource details.
+      await page.keyboard.press("Enter");
+      const resourceDialog = page.getByRole("dialog").filter({ hasText: definition.key });
+      await expect(resourceDialog).toBeVisible();
+
+      const revealSecret = resourceDialog.getByRole("button", { name: "Revelar", exact: true });
       await tabTo(page, revealSecret);
       await expectKeyboardFocus(revealSecret);
       await page.keyboard.press("Enter");
-      const hideSecret = page.getByRole("button", { name: "Ocultar", exact: true });
+      const hideSecret = resourceDialog.getByRole("button", { name: "Ocultar", exact: true });
+      await tabTo(page, hideSecret);
       await expectKeyboardFocus(hideSecret);
       expect(await page.locator("body").evaluate(
         (body, sensitive) => body.textContent?.includes(sensitive) ?? false,
         clearSecret,
       )).toBe(true);
 
-      const resourceCard = page.getByText(definition.name, { exact: true }).locator("../../..");
-      const deactivate = resourceCard.getByRole("button", { name: "Desativar" });
-      const remove = resourceCard.getByRole("button", { name: "Remover" });
-      await page.keyboard.press("Shift+Tab");
-      await expectKeyboardFocus(remove);
-      await page.keyboard.press("Shift+Tab");
+      const deactivate = resourceDialog.getByRole("button", { name: "Desativar", exact: true });
+      const remove = resourceDialog.getByRole("button", { name: "Remover", exact: true });
+      await tabTo(page, deactivate, 10, "Shift+Tab");
       await expectKeyboardFocus(deactivate);
-      await expect(deactivate).toHaveAttribute("title", "Desativar");
+      await expect(deactivate).toHaveAccessibleName("Desativar");
 
       await page.keyboard.press("Tab");
       await expectKeyboardFocus(remove);
-      await expect(remove).toHaveAttribute("title", "Remover");
+      await expect(remove).toHaveAccessibleName("Remover");
       await page.keyboard.press("Enter");
       let confirmDialog = page.getByRole("dialog").filter({
         has: page.getByRole("heading", { name: "Remover recurso?" }),
@@ -167,8 +177,15 @@ test("core administration remains operable with a real keyboard", { tag: "@full"
       await expect(confirmDialog.getByRole("button", { name: "Cancelar" })).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(confirmDialog).toHaveCount(0);
-      await expect(remove).toBeFocused();
+      await expect(resourceDialog).toHaveCount(0);
+      await tabTo(page, resourceRow);
+      await expectKeyboardFocus(resourceRow);
 
+      await page.keyboard.press("Enter");
+      await expect(resourceDialog).toBeVisible();
+      const reopenedRemove = resourceDialog.getByRole("button", { name: "Remover", exact: true });
+      await tabTo(page, reopenedRemove);
+      await expectKeyboardFocus(reopenedRemove);
       await page.keyboard.press("Enter");
       confirmDialog = page.getByRole("dialog").filter({
         has: page.getByRole("heading", { name: "Remover recurso?" }),
@@ -177,15 +194,24 @@ test("core administration remains operable with a real keyboard", { tag: "@full"
       await expect(cancel).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(confirmDialog).toHaveCount(0);
-      await expect(remove).toBeFocused();
+      await expect(resourceDialog).toHaveCount(0);
+      await tabTo(page, resourceRow);
+      await expectKeyboardFocus(resourceRow);
+
+      await page.keyboard.press("Enter");
+      await expect(resourceDialog).toBeVisible();
+      const close = resourceDialog.getByRole("button", { name: "Fechar", exact: true });
+      await tabTo(page, close, 10);
+      await expectKeyboardFocus(close);
+      await page.keyboard.press("Enter");
+      await expect(resourceDialog).toHaveCount(0);
+      await expect(resourceRow).toBeFocused();
     });
 
     await flowStep("keyboard-accessibility-core", 5, "gera e copia token pelo teclado", async () => {
       const apiClientsLink = page.getByRole("link", { name: "Chaves de API", exact: true });
-      // The resource action that closes the prior confirmation is after the
-      // sidebar in DOM order. Traverse backwards to exercise the shortest,
-      // deterministic keyboard path to the API-client navigation item.
-      await tabTo(page, apiClientsLink, 20, "Shift+Tab");
+      // The focused resource row is after the sidebar in DOM order.
+      await tabTo(page, apiClientsLink, 30, "Shift+Tab");
       await expectKeyboardFocus(apiClientsLink);
       await page.keyboard.press("Enter");
       await expect(page.getByRole("heading", { name: "Chaves de API" })).toBeVisible();

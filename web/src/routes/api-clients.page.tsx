@@ -448,7 +448,7 @@ export default function ApiClients() {
       </Dialog>
 
       <Dialog open={open} onOpenChange={changeDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
           {!token ? (
             <>
               <DialogHeader>

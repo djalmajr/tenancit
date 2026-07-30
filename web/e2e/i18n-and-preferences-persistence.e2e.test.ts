@@ -65,14 +65,20 @@ test("locale and theme cover every route and survive reload and logout", { tag: 
       await page.getByRole("link", { name: "Resources", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Resource Definitions" })).toBeVisible();
       await expect(page.getByRole("button", { name: "New definition" }).first()).toBeVisible();
-      await expect(page.getByRole("button").filter({ hasText: definition.name })).toBeVisible();
+      const definitionCard = page.getByRole("link", {
+        name: `Open definition ${definition.name}`,
+        exact: true,
+      });
+      await expect(definitionCard).toBeVisible();
       await expect(page.locator("main")).not.toContainText(portugueseRouteText);
 
-      await page.getByRole("button").filter({ hasText: definition.name }).click();
+      await definitionCard.click();
       await expect(page.getByRole("heading", { name: definition.name })).toBeVisible();
       await expect(page.getByText("Fields", { exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "New field" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Deactivate" })).toBeVisible();
+      await page.getByRole("button", { name: "Actions" }).click();
+      await expect(page.getByRole("menuitem", { name: "Deactivate" })).toBeVisible();
+      await page.keyboard.press("Escape");
       await expect(page.locator("main")).not.toContainText(portugueseRouteText);
 
       await page.getByRole("link", { name: "API Keys", exact: true }).click();

@@ -135,21 +135,29 @@ test("mobile navigation and dialogs fit a narrow viewport", { tag: "@full" }, as
       await expect(page.getByRole("heading", { name: tenant.name, exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-      const readinessCard = page.getByRole("heading", { name: "Prontidão para consumo" }).locator("../..");
-      const readinessLabels = ["Tenant", "Domínios", "Recursos ativos", "Chaves ativas"];
-      const labelBoxes = [];
+      const readinessLabels = [
+        "Prontidão para consumo",
+        "Domínios",
+        "Recursos ativos/total",
+        "Configurações incompletas",
+      ];
+      const cardBoxes = [];
       for (const label of readinessLabels) {
-        const box = await readinessCard.getByText(label, { exact: true }).boundingBox();
-        expect(box, `${label} is rendered in the readiness card`).not.toBeNull();
-        if (box) labelBoxes.push(box);
+        const card = page.getByRole("heading", { name: label, exact: true })
+          .locator("xpath=ancestor::*[@data-slot='card'][1]");
+        const box = await card.boundingBox();
+        expect(box, `${label} has a visible readiness card`).not.toBeNull();
+        if (box) cardBoxes.push(box);
       }
-      expect(labelBoxes).toHaveLength(4);
-      for (let index = 1; index < labelBoxes.length; index += 1) {
-        expect(labelBoxes[index].y).toBeGreaterThan(labelBoxes[index - 1].y);
+      expect(cardBoxes).toHaveLength(4);
+      for (let index = 1; index < cardBoxes.length; index += 1) {
+        expect(cardBoxes[index].y).toBeGreaterThan(cardBoxes[index - 1].y);
+        expect(Math.abs(cardBoxes[index].x - cardBoxes[index - 1].x)).toBeLessThanOrEqual(1);
       }
       await expectContainedInViewport(page.getByRole("tab", { name: "Recursos", exact: true }), page);
       await expectContainedInViewport(page.getByRole("tab", { name: "Domínios", exact: true }), page);
 
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       const dialog = page.getByRole("dialog").filter({
         has: page.getByRole("heading", { name: "Adicionar recurso" }),
@@ -166,8 +174,14 @@ test("mobile navigation and dialogs fit a narrow viewport", { tag: "@full" }, as
 
     await flowStep("responsive-mobile-navigation", 6, "reflui definitions para uma coluna", async () => {
       await tapMobileRoute(page, "Recursos", "Definições de recurso");
-      const firstCard = page.getByRole("button").filter({ hasText: definition.name });
-      const secondCard = page.getByRole("button").filter({ hasText: secondDefinition.name });
+      const firstCard = page.getByRole("link", {
+        name: `Abrir definição ${definition.name}`,
+        exact: true,
+      });
+      const secondCard = page.getByRole("link", {
+        name: `Abrir definição ${secondDefinition.name}`,
+        exact: true,
+      });
       await expect(firstCard).toBeVisible();
       await expect(secondCard).toBeVisible();
       const grid = firstCard.locator("..");
