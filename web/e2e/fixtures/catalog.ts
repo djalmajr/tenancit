@@ -63,6 +63,7 @@ export class CatalogCleanup {
       if (![200, 404].includes(response.status())) failures.push(`deactivate definition ${id}: ${response.status()}`);
     }
     for (const [id, status] of this.definitionStatusRestores) {
+      if (this.definitions.has(id)) continue;
       const response = await request.put(`/v1/admin/resource-definitions/${id}/status`, {
         data: { status },
         headers,

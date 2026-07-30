@@ -3,7 +3,6 @@ import {
   CatalogCleanup,
   createDefinitionFixture,
   createResourceFixture,
-  findDefinitionByKey,
   findTenantBySlug,
   suspendActiveDefinitions,
 } from "./fixtures/catalog";
@@ -83,16 +82,15 @@ test("admin forms keep invalid and conflicting data visible for correction", { t
       await expect(dialog.getByText("Já existe um registro com esse valor. Verifique se não está duplicando.", { exact: true })).toBeVisible();
       await dialog.getByRole("button", { name: "Cancelar" }).click();
     });
-    await flowStep("admin-form-validation-and-errors", 7, "desabilita salvar quando todos os tipos estão provisionados", async () => {
+    await flowStep("admin-form-validation-and-errors", 7, "desabilita salvar quando não há definições ativas", async () => {
       const tenant = await findTenantBySlug(request, slug);
-      const definition = await findDefinitionByKey(request, key);
-      await suspendActiveDefinitions(request, cleanup, [definition.id]);
       await createResourceFixture(request, tenant.id, key, {});
+      await suspendActiveDefinitions(request, cleanup);
       await page.reload();
       await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       const dialog = page.getByRole("dialog");
-      await expect(dialog.getByText("Todos os tipos ativos já estão provisionados ou não há definições ativas.", { exact: true })).toBeVisible();
+      await expect(dialog.getByText("Não há definições de recurso ativas.", { exact: true })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "Salvar recurso" })).toBeDisabled();
       await dialog.getByRole("button", { name: "Cancelar" }).click();
     });
@@ -105,6 +103,7 @@ test("admin forms keep invalid and conflicting data visible for correction", { t
         ],
       });
       await page.reload();
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByRole("combobox").click();

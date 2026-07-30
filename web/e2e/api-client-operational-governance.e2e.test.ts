@@ -94,7 +94,14 @@ test("operational governance catalog", { tag: "@full" }, async ({ page, request 
       await expect(page.getByText(/token compartilhado/i)).toBeVisible();
     });
     await flowStep("api-client-usage-audit", 4, "localiza evento de lifecycle", async () => {
-      await expect(page.getByText("api_client.created").first()).toBeVisible();
+      await page.getByRole("tab", { name: "Eventos", exact: true }).click();
+      await page.getByPlaceholder("Ação, Alvo, Request ID").fill("api_client.created");
+      const governedCreatedEvent = page.getByRole("row")
+        .filter({ hasText: "api_client.created" })
+        .filter({ hasText: governed.client.id });
+      // Mutation captured: omitting the API-client creation audit record leaves no row for its stable target ID.
+      await expect(governedCreatedEvent).toHaveCount(1);
+      await expect(governedCreatedEvent).toContainText(`api_client:${governed.client.id}`);
     });
   } finally {
     await cleanup.run(request);

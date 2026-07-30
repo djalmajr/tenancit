@@ -69,13 +69,17 @@ test("resource definition and fields are managed through the UI", { tag: "@full"
       await expect(row.getByRole("cell").nth(4).locator("svg")).toHaveCount(1);
     });
     await flowStep("resource-definition-management", 7, "desativa a definição", async () => {
-      await page.getByRole("button", { name: "Desativar" }).click();
+      await page.getByRole("button", { name: "Ações" }).click();
+      await page.getByRole("menuitem", { name: "Desativar" }).click();
       await expect(page.getByText("inativo", { exact: true })).toBeVisible();
       await expect(page.getByText("Definição desativada.", { exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Ativar" })).toBeVisible();
+      await page.getByRole("button", { name: "Ações" }).click();
+      await expect(page.getByRole("menuitem", { name: "Ativar" })).toBeVisible();
+      await page.keyboard.press("Escape");
     });
     await flowStep("resource-definition-management", 8, "reativa a definição", async () => {
-      await page.getByRole("button", { name: "Ativar" }).click();
+      await page.getByRole("button", { name: "Ações" }).click();
+      await page.getByRole("menuitem", { name: "Ativar" }).click();
       await expect(page.getByText("ativo", { exact: true })).toBeVisible();
       await expect(page.getByText("Definição ativada.", { exact: true })).toBeVisible();
     });
@@ -90,7 +94,10 @@ test("resource definition and fields are managed through the UI", { tag: "@full"
     });
     await flowStep("resource-definition-management", 10, "atualiza contagens no card", async () => {
       await page.getByRole("link", { name: "Definições de recurso", exact: true }).click();
-      const card = page.getByRole("button").filter({ hasText: name });
+      const card = page.getByRole("link", {
+        name: `Abrir definição ${name}`,
+        exact: true,
+      });
       await expect(card).toContainText("Campos: 1");
       await expect(card).toContainText("Segredos: 0");
     });

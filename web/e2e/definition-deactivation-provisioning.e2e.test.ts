@@ -31,6 +31,7 @@ test("inactive definitions disappear from provisioning and return after activati
     });
     await flowStep("definition-deactivation-provisioning", 3, "lista a definição no provisionamento", async () => {
       await page.goto(`/tenants/${tenant.id}`);
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       const dialog = page.getByRole("dialog");
       await dialog.getByRole("combobox").click();
@@ -41,7 +42,8 @@ test("inactive definitions disappear from provisioning and return after activati
     await flowStep("definition-deactivation-provisioning", 4, "desativa pela tela de detalhe", async () => {
       const definition = await findDefinitionByKey(request, key);
       await page.goto(`/resource-definitions/${definition.id}`);
-      await page.getByRole("button", { name: "Desativar" }).click();
+      await page.getByRole("button", { name: "Ações" }).click();
+      await page.getByRole("menuitem", { name: "Desativar" }).click();
       await expect(page.getByText("inativo", { exact: true })).toBeVisible();
       const overview = await adminRequest<{ activeDefinitions: number }>(request, "get", "/v1/admin/overview");
       inactiveCount = overview.activeDefinitions;
@@ -49,21 +51,24 @@ test("inactive definitions disappear from provisioning and return after activati
     });
     await flowStep("definition-deactivation-provisioning", 5, "remove a definição inativa dos tipos", async () => {
       await page.goto(`/tenants/${tenant.id}`);
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       const dialog = page.getByRole("dialog");
-      await expect(dialog.getByText("Todos os tipos ativos já estão provisionados ou não há definições ativas.", { exact: true })).toBeVisible();
+      await expect(dialog.getByText("Não há definições de recurso ativas.", { exact: true })).toBeVisible();
       await expect(page.getByRole("option", { name })).toHaveCount(0);
       await dialog.getByRole("button", { name: "Cancelar" }).click();
     });
     await flowStep("definition-deactivation-provisioning", 6, "reativa pela tela de detalhe", async () => {
       const definition = await findDefinitionByKey(request, key);
       await page.goto(`/resource-definitions/${definition.id}`);
-      await page.getByRole("button", { name: "Ativar" }).click();
+      await page.getByRole("button", { name: "Ações" }).click();
+      await page.getByRole("menuitem", { name: "Ativar" }).click();
       await expect(page.getByText("ativo", { exact: true })).toBeVisible();
       await expect(page.getByText("Definição ativada.", { exact: true })).toBeVisible();
     });
     await flowStep("definition-deactivation-provisioning", 7, "restaura o tipo no provisionamento", async () => {
       await page.goto(`/tenants/${tenant.id}`);
+      await page.getByRole("tab", { name: "Recursos", exact: true }).click();
       await page.getByRole("button", { name: "Adicionar recurso" }).click();
       await page.getByRole("dialog").getByRole("combobox").click();
       await expect(page.getByRole("option", { name })).toBeVisible();
