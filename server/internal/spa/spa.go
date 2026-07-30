@@ -114,7 +114,9 @@ func normalizeBasePath(raw string) (string, error) {
 	if value == "" || value == "/" {
 		return "/", nil
 	}
-	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") ||
+	if !strings.HasPrefix(value, "/") ||
+		strings.HasPrefix(value, "//") ||
+		strings.HasPrefix(value, `/\`) ||
 		strings.ContainsAny(value, `\?#<>"'`+"\r\n\t ") ||
 		strings.Contains(value, "//") {
 		return "", fmt.Errorf("TENANCIT_BASE_PATH must be an absolute URL path")

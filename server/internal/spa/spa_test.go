@@ -3,6 +3,7 @@ package spa
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -69,17 +70,50 @@ func TestHandlerPreservesRootModeForBackwardCompatibility(t *testing.T) {
 }
 
 func TestHandlerRejectsInvalidBasePaths(t *testing.T) {
+	// Mutation captured: reducing base-path validation to a leading-slash check
+	// lets authority-like redirect targets reach http.Redirect.
 	for _, value := range []string{
 		"tenancit",
 		"//tenancit",
+		`/\tenancit`,
+		"/%2f%2fattacker.example",
+		"/%5cattacker.example",
 		"/tenancit//admin",
 		"/tenancit/../admin",
+		"/tenancit/%2e%2e/admin",
 		`/tenancit\admin`,
 		"/tenancit?debug=true",
 		"/tenancit#fragment",
 	} {
 		if _, err := Handler(value); err == nil {
 			t.Fatalf("Handler(%q) accepted an invalid base path", value)
+		}
+	}
+}
+
+func TestHandlerCanonicalRedirectRemainsOriginRelative(t *testing.T) {
+	// Mutation captured: returning a protocol-relative Location gives the
+	// browser an external authority instead of the configured internal path.
+	for _, value := range []string{"/tenancit", "/platform/tenancit", "/tenant-admin_2"} {
+		handler, err := Handler(value)
+		if err != nil {
+			t.Fatalf("Handler(%q): %v", value, err)
+		}
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, value, nil))
+		location := rec.Header().Get("Location")
+		parsed, parseErr := url.Parse(location)
+		if parseErr != nil {
+			t.Fatalf("redirect %q is not a URL: %v", location, parseErr)
+		}
+		if rec.Code != http.StatusPermanentRedirect ||
+			location != value+"/" ||
+			parsed.IsAbs() ||
+			parsed.Host != "" ||
+			strings.HasPrefix(location, "//") ||
+			strings.HasPrefix(location, `/\`) {
+			t.Fatalf("Handler(%q) redirect = %d %q", value, rec.Code, location)
 		}
 	}
 }
