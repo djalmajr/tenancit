@@ -53,13 +53,21 @@ test("admin configuration becomes a cache-safe Consumer API contract", { tag: "@
     });
     await flowStep("admin-to-consumer-golden-path", 5, "provisiona recurso com segredo mascarado", async () => {
       await addResourceViaUI(page, definitionName, { host: `db.${hostname}`, password: secret });
-      await expect(page.getByText(SECRET_MASK, { exact: true })).toBeVisible();
+      const resourceRow = page.getByRole("row").filter({ hasText: definitionName });
+      await expect(resourceRow).toContainText("ativo");
+      await resourceRow.click();
+      const resourceDialog = page.getByRole("dialog").filter({
+        has: page.getByRole("heading", { name: definitionName, exact: true }),
+      });
+      await expect(resourceDialog.getByText(SECRET_MASK, { exact: true })).toBeVisible();
       expect(await page.locator("body").evaluate(
         (body, sensitive) => body.textContent?.includes(sensitive) ?? false,
         secret,
       )).toBe(false);
-      const readiness = page.getByText("Prontidão para consumo", { exact: true }).locator("../..");
-      await expect(readiness.getByText("1", { exact: true })).toHaveCount(2);
+      await resourceDialog.getByRole("button", { name: "Fechar", exact: true }).click();
+      await page.getByRole("tab", { name: "Visão geral", exact: true }).click();
+      const resources = page.getByText("Recursos ativos/total", { exact: true }).locator("../..");
+      await expect(resources.getByText("1/1", { exact: true })).toBeVisible();
     });
     await flowStep("admin-to-consumer-golden-path", 6, "confere snippets e gera token one-shot", async () => {
       await navigateFromSidebar(page, "Chaves de API");
