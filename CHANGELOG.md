@@ -28,6 +28,8 @@ versioning when the first public release is tagged.
 
 - Post-login redirects cannot escape the configured base path, and the shared
   host aliases only the administrative auth/API routes below that prefix.
+- Update the gRPC runtime to `v1.82.1` and remove the unused root npm lockfile,
+  eliminating the open dependency advisories without changing the web build.
 
 ## [0.1.2] - 2026-07-28
 
