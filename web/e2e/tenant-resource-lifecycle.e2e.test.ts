@@ -51,6 +51,34 @@ test("tenant resource protects secrets throughout its lifecycle", { tag: "@pr-cr
       await dialog.getByPlaceholder("postgres.agility").fill(resourceAlias);
       await expect(dialog.getByPlaceholder("host", { exact: true })).toHaveAttribute("type", "text");
       await expect(dialog.getByPlaceholder("password")).toHaveAttribute("type", "password");
+      const viewport = page.locator("[data-slot='dialog-viewport']");
+      const formGrid = dialog.locator("[data-slot='resource-form-grid']");
+      await expect(viewport).toHaveCSS("overflow-y", "auto");
+      // Mutation captured: removing the responsive two-column grid returns the
+      // desktop dialog to a narrow single-column stack.
+      await expect(formGrid).toHaveCSS("display", "grid");
+      expect(await formGrid.evaluate((element) =>
+        getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+      )).toBe(2);
+      for (const slot of ["resource-type-field", "resource-origin-field"]) {
+        expect(await dialog.locator(`[data-slot='${slot}']`).evaluate((element) =>
+          getComputedStyle(element).gridColumnEnd,
+        )).toBe("span 2");
+      }
+      const nameBox = await dialog.locator("[data-slot='resource-name-field']").boundingBox();
+      const aliasBox = await dialog.locator("[data-slot='resource-alias-field']").boundingBox();
+      const valueBoxes = await dialog.locator("[data-slot='resource-value-field']").evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { x: rect.x, y: rect.y };
+        }),
+      );
+      expect(nameBox?.y ?? -1).toBeCloseTo(aliasBox?.y ?? -2, 0);
+      expect(nameBox?.x ?? 0).toBeLessThan(aliasBox?.x ?? 0);
+      expect(valueBoxes).toHaveLength(2);
+      expect(valueBoxes[0]?.y ?? -1).toBeCloseTo(valueBoxes[1]?.y ?? -2, 0);
+      expect(valueBoxes[0]?.x ?? 0).toBeLessThan(valueBoxes[1]?.x ?? 0);
+      expect((await dialog.boundingBox())?.width ?? 0).toBeGreaterThan(600);
     });
     await flowStep("tenant-resource-lifecycle", 5, "salva recurso obrigatório e secreto", async () => {
       const dialog = page.getByRole("dialog");

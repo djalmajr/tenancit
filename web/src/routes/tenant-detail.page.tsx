@@ -1115,19 +1115,25 @@ export default function TenantDetail() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="md:max-w-2xl lg:max-w-3xl" outsideScroll>
           <DialogHeader>
             <DialogTitle>{t("tenantDetail.addResourceDialog.title")}</DialogTitle>
             <DialogDescription>{t("tenantDetail.addResourceDialog.description")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div
+            className="grid grid-cols-1 gap-4 md:grid-cols-2"
+            data-slot="resource-form-grid"
+          >
             {available.length === 0 ? (
-              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground md:col-span-2">
                 {t("tenantDetail.addResourceDialog.empty")}
               </div>
             ) : (
               <>
-                <div className="space-y-1.5">
+                <div
+                  className="min-w-0 space-y-1.5 md:col-span-2"
+                  data-slot="resource-type-field"
+                >
                   <label className="text-sm font-medium">{t("tenantDetail.resourceType")}</label>
                   <Select
                     items={available.map((definition) => ({ label: definition.name, value: definition.key }))}
@@ -1146,7 +1152,10 @@ export default function TenantDetail() {
                     </SelectContent>
                   </Select>
                 </div>
-                {picked && <div className="space-y-1.5">
+                {picked && <div
+                  className="min-w-0 space-y-1.5"
+                  data-slot="resource-name-field"
+                >
                   <label className="text-sm font-medium">{t("common.name")}</label>
                   <Input
                     maxLength={120}
@@ -1155,7 +1164,10 @@ export default function TenantDetail() {
                   />
                   <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceNameHint")}</p>
                 </div>}
-                {picked && <div className="space-y-1.5">
+                {picked && <div
+                  className="min-w-0 space-y-1.5"
+                  data-slot="resource-alias-field"
+                >
                   <label className="text-sm font-medium">{t("tenantDetail.resourceAlias")}</label>
                   <Input
                     aria-invalid={!resourceAliasValid && resourceAlias.length > 0}
@@ -1165,7 +1177,10 @@ export default function TenantDetail() {
                   />
                   <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceAliasHint")}</p>
                 </div>}
-                {picked && <div className="space-y-1.5">
+                {picked && <div
+                  className="min-w-0 space-y-1.5 md:col-span-2"
+                  data-slot="resource-origin-field"
+                >
                   <label className="text-sm font-medium">{t("tenantDetail.resourceOrigin")}</label>
                   <Select
                     items={[
@@ -1193,7 +1208,11 @@ export default function TenantDetail() {
                     : t("tenantDetail.independentHint")}</p>
                 </div>}
                 {pickedFields.map((f) => (
-                  <div key={f.key} className="space-y-1.5">
+                  <div
+                    key={f.key}
+                    className="min-w-0 space-y-1.5"
+                    data-slot="resource-value-field"
+                  >
                     <label className="text-sm font-medium">
                       {f.label || f.key} {f.required && <span className="text-destructive">*</span>}
                     </label>
@@ -1211,7 +1230,7 @@ export default function TenantDetail() {
                 ))}
               </>
             )}
-            {visibleResourceError && <div className="text-sm text-destructive">{visibleResourceError}</div>}
+            {visibleResourceError && <div className="text-sm text-destructive md:col-span-2">{visibleResourceError}</div>}
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="outline">{t("common.cancel")}</Button>} />
