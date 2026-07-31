@@ -51,6 +51,11 @@ test("mobile navigation and dialogs fit a narrow viewport", { tag: "@full" }, as
       fields: [
         { key: "host", label: "Host", dataType: "string", required: true },
         { key: "password", label: "Password", dataType: "string", required: true, isSecret: true },
+        { key: "database", label: "Database", dataType: "string" },
+        { key: "username", label: "Username", dataType: "string" },
+        { key: "port", label: "Port", dataType: "int" },
+        { key: "sslmode", label: "SSL Mode", dataType: "string" },
+        { key: "schema", label: "Schema", dataType: "string" },
       ],
     });
     const { definition: secondDefinition } = await createDefinitionFixture(request, cleanup, {
@@ -165,8 +170,22 @@ test("mobile navigation and dialogs fit a narrow viewport", { tag: "@full" }, as
       await expectContainedInViewport(dialog, page);
       await dialog.getByRole("combobox").click();
       await page.getByRole("option", { name: definition.name, exact: true }).click();
+      const viewport = page.locator("[data-slot='dialog-viewport']");
+      const formGrid = dialog.locator("[data-slot='resource-form-grid']");
+      // Mutation captured: moving overflow back to the popup cuts long forms off
+      // instead of letting the external dialog viewport reveal the submit action.
+      await expect(viewport).toHaveCSS("overflow-y", "auto");
+      expect(await viewport.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+      await expect(dialog).toHaveCSS("overflow-y", "visible");
+      expect(await dialog.evaluate((element) => element.scrollHeight === element.clientHeight)).toBe(true);
+      expect(await formGrid.evaluate((element) =>
+        getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+      )).toBe(1);
       await dialog.getByPlaceholder("host", { exact: true }).fill(`db.${tenant.slug}.local`);
       await dialog.getByPlaceholder("password").fill("mobile-secret");
+      await dialog.getByRole("button", { name: "Salvar recurso" }).scrollIntoViewIfNeeded();
+      expect(await viewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      await expectContainedInViewport(dialog.getByRole("button", { name: "Salvar recurso" }), page);
       await expect(dialog.getByRole("button", { name: "Salvar recurso" })).toBeEnabled();
       await dialog.getByRole("button", { name: "Cancelar" }).click();
       await expect(dialog).toHaveCount(0);

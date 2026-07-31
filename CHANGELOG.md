@@ -6,6 +6,18 @@ versioning when the first public release is tagged.
 
 ## [Unreleased]
 
+## [0.2.0-alpha.2] - 2026-07-30
+
+### Changed
+
+- Resource creation uses a wider, responsive two-column grid on desktop while
+  preserving a single-column layout on narrow viewports.
+
+### Fixed
+
+- Long resource forms now scroll through the dialog viewport instead of inside
+  the popup, keeping every field and the action footer reachable.
+
 ## [0.2.0-alpha.1] - 2026-07-29
 
 ### Added

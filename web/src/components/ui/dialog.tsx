@@ -42,40 +42,58 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  outsideScroll = false,
   showCloseButton = false,
   ...props
 }: DialogPrimitive.Popup.Props & {
+  outsideScroll?: boolean
   showCloseButton?: boolean
 }) {
+  const popup = (
+    <DialogPrimitive.Popup
+      data-slot="dialog-content"
+      className={cn(
+        "z-50 grid w-full gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none",
+        outsideScroll
+          ? "relative max-w-full"
+          : "fixed top-1/2 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 sm:max-w-sm",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close
+          data-slot="dialog-close"
+          render={
+            <Button
+              variant="ghost"
+              className="absolute top-2 right-2"
+              size="icon-sm"
+            />
+          }
+        >
+          <XIcon
+          />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
+    </DialogPrimitive.Popup>
+  )
+
   return (
     <DialogPortal keepMounted={false}>
       <DialogOverlay />
-      <DialogPrimitive.Popup
-        data-slot="dialog-content"
-        className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-2 right-2"
-                size="icon-sm"
-              />
-            }
-          >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Popup>
+      {outsideScroll ? (
+        <DialogPrimitive.Viewport
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
+          data-slot="dialog-viewport"
+        >
+          <div className="flex min-h-full items-center justify-center p-4 sm:p-8">
+            {popup}
+          </div>
+        </DialogPrimitive.Viewport>
+      ) : popup}
     </DialogPortal>
   )
 }
