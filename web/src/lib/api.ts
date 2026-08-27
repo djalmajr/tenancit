@@ -516,6 +516,11 @@ export const api = {
     id: string,
     body: { key: string; label?: string; dataType?: string; required?: boolean; isSecret?: boolean },
   ) => req(`/resource-definitions/${id}/fields`, { method: "POST", body: JSON.stringify(body) }),
+  updateDefinitionField: (id: string, fieldId: string, body: { label: string; required: boolean }) =>
+    req<Field>(`/resource-definitions/${id}/fields/${fieldId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   deleteField: (id: string, fieldId: string) =>
     req(`/resource-definitions/${id}/fields/${fieldId}`, { method: "DELETE" }),
 

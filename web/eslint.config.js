@@ -8,7 +8,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "../output"] },
+  { ignores: ["dist", "../output", "scripts/lint-colocated-routes.mjs"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ["src/**/*.{ts,tsx}"],
@@ -78,7 +78,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/routes/*.tsx"],
+    files: ["src/routes/__root.tsx", "src/routes/**/index.tsx"],
     rules: {
       "react-refresh/only-export-components": [
         "error",

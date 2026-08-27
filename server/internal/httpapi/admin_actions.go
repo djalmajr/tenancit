@@ -687,6 +687,76 @@ func (s *Server) deleteDefinition(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// PATCH /v1/admin/resource-definitions/{id}/fields/{fieldId} updates mutable presentation metadata.
+// Key, data type, and secret storage remain immutable consumer/storage contracts.
+func (s *Server) updateField(w http.ResponseWriter, r *http.Request) {
+	definitionID, err := parseID(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad id"})
+		return
+	}
+	fieldID, err := parseParam(r, "fieldId")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad field id"})
+		return
+	}
+	var in struct {
+		Label    string
+		Required bool
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	in.Label = strings.TrimSpace(in.Label)
+
+	tx, err := s.DB.Begin(r.Context())
+	if err != nil {
+		writeInternalError(w, r, "begin resource field metadata update", err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	q := s.Q.WithTx(tx)
+	previous, err := q.GetResourceField(r.Context(), db.GetResourceFieldParams{
+		FieldID: fieldID, ResourceDefinitionID: definitionID,
+	})
+	if err != nil {
+		writeNotFound(w)
+		return
+	}
+	field, err := q.UpdateField(r.Context(), db.UpdateFieldParams{
+		FieldID: fieldID, ResourceDefinitionID: definitionID,
+		Label: in.Label, Required: in.Required,
+	})
+	if err != nil {
+		if isNotFound(err) {
+			writeNotFound(w)
+			return
+		}
+		writeInternalError(w, r, "update resource field metadata", err)
+		return
+	}
+	if err := insertAdminAuditSuccess(r, q, "definition.field_updated", "resource_field", fieldID.String(),
+		"/v1/admin/resource-definitions/{id}/fields/{fieldId}", http.StatusOK,
+		map[string]any{
+			"definition_id": definitionID.String(),
+			"field_key":     previous.Key,
+			"before": map[string]any{
+				"label": previous.Label, "required": previous.Required,
+			},
+			"after": map[string]any{
+				"label": field.Label, "required": field.Required,
+			},
+		}); err != nil {
+		writeInternalError(w, r, "audit resource field metadata update", err)
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeInternalError(w, r, "commit resource field metadata update", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, field)
+}
+
 // DELETE /v1/admin/resource-definitions/{id}/fields/{fieldId}
 func (s *Server) deleteField(w http.ResponseWriter, r *http.Request) {
 	definitionID, err := parseID(r)

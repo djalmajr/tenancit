@@ -400,3 +400,64 @@ func (q *Queries) UpdateDefinition(ctx context.Context, arg UpdateDefinitionPara
 	)
 	return i, err
 }
+
+const updateField = `-- name: UpdateField :one
+WITH updated AS (
+    UPDATE resource_fields rf
+    SET label = $1,
+        required = $2
+    WHERE rf.id = $3
+      AND rf.resource_definition_id = $4
+    RETURNING rf.id, rf.resource_definition_id, rf.key, rf.label, rf.hint, rf.data_type, rf.required, rf.is_secret, rf.sort_order
+), touched AS (
+    UPDATE resource_definitions rd
+    SET updated_at = clock_timestamp()
+    FROM updated u
+    WHERE rd.id = u.resource_definition_id
+    RETURNING rd.id
+)
+SELECT u.id, u.resource_definition_id, u.key, u.label, u.hint, u.data_type, u.required, u.is_secret, u.sort_order
+FROM updated u
+JOIN touched t ON t.id = u.resource_definition_id
+`
+
+type UpdateFieldParams struct {
+	Label                string    `json:"label"`
+	Required             bool      `json:"required"`
+	FieldID              uuid.UUID `json:"field_id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+}
+
+type UpdateFieldRow struct {
+	ID                   uuid.UUID `json:"id"`
+	ResourceDefinitionID uuid.UUID `json:"resource_definition_id"`
+	Key                  string    `json:"key"`
+	Label                string    `json:"label"`
+	Hint                 string    `json:"hint"`
+	DataType             string    `json:"data_type"`
+	Required             bool      `json:"required"`
+	IsSecret             bool      `json:"is_secret"`
+	SortOrder            int32     `json:"sort_order"`
+}
+
+func (q *Queries) UpdateField(ctx context.Context, arg UpdateFieldParams) (UpdateFieldRow, error) {
+	row := q.db.QueryRow(ctx, updateField,
+		arg.Label,
+		arg.Required,
+		arg.FieldID,
+		arg.ResourceDefinitionID,
+	)
+	var i UpdateFieldRow
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceDefinitionID,
+		&i.Key,
+		&i.Label,
+		&i.Hint,
+		&i.DataType,
+		&i.Required,
+		&i.IsSecret,
+		&i.SortOrder,
+	)
+	return i, err
+}

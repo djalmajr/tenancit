@@ -3,7 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Download, FileClock, Gavel, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuditLegalHoldsDialog } from "@/components/audit-legal-holds-dialog";
+import { AuditLegalHoldsDialog } from "./audit-legal-holds-dialog";
 import { DomainStatus } from "@/components/domain-status";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";

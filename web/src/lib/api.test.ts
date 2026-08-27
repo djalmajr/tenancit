@@ -201,6 +201,16 @@ describe("api client", () => {
     expect(JSON.parse(init.body)).toEqual({ value: "s3cr3t" });
   });
 
+  it("updateDefinitionField PATCHes only mutable field metadata", async () => {
+    const spy = mockFetch(() => new Response(JSON.stringify({ id: "field-1" }), { status: 200 }));
+    await api.updateDefinitionField("definition-1", "field-1", { label: "Servidor", required: false });
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/v1/admin/resource-definitions/definition-1/fields/field-1");
+    expect(init?.method).toBe("PATCH");
+    if (typeof init?.body !== "string") throw new TypeError("expected a serialized request body");
+    expect(JSON.parse(init.body)).toEqual({ label: "Servidor", required: false });
+  });
+
   it("listTenantResources appends ?reveal=true only when asked", async () => {
     const spy = mockFetch(() => new Response("[]", { status: 200 }));
     await api.listTenantResources("t1", true);

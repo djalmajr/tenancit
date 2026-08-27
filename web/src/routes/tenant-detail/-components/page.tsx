@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
-  Box, Copy, EllipsisVertical, Eye, EyeOff, Link2, Pencil, Plus, RotateCcw, Trash2,
+  Copy, EllipsisVertical, Eye, EyeOff, Pencil, Plus, RotateCcw, Trash2,
   CircleAlert, Power, PowerOff, Settings2, TriangleAlert,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -26,6 +26,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertAction, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DomainStatus } from "@/components/domain-status";
+import { ResourceNameCell } from "./resource-name-cell";
+import { ResourceOriginField } from "./resource-origin-field";
 import { StatCard } from "@/components/stat-card";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -155,10 +157,11 @@ export default function TenantDetail() {
     {
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} label={t("common.name")} labels={resourceSortLabels} />,
-      cell: ({ row }) => <span className="flex items-center gap-2 font-medium">
-        {row.original.linked ? <Link2 aria-label={t("tenantDetail.linked")} /> : <Box aria-label={t("tenantDetail.independent")} />}
-        {row.original.name}
-      </span>,
+      cell: ({ row }) => <ResourceNameCell
+        label={t(row.original.linked ? "tenantDetail.linked" : "tenantDetail.independent")}
+        linked={row.original.linked}
+        name={row.original.name}
+      />,
       meta: { label: t("common.name") },
     },
     {
@@ -1131,7 +1134,7 @@ export default function TenantDetail() {
             ) : (
               <>
                 <div
-                  className="min-w-0 space-y-1.5 md:col-span-2"
+                  className="min-w-0 space-y-1.5"
                   data-slot="resource-type-field"
                 >
                   <label className="text-sm font-medium">{t("tenantDetail.resourceType")}</label>
@@ -1177,36 +1180,18 @@ export default function TenantDetail() {
                   />
                   <p className="text-xs text-muted-foreground">{t("tenantDetail.resourceAliasHint")}</p>
                 </div>}
-                {picked && <div
-                  className="min-w-0 space-y-1.5 md:col-span-2"
-                  data-slot="resource-origin-field"
-                >
-                  <label className="text-sm font-medium">{t("tenantDetail.resourceOrigin")}</label>
-                  <Select
-                    items={[
-                      { label: t("tenantDetail.independent"), value: "independent" },
-                      ...sourceCandidates.map((resource) => ({
-                        label: t("tenantDetail.linkTo", { alias: resource.alias }),
-                        value: resource.id,
-                      })),
-                    ]}
-                    value={sourceResourceId || "independent"}
-                    onValueChange={(value) => setSourceResourceId(value === "independent" ? "" : String(value))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent><SelectGroup>
-                      <SelectItem value="independent">{t("tenantDetail.independent")}</SelectItem>
-                      {sourceCandidates.map((resource) => <SelectItem key={resource.id} value={resource.id}>
-                        {t("tenantDetail.linkTo", { alias: resource.alias })}
-                      </SelectItem>)}
-                    </SelectGroup></SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">{sourceResourceId
-                    ? t("tenantDetail.linkedHint")
-                    : t("tenantDetail.independentHint")}</p>
-                </div>}
+                {picked && <ResourceOriginField
+                  candidates={sourceCandidates.map((resource) => ({
+                    id: resource.id,
+                    label: t("tenantDetail.linkTo", { alias: resource.alias }),
+                  }))}
+                  independentHint={t("tenantDetail.independentHint")}
+                  independentLabel={t("tenantDetail.independent")}
+                  label={t("tenantDetail.resourceOrigin")}
+                  linkedHint={t("tenantDetail.linkedHint")}
+                  onValueChange={setSourceResourceId}
+                  value={sourceResourceId}
+                />}
                 {pickedFields.map((f) => (
                   <div
                     key={f.key}

@@ -131,6 +131,7 @@ alvo principal e pode citar IDs relacionados somente por allowlist.
 | `tenant.deleted` | `DELETE /tenants/{id}` | tenant | `slug`, contagem de filhos afetados |
 | `resource.deleted` | `DELETE /tenants/{id}/resources/{resourceId}` | resource | `tenant_id`, `definition_id` |
 | `resource.field_updated` | `PUT /tenants/{id}/resources/{resourceId}/fields/{fieldKey}` | resource | `tenant_id`, `field_key`, `is_secret`; nunca o valor |
+| `definition.field_updated` | `PATCH /resource-definitions/{id}/fields/{fieldId}` | resource field | `definition_id`, `field_key`, label e obrigatoriedade anteriores e novos |
 | `definition.field_deleted` | `DELETE /resource-definitions/{id}/fields/{fieldId}` | resource field | `definition_id`, `field_key` |
 | `domain.updated` | `PUT /tenants/{id}/domains/{domainId}` | domain | `tenant_id`, hostname anterior e hostname canônico novo |
 | `domain.deleted` | `DELETE /tenants/{id}/domains/{domainId}` | domain | `tenant_id`, hostname canônico |

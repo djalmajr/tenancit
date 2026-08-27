@@ -651,6 +651,55 @@ func TestNestedFieldDeleteRequiresMatchingDefinition(t *testing.T) {
 	}
 }
 
+func TestUpdateDefinitionField_UpdatesMutableMetadataAndPreservesContract(t *testing.T) {
+	srv, h := newTestServer(t)
+	definitionID := seedDefinition(t, h, "editable-field")
+	fieldID := definitionFieldID(t, h, definitionID, "host")
+
+	rec := do(t, h, http.MethodPatch,
+		"/v1/admin/resource-definitions/"+definitionID+"/fields/"+fieldID,
+		map[string]any{"label": "Servidor", "required": false})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update field = %d, want 200 (%s)", rec.Code, rec.Body)
+	}
+
+	var updated struct {
+		Key      string `json:"key"`
+		Label    string `json:"label"`
+		DataType string `json:"data_type"`
+		Required bool   `json:"required"`
+		IsSecret bool   `json:"is_secret"`
+	}
+	mustJSON(t, rec, &updated)
+	if updated.Key != "host" || updated.Label != "Servidor" || updated.DataType != "string" || updated.Required || updated.IsSecret {
+		t.Fatalf("updated field changed immutable contract or missed metadata: %+v", updated)
+	}
+
+	var auditCount int
+	if err := srv.DB.QueryRow(context.Background(), `
+		SELECT count(*) FROM admin_audit_events
+		WHERE action = 'definition.field_updated'
+		  AND target_type = 'resource_field'
+		  AND target_id = $1
+	`, fieldID).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("field update audit count = %d, err=%v", auditCount, err)
+	}
+}
+
+func TestUpdateDefinitionField_RequiresMatchingDefinition(t *testing.T) {
+	_, h := newTestServer(t)
+	definitionA := seedDefinition(t, h, "field-owner-a")
+	definitionB := seedDefinition(t, h, "field-owner-b")
+	fieldID := definitionFieldID(t, h, definitionA, "host")
+
+	rec := do(t, h, http.MethodPatch,
+		"/v1/admin/resource-definitions/"+definitionB+"/fields/"+fieldID,
+		map[string]any{"label": "Cross tenant", "required": false})
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("cross-definition field update = %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+}
+
 func TestDeleteField_InUseReturnsStable409(t *testing.T) {
 	_, h := newTestServer(t)
 	definitionID := seedDefinition(t, h, "pg-in-use")

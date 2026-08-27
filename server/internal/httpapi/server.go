@@ -154,6 +154,7 @@ func (s *Server) Routes(staticHandler http.Handler) http.Handler {
 		ar.With(requireAdminPermission(permissionResourceWrite)).Put("/resource-definitions/{id}/status", s.setDefinitionStatus)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/resource-definitions/{id}", s.deleteDefinition)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Post("/resource-definitions/{id}/fields", s.addField)
+		ar.With(requireAdminPermission(permissionResourceWrite)).Patch("/resource-definitions/{id}/fields/{fieldId}", s.updateField)
 		ar.With(requireAdminPermission(permissionResourceWrite)).Delete("/resource-definitions/{id}/fields/{fieldId}", s.deleteField)
 
 		ar.With(requireAdminPermission(permissionAPIClientManage)).Post("/api-clients", s.createAPIClient)

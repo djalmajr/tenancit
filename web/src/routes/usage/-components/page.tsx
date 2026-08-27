@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, Ban, BarChart3, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import { MonthYearNav } from "@/components/month-year-nav";
+import { MonthYearNav } from "./month-year-nav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/stat-card";

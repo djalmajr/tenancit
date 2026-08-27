@@ -36,3 +36,13 @@ func TestFromAuditPublishesDomainRename(t *testing.T) {
 		t.Fatalf("draft=%+v", draft)
 	}
 }
+
+func TestFromAuditPublishesDefinitionFieldUpdate(t *testing.T) {
+	draft, publish, err := FromAudit("definition.field_updated", "resource_field", "field-1")
+	if err != nil || !publish {
+		t.Fatalf("FromAudit publish=%v err=%v", publish, err)
+	}
+	if draft.Type != "tenancit.resource_field.updated" || draft.AggregateID != "field-1" {
+		t.Fatalf("draft=%+v", draft)
+	}
+}

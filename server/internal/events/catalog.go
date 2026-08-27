@@ -27,6 +27,7 @@ var publishedActions = map[string]string{
 	"definition.deleted":        "resource_definition.deleted",
 	"definition.status_changed": "resource_definition.status_changed",
 	"definition.field_added":    "resource_field.added",
+	"definition.field_updated":  "resource_field.updated",
 	"definition.field_deleted":  "resource_field.deleted",
 	"resource.provisioned":      "tenant_resource.provisioned",
 	"resource.updated":          "tenant_resource.updated",

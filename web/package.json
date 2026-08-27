@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit && tsc --noEmit -p e2e/tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint:routes": "node scripts/lint-colocated-routes.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

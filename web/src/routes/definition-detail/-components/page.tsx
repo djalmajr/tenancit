@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Boxes, ChevronRight, Plus, Check, Trash2 } from "lucide-react";
+import { Boxes, ChevronRight, Plus, Check, Pencil, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DefinitionActions } from "@/components/definition-actions";
+import {
+  DefinitionFieldEditDialog,
+  type DefinitionFieldEditForm,
+} from "./definition-field-edit-dialog";
 import { toast } from "sonner";
 import { apiErrorMessage, formatStatus, useI18n } from "@/lib/i18n";
 import { api, type DefinitionDetail } from "@/lib/api";
@@ -56,6 +60,9 @@ export default function DefinitionDetailPage() {
   const [open, setOpen] = useState(false);
   const [f, setF] = useState({ ...EMPTY });
   const fieldKeyValid = isValidDefinitionKey(f.key);
+  const [editingField, setEditingField] = useState<DefinitionDetail["fields"][number] | null>(null);
+  const [fieldEditForm, setFieldEditForm] = useState<DefinitionFieldEditForm>({ label: "", required: false });
+  const [fieldEditError, setFieldEditError] = useState("");
   const [pendingField, setPendingField] = useState<DefinitionDetail["fields"][number] | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -71,6 +78,14 @@ export default function DefinitionDetailPage() {
   });
   const deleteFieldMutation = useMutation({
     mutationFn: (fieldId: string) => api.deleteField(id, fieldId),
+    onSuccess: () => Promise.all([
+      invalidateDefinition(queryClient, id),
+      invalidateAllTenantResources(queryClient),
+    ]),
+  });
+  const updateFieldMutation = useMutation({
+    mutationFn: ({ fieldId, form }: { fieldId: string; form: DefinitionFieldEditForm }) =>
+      api.updateDefinitionField(id, fieldId, form),
     onSuccess: () => Promise.all([
       invalidateDefinition(queryClient, id),
       invalidateAllTenantResources(queryClient),
@@ -115,6 +130,22 @@ export default function DefinitionDetailPage() {
       toast.success(t("definitionDetail.fieldRemoved"));
     } catch (e) {
       setError(apiErrorMessage(e, t));
+    }
+  }
+  function openFieldEditor(field: DefinitionDetail["fields"][number]) {
+    setFieldEditError("");
+    setFieldEditForm({ label: field.label, required: field.required });
+    setEditingField(field);
+  }
+  async function saveField() {
+    if (!editingField) return;
+    try {
+      await updateFieldMutation.mutateAsync({ fieldId: editingField.id, form: fieldEditForm });
+      setEditingField(null);
+      setFieldEditError("");
+      toast.success(t("definitionDetail.fieldUpdated"));
+    } catch (e) {
+      setFieldEditError(apiErrorMessage(e, t));
     }
   }
   async function toggleStatus() {
@@ -243,9 +274,20 @@ export default function DefinitionDetailPage() {
                     <TableCell>{field.required ? <Check className="size-4 text-green-600" /> : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>{field.is_secret ? <Check className="size-4 text-amber-600" /> : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-right">
-                      {can("resource.write") && <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingField(field)}>
-                        <Trash2 className="size-4" />
-                      </Button>}
+                      {can("resource.write") && <div className="flex justify-end gap-1">
+                        <Button
+                          aria-label={t("definitionDetail.editFieldAction", { key: field.key })}
+                          onClick={() => openFieldEditor(field)}
+                          size="icon-sm"
+                          title={t("common.edit")}
+                          variant="ghost"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" title={t("common.remove")} onClick={() => setPendingField(field)}>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -329,6 +371,21 @@ export default function DefinitionDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DefinitionFieldEditDialog
+        error={fieldEditError}
+        field={editingField}
+        form={fieldEditForm}
+        isSaving={updateFieldMutation.isPending}
+        onFormChange={setFieldEditForm}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setEditingField(null);
+            setFieldEditError("");
+          }
+        }}
+        onSave={() => { void saveField(); }}
+      />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>

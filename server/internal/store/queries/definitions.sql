@@ -57,6 +57,25 @@ SELECT i.*
 FROM inserted i
 JOIN touched t ON t.id = i.resource_definition_id;
 
+-- name: UpdateField :one
+WITH updated AS (
+    UPDATE resource_fields rf
+    SET label = sqlc.arg(label),
+        required = sqlc.arg(required)
+    WHERE rf.id = sqlc.arg(field_id)
+      AND rf.resource_definition_id = sqlc.arg(resource_definition_id)
+    RETURNING rf.*
+), touched AS (
+    UPDATE resource_definitions rd
+    SET updated_at = clock_timestamp()
+    FROM updated u
+    WHERE rd.id = u.resource_definition_id
+    RETURNING rd.id
+)
+SELECT u.*
+FROM updated u
+JOIN touched t ON t.id = u.resource_definition_id;
+
 -- name: RemoveField :one
 WITH deleted AS (
     DELETE FROM resource_fields rf

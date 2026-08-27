@@ -764,6 +764,10 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 	definitionID := seedDefinition(t, h, "audit-definition")
 	field := do(t, h, http.MethodPost, "/v1/admin/resource-definitions/"+definitionID+"/fields", map[string]any{"key": "unused", "dataType": "string"})
 	fieldID := idOf(t, field)
+	if rec := do(t, h, http.MethodPatch, "/v1/admin/resource-definitions/"+definitionID+"/fields/"+fieldID,
+		map[string]any{"label": "Unused field", "required": false}); rec.Code != http.StatusOK {
+		t.Fatalf("update field: %d %s", rec.Code, rec.Body)
+	}
 	if rec := do(t, h, http.MethodDelete, "/v1/admin/resource-definitions/"+definitionID+"/fields/"+fieldID, nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete field: %d %s", rec.Code, rec.Body)
 	}
@@ -793,7 +797,7 @@ func TestE2E_AdminMutationAuditCoverage(t *testing.T) {
 
 	expected := []string{
 		"tenant.created", "tenant.updated", "domain.added", "domain.updated", "domain.deleted",
-		"definition.created", "definition.field_added", "definition.field_deleted",
+		"definition.created", "definition.field_added", "definition.field_updated", "definition.field_deleted",
 		"resource.provisioned", "resource.updated", "resource.field_updated", "resource.status_changed", "resource.deleted",
 		"definition.status_changed", "tenant.deleted",
 	}
