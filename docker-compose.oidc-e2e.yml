@@ -28,7 +28,7 @@ services:
       - /data
 
   dex-oidc-e2e:
-    image: ghcr.io/dexidp/dex:v2.41.1
+    image: ghcr.io/dexidp/dex:v2.45.1
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     volumes:
       - ./e2e/dex/config.yaml:/etc/dex/config.yaml:ro
