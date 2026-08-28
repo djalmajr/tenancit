@@ -17,12 +17,12 @@ const entryGzip = gzipSync(entryBytes).byteLength;
 const limits = { entryRaw: 500_000, entryGzip: 180_000, chunkRaw: 500_000 };
 const failures = [];
 const expectedDynamicEntries = [
-  "src/routes/index.page.tsx",
-  "src/routes/tenants.page.tsx",
-  "src/routes/tenant-detail.page.tsx",
-  "src/routes/definitions.page.tsx",
-  "src/routes/definition-detail.page.tsx",
-  "src/routes/api-clients.page.tsx",
+  "src/routes/index/-components/page.tsx",
+  "src/routes/tenants/-components/page.tsx",
+  "src/routes/tenant-detail/-components/page.tsx",
+  "src/routes/definitions/-components/page.tsx",
+  "src/routes/definition-detail/-components/page.tsx",
+  "src/routes/api-clients/-components/page.tsx",
 ];
 
 if (entryRaw >= limits.entryRaw) {
