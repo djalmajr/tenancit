@@ -20,7 +20,7 @@ describe("ResourceOriginField", () => {
     expect(screen.queryByText("Origem dos valores")).not.toBeInTheDocument();
   });
 
-  it("renders in one grid column when a compatible origin exists", () => {
+  it("spans the dialog grid when a compatible origin exists", () => {
     const { container } = render(<ResourceOriginField
       {...commonProps}
       candidates={[{ id: "source-1", label: "Vincular a minio.base" }]}
@@ -28,7 +28,7 @@ describe("ResourceOriginField", () => {
 
     const field = container.querySelector('[data-slot="resource-origin-field"]');
     expect(field).toBeInTheDocument();
-    expect(field).not.toHaveClass("md:col-span-2");
+    expect(field).toHaveClass("md:col-span-2");
     expect(screen.getByText("Origem dos valores")).toBeInTheDocument();
   });
 });

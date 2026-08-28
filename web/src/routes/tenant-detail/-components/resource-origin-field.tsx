@@ -34,7 +34,7 @@ export function ResourceOriginField({
   if (candidates.length === 0) return null;
 
   return <div
-    className="min-w-0 space-y-1.5"
+    className="min-w-0 space-y-1.5 md:col-span-2"
     data-slot="resource-origin-field"
   >
     <label className="text-sm font-medium">{label}</label>

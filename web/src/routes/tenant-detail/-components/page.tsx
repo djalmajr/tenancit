@@ -1134,7 +1134,7 @@ export default function TenantDetail() {
             ) : (
               <>
                 <div
-                  className="min-w-0 space-y-1.5"
+                  className="min-w-0 space-y-1.5 md:col-span-2"
                   data-slot="resource-type-field"
                 >
                   <label className="text-sm font-medium">{t("tenantDetail.resourceType")}</label>

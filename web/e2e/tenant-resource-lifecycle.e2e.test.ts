@@ -60,7 +60,11 @@ test("tenant resource protects secrets throughout its lifecycle", { tag: "@pr-cr
       expect(await formGrid.evaluate((element) =>
         getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean).length,
       )).toBe(2);
-      for (const slot of ["resource-type-field", "resource-origin-field"]) {
+      const spanningSlots = ["resource-type-field"];
+      if (await dialog.locator("[data-slot='resource-origin-field']").count()) {
+        spanningSlots.push("resource-origin-field");
+      }
+      for (const slot of spanningSlots) {
         expect(await dialog.locator(`[data-slot='${slot}']`).evaluate((element) =>
           getComputedStyle(element).gridColumnEnd,
         )).toBe("span 2");
